@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "assemblyai-docs": {
+      "transport": "http",
+      "url": "https://www.assemblyai.com/docs/mcp"
+    }
+  }
+}
