@@ -77,6 +77,20 @@ The main selling point is **active, multimodal conversational discovery** rather
 - **Archival Deep Dives**: Surfaces historical photography, architectural sketches, restoration scans, or infrared paint analysis.
 - **Visual Callouts**: Directs visitor attention ("Notice the small inscription in the lower-left corner...").
 
+#### 🖼️ Visual Artifact Type Inventory
+
+| Type | Trigger Example | Implementation Note |
+| :--- | :--- | :--- |
+| **Exhibition Floorplan Map** | *"You are currently in Gallery 4..."* | MapLibre GL + Mapcn blocks with animated waypoint pins |
+| **Archival / High-Res Artwork Photo** | *"Here is the full painting in detail..."* | Libraries.dev cinematic image reveal |
+| **Architectural Blueprint / Cross-Section** | *"The chapel was originally designed with a lower ceiling..."* | Progressive scan reveal on a line-drawing layer |
+| **Infrared / X-Ray Underdrawing Overlay** | *"Beneath the surface, infrared analysis reveals..."* | Slider or CSS fade transition between normal and IR layers |
+| **Timeline Scrubber** | *"This cathedral was modified four times between 1200 and 1900..."* | Horizontal era-marker timeline; image updates on scrub |
+| **Primary Source Document** | *"Here is the original commission letter signed by de' Medici..."* | Aged parchment render; agent highlights key passage with zoom |
+| **Detail Callout / Zoom Annotation** | *"Notice the tiny owl hidden in the lower-left corner..."* | Animated crop zoom with a glowing ring on the focal detail |
+| **Historical Context Infographic** | *"Florence had a population of 60,000 at the time..."* | Minimal data visual — population map, date comparison bar |
+| **Archive Footage Clip** | *"Here is rare 1920s footage of the gallery before the flood..."* | Short looping video clip surfaced as a media card on the stage |
+
 ### Module 3: Ambient Companion Face (Supporting Element)
 - Non-intrusive UI element indicating:
   - *Listening*: Gentle visual focus, waiting for user input.
