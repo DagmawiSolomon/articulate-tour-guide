@@ -58,35 +58,35 @@ This requires the entire pipeline — from audio capture to UI update — to ope
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              BROWSER (Client)                               │
+│                       BROWSER CLIENT (Next.js 'use client')                 │
 │                                                                             │
-│  ┌──────────────┐    ┌──────────────────┐    ┌────────────────────────────┐│
-│  │  Mic Capture │    │  Companion Face  │    │     Visual Stage           ││
-│  │  (PCM/Opus)  │    │  (State Avatar)  │    │  (Maps, Media, Callouts)   ││
-│  └──────┬───────┘    └────────┬─────────┘    └──────────────┬─────────────┘│
-│         │                    │                              │               │
-│  ┌──────▼──────────────────────────────────────────────────▼─────────────┐ │
-│  │                     Voice Agent Client (React)                        │ │
-│  │           WebSocket <-> Event Bus <-> UI State (Zustand)              │ │
-│  └──────────────────────────────────┬────────────────────────────────────┘ │
+│  ┌──────────────┐    ┌──────────────────┐    ┌────────────────────────────┐ │
+│  │  Mic Capture │    │  Companion Face  │    │     Visual Stage           │ │
+│  │(AudioWorklet)│    │(Blobatar + Aura) │    │  (Floorplan, Media, IR)    │ │
+│  └──────┬───────┘    └────────┬─────────┘    └──────────────┬─────────────┘ │
+│         │                     │                             │               │
+│  ┌──────▼───────────────────────────────────────────────────▼─────────────┐ │
+│  │                     Voice Agent Client (React 19)                      │ │
+│  │     Base UI Primitives <-> Zustand State <-> Tailwind CSS Styling      │ │
+│  └──────────────────────────────────┬─────────────────────────────────────┘ │
 └─────────────────────────────────────┼───────────────────────────────────────┘
-                                      │ WSS
+                                      │ Direct WebSocket (wss://)
                                       │
 ┌─────────────────────────────────────▼───────────────────────────────────────┐
-│                           BACKEND (Node.js)                                 │
+│                    UNIFIED BACKEND (Next.js App Router / Vercel)             │
 │                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                    Express API Server                               │   │
-│  │  - Temp token vending (AssemblyAI auth isolation)                  │   │
-│  │  - Rate limiting & session management                              │   │
-│  │  - HTTP tool endpoints (called by AssemblyAI)                      │   │
-│  └────────────────────┬─────────────────────┬───────────────────┬─────┘   │
-│                       │                     │                   │          │
-│           ┌───────────▼──────┐  ┌───────────▼───────┐  ┌───────▼──────┐   │
-│           │  AssemblyAI      │  │  Postgres DB       │  │  CDN /       │   │
-│           │  Voice Agent API │  │  (Neon / Supabase) │  │  R2 Storage  │   │
-│           │  wss://agents... │  │  + LLM Gateway     │  │              │   │
-│           └──────────────────┘  └───────────────────┘  └──────────────┘   │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │               Serverless Route Handlers (/app/api)                  │    │
+│  │  - POST /api/token (AssemblyAI temp bearer token vending)           │    │
+│  │  - POST /api/tools/* (AssemblyAI HTTP webhook callbacks)            │    │
+│  │  - GET  /api/exhibitions/[id] (Gallery & room metadata)             │    │
+│  └────────────────────┬─────────────────────┬───────────────────┬──────┘    │
+│                       │                     │                   │           │
+│           ┌───────────▼──────┐  ┌───────────▼───────┐  ┌────────▼─────┐     │
+│           │  AssemblyAI      │  │  Neon Postgres    │  │  Public CDN  │     │
+│           │  Voice Agent API │  │  (Drizzle ORM)    │  │  Assets      │     │
+│           │  wss://agents... │  │  + Tier-2 RAG     │  │              │     │
+│           └──────────────────┘  └───────────────────┘  └──────────────┘     │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -109,20 +109,19 @@ This app requires **both** AssemblyAI API paths:
 
 | Layer | Technology | Rationale |
 | :--- | :--- | :--- |
-| **Frontend Framework** | React 19 + Vite | Fast HMR, stable concurrent rendering |
-| **UI State** | Zustand | No boilerplate, no re-render storms |
-| **Voice Transport** | Browser WebSocket API | Direct WS to AssemblyAI via temp token — no backend relay on hot path |
-| **Audio Capture** | Web Audio API + `AudioWorklet` | Off-main-thread PCM, avoids deprecated `ScriptProcessor` |
-| **TTS Playback** | `AudioContext` + streamed PCM | Gapless, timed for visual sync |
-| **Styling** | Vanilla CSS + CSS custom properties | Full control, zero build overhead |
-| **Backend** | Node.js + Express | Simple, fast, familiar |
-| **Database** | **Postgres** (Neon or Supabase free tier) | Real DB from day one — see §4 |
-| **ORM / Query Builder** | **Drizzle ORM** | Type-safe, zero magic, SQL-first, tiny bundle |
-| **Migrations** | Drizzle Kit | `drizzle-kit generate` + `drizzle-kit migrate` |
-| **Exhibition Knowledge** | Postgres tables (seeded from JSON on boot) | Same DB, no second system to manage |
-| **LLM** | AssemblyAI LLM Gateway → Claude Sonnet 4.6 | No provider key management, managed routing |
-| **Logging** | `pino` (backend) | Structured JSON logs, near-zero overhead |
-| **Deployment** | Vercel (frontend) + Railway (backend + DB) | Postgres included on Railway free tier |
+| **Framework** | Next.js 15+ (App Router) | Unified full-stack app on Vercel: frontend UI + serverless API routes with zero cold-start delay |
+| **Headless UI** | Base UI (`@base-ui-components/react`) | 100% unstyled, accessible primitives (tabs, sliders, dialogs); zero shadcn opinion baggage |
+| **Styling** | Tailwind CSS + CSS Custom Properties | Rapid utility styling styled directly to `data-*` attributes; Perplexity / Figma obsidian dark palette |
+| **Iconography** | Hugeicons (`hugeicons-react`) | Sleek, modern stroke/twotone icons; replaces generic default Lucide sets |
+| **UI State** | Zustand | Predictable, atomic state management with zero re-render cascades |
+| **Voice Transport** | Browser WebSocket API | Direct WS to AssemblyAI via short-lived temp token — zero proxy relay on hot audio path |
+| **Audio Capture** | Web Audio API + `AudioWorklet` | Off-main-thread 16kHz PCM capture; avoids deprecated `ScriptProcessorNode` |
+| **TTS Playback** | `AudioContext` + Streamed PCM | Gapless buffer scheduling synchronized with caption events |
+| **Database** | Postgres (Neon Serverless) | Free serverless tier, zero-cold-start HTTP driver |
+| **ORM / Migrations**| Drizzle ORM + Drizzle Kit | Lightweight SQL-first TypeScript ORM with schema migrations |
+| **Knowledge & RAG**| 2-Tier Hybrid Architecture | **Tier 1**: In-context core gallery facts (0ms latency). **Tier 2**: Tool-calling RAG (`query-archives`) for deep queries |
+| **Persona Adaptation**| Explicit Toggle + LLM Tone Mirroring | Dynamic depth switcher (Highlights / Deep Dive / Family) with real-time prompt adaptation |
+| **Deployment** | Vercel (Unified Production Target) | Instant deployments, edge/serverless route handlers, zero infra overhead |
 
 ---
 
@@ -130,85 +129,79 @@ This app requires **both** AssemblyAI API paths:
 
 ```
 articulate-tour-guide/
-├── apps/
-│   ├── web/                            # React + Vite frontend
-│   │   ├── public/
-│   │   │   └── worklets/
-│   │   │       └── pcm-processor.js    # AudioWorklet (off-main-thread)
-│   │   ├── src/
-│   │   │   ├── main.tsx
-│   │   │   ├── App.tsx
-│   │   │   ├── components/
-│   │   │   │   ├── companion/
-│   │   │   │   │   └── CompanionFace.tsx
-│   │   │   │   ├── visual-stage/
-│   │   │   │   │   ├── VisualStage.tsx
-│   │   │   │   │   ├── ExhibitionMap.tsx
-│   │   │   │   │   ├── MediaViewer.tsx
-│   │   │   │   │   └── ArtifactCallout.tsx
-│   │   │   │   ├── transcript/
-│   │   │   │   │   └── LiveTranscript.tsx
-│   │   │   │   └── controls/
-│   │   │   │       └── TourControls.tsx
-│   │   │   ├── hooks/
-│   │   │   │   ├── useVoiceAgent.ts    # Core WS + audio lifecycle
-│   │   │   │   ├── useAudioCapture.ts  # AudioWorklet mic pipeline
-│   │   │   │   ├── useAudioPlayback.ts # Streamed TTS playback
-│   │   │   │   └── useVisualSync.ts    # tool.call -> stage bridge
-│   │   │   ├── store/
-│   │   │   │   ├── agentStore.ts
-│   │   │   │   ├── visualStore.ts
-│   │   │   │   └── sessionStore.ts
-│   │   │   ├── lib/
-│   │   │   │   ├── assemblyai/
-│   │   │   │   │   ├── AgentClient.ts
-│   │   │   │   │   ├── tools.ts
-│   │   │   │   │   └── systemPrompt.ts
-│   │   │   │   └── audio/
-│   │   │   │       └── GaplessPlayer.ts
-│   │   │   └── styles/
-│   │   │       ├── index.css
-│   │   │       ├── animations.css
-│   │   │       └── themes/museum.css
-│   │   ├── vite.config.ts
-│   │   └── package.json
-│   │
-│   └── server/                         # Backend API
-│       ├── src/
-│       │   ├── index.ts                # Server entrypoint
-│       │   ├── routes/
-│       │   │   ├── token.ts            # POST /api/token
-│       │   │   ├── exhibition.ts       # GET /api/exhibitions/:id
-│       │   │   └── tools/              # AssemblyAI HTTP tool endpoints
-│       │   │       ├── displayMedia.ts
-│       │   │       ├── highlightMap.ts
-│       │   │       └── showComparison.ts
-│       │   ├── db/                     # Database layer (Drizzle)
-│       │   │   ├── index.ts            # DB connection singleton
-│       │   │   ├── schema.ts           # All table definitions
-│       │   │   ├── migrations/         # Generated by drizzle-kit
-│       │   │   └── seed.ts             # Seed exhibitions on first boot
-│       │   ├── lib/
-│       │   │   ├── assemblyai.ts       # Token creation client
-│       │   │   └── llm/
-│       │   │       └── gateway.ts      # LLM Gateway client
-│       │   ├── middleware/
-│       │   │   ├── rateLimit.ts        # [Phase 1]
-│       │   │   ├── validateSecret.ts   # [Phase 1] Tool auth
-│       │   │   └── requestLogger.ts    # [Phase 2] pino request logging
-│       │   └── config.ts              # Env var validation (Zod)
-│       ├── drizzle.config.ts
-│       └── package.json
+├── app/
+│   ├── api/
+│   │   ├── token/
+│   │   │   └── route.ts         # POST /api/token (AssemblyAI temp bearer token vending)
+│   │   ├── exhibitions/
+│   │   │   └── [id]/
+│   │   │       └── route.ts     # GET /api/exhibitions/[id]
+│   │   └── tools/               # AssemblyAI HTTP tool webhooks
+│   │       ├── display-media/
+│   │       │   └── route.ts     # POST /api/tools/display-media
+│   │       ├── highlight-map/
+│   │       │   └── route.ts     # POST /api/tools/highlight-map
+│   │       └── query-archives/
+│   │           └── route.ts     # POST /api/tools/query-archives (Tier-2 RAG)
+│   ├── layout.tsx               # Root HTML & font configuration
+│   ├── page.tsx                 # Main tour entrance & stage shell ('use client')
+│   └── globals.css              # Tailwind CSS + Perplexity/Figma palette tokens
+│
+├── components/
+│   ├── stage/
+│   │   ├── VisualStage.tsx      # Central media stage container
+│   │   ├── ExhibitionMap.tsx    # SVG indoor floorplan & active pins
+│   │   ├── ArchivalViewer.tsx   # High-res artwork viewer & placard
+│   │   ├── PentimentoSlider.tsx # Infrared / X-ray clip-path sweep
+│   │   └── DetailCallout.tsx    # Crop zoom & leader line reticle
+│   ├── companion/
+│   │   ├── CompanionFace.tsx    # Blobatar SVG avatar + stateful gaze
+│   │   └── CompanionAura.tsx    # Thinking orb ambient glow
+│   ├── dialogue/
+│   │   ├── LiveTranscript.tsx   # Streaming subtitles & word sync
+│   │   └── ToolCallBadge.tsx    # Tool execution pill
+│   └── ui/
+│       ├── Button.tsx           # Base UI / Tailwind spring button
+│       ├── DepthSwitcher.tsx    # Base UI Tabs + Hugeicons
+│       └── Drawer.tsx           # Base UI Dialog / Drawer
+│
+├── hooks/
+│   ├── useVoiceAgent.ts         # Core WS + audio lifecycle
+│   ├── useAudioCapture.ts       # AudioWorklet mic pipeline
+│   ├── useAudioPlayback.ts      # Streamed TTS playback
+│   └── useVisualSync.ts         # tool.call -> stage bridge
+│
+├── store/
+│   ├── agentStore.ts            # Listening/thinking/speaking & persona
+│   ├── visualStore.ts           # Active artifact & transition state
+│   └── sessionStore.ts          # Session ID & depth mode
+│
+├── lib/
+│   ├── db/                      # Drizzle ORM + Neon Postgres
+│   │   ├── index.ts
+│   │   ├── schema.ts
+│   │   ├── seed.ts
+│   │   └── migrations/
+│   ├── assemblyai/
+│   │   ├── tools.ts             # Tool calling schemas
+│   │   └── prompts.ts           # Persona rules & domain boosting
+│   └── audio/
+│       ├── cues.ts              # Cuelume procedural audio triggers
+│       └── GaplessPlayer.ts
+│
+├── public/
+│   └── worklets/
+│       └── pcm-processor.js     # AudioWorklet processor
 │
 ├── data/
-│   └── exhibitions/                    # Source-of-truth seed files (JSON)
+│   └── exhibitions/             # Source-of-truth seed files (JSON)
 │       ├── renaissance.json
 │       └── ancient-civilizations.json
 │
-├── .agents/
-├── AGENTS.md
-├── ARCHITECTURE_GUIDE.md
-└── package.json                        # Monorepo root (npm workspaces)
+├── drizzle.config.ts
+├── tailwind.config.ts
+├── next.config.ts
+└── package.json
 ```
 
 ---
@@ -417,54 +410,59 @@ main();
 
 ---
 
-## 5. Backend Architecture
+## 5. Backend Architecture (Next.js Route Handlers)
 
-### 5.1 Token Server **[Phase 1]**
+### 5.1 Token Route (`app/api/token/route.ts`) **[Phase 1]**
 
-**Never expose your AssemblyAI API key to the browser.** The backend vends short-lived session tokens and records the session in the DB:
+**Never expose your AssemblyAI API key to the browser.** This Next.js Route Handler vends short-lived bearer tokens and registers the session in Neon Postgres:
 
 ```typescript
-// apps/server/src/routes/token.ts
+// app/api/token/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { AssemblyAI } from "assemblyai"; // npm i assemblyai@^4.37.1
-import { db } from "../db";
-import { tourSessions } from "../db/schema";
+import { db } from "@/lib/db";
+import { tourSessions } from "@/lib/db/schema";
 
 const aai = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY! });
 
-app.post("/api/token", rateLimiter, async (req, res) => {
-  const { exhibitionId, depthMode = "quick" } = req.body;
+export async function POST(req: NextRequest) {
+  try {
+    const { exhibitionId = "renaissance", depthMode = "quick" } = await req.json();
 
-  // Create the AssemblyAI temp token
-  const token = await aai.agents.createToken({ expires_in_seconds: 600 });
+    // Create the AssemblyAI temp token (10-minute expiry)
+    const token = await aai.agents.createToken({ expires_in_seconds: 600 });
 
-  // Record the session in DB from the very start
-  const [session] = await db.insert(tourSessions)
-    .values({ exhibitionId, depthMode })
-    .returning({ id: tourSessions.id });
+    // Record the session in DB
+    const [session] = await db.insert(tourSessions)
+      .values({ exhibitionId, depthMode })
+      .returning({ id: tourSessions.id });
 
-  res.json({ token: token.value, sessionId: session.id });
-});
+    return NextResponse.json({ token: token.value, sessionId: session.id }, {
+      headers: {
+        "Cache-Control": "private, no-store",
+      },
+    });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to vend agent token" }, { status: 500 });
+  }
+}
 ```
 
-**Token server rules:**
-- Rate-limit: ≤2 tokens per IP per minute
-- CORS: restrict to your frontend origin — never `*`
-- Log all token issuances (Phase 2 — structured log with `pino`)
+### 5.2 HTTP Tool Endpoints (`app/api/tools/[tool]/route.ts`) **[Phase 1]**
 
-### 5.2 HTTP Tool Endpoints **[Phase 1]**
-
-AssemblyAI calls your HTTPS tool endpoints when the agent invokes a tool. They must be fast (< 10s), idempotent, and authenticated:
+AssemblyAI calls your HTTPS tool endpoints when the agent invokes a tool. In Next.js, these are clean Route Handlers:
 
 ```typescript
-// apps/server/src/routes/tools/displayMedia.ts
-import { db } from "../../db";
-import { artifacts, artifactMedia } from "../../db/schema";
+// app/api/tools/display-media/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { artifactMedia } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 
-app.post("/tools/display-media", validateToolSecret, async (req, res) => {
-  const { artifact_id, media_type } = req.body;
+export async function POST(req: NextRequest) {
+  const { artifact_id, media_type } = await req.json();
 
-  // Query directly from the DB — no JSON file, no separate cache
+  // Query directly from the DB
   const media = await db.query.artifactMedia.findFirst({
     where: and(
       eq(artifactMedia.artifactId, artifact_id),
@@ -474,34 +472,36 @@ app.post("/tools/display-media", validateToolSecret, async (req, res) => {
   });
 
   if (!media) {
-    return res.json({
+    return NextResponse.json({
       is_error: true,
       message: `No ${media_type} media found for ${artifact_id}. I'll describe it instead.`,
     });
   }
 
-  res.json({
+  return NextResponse.json({
     success: true,
     display_url: media.url,
     thumbnail_url: media.thumbnailUrl,
     caption: media.caption,
   });
-});
+}
 ```
 
-> **Key gotcha**: Tool HTTP `headers` arrive as `[{name, value}]` arrays — not `{name: value}` objects. Changed June 2026.
-
-### 5.3 Exhibition Query **[Phase 1]**
+### 5.3 Exhibition Query (`app/api/exhibitions/[id]/route.ts`) **[Phase 1]**
 
 ```typescript
-// apps/server/src/routes/exhibition.ts
-import { db } from "../db";
-import { exhibitions, rooms, artifacts, artifactMedia } from "../db/schema";
+// app/api/exhibitions/[id]/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { exhibitions, artifactMedia } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-app.get("/api/exhibitions/:id", async (req, res) => {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   const exhibition = await db.query.exhibitions.findFirst({
-    where: eq(exhibitions.id, req.params.id),
+    where: eq(exhibitions.id, params.id),
     with: {
       rooms: true,
       artifacts: {
@@ -510,9 +510,12 @@ app.get("/api/exhibitions/:id", async (req, res) => {
     },
   });
 
-  if (!exhibition) return res.status(404).json({ error: "Exhibition not found" });
-  res.json(exhibition);
-});
+  if (!exhibition) {
+    return NextResponse.json({ error: "Exhibition not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(exhibition);
+}
 ```
 
 ---
@@ -712,44 +715,69 @@ export class AgentClient extends EventTarget {
 }
 ```
 
-### 7.3 System Prompt Design **[Phase 1]**
+### 7.3 System Prompt & Dynamic Persona Design **[Phase 1]**
 
 ```typescript
-// apps/web/src/lib/assemblyai/systemPrompt.ts
+// lib/assemblyai/prompts.ts
+import { Exhibition } from "@/types";
+
+export type DepthMode = "quick" | "deep" | "family";
 
 export function buildSystemPrompt(exhibition: Exhibition, depthMode: DepthMode): string {
   const depthInstruction = {
-    quick:  "Quick Tour — keep spoken responses under 45 seconds. Most striking details only.",
-    deep:   "Deep Dive — full historical context, anecdotes, cross-exhibition connections.",
-    family: "Family Mode — accessible language, wonder-driven, no academic jargon.",
+    quick:  "Highlights Mode — keep spoken responses under 35 seconds. Deliver punchy, fascinating observations with immediate visual reveals.",
+    deep:   "Deep Scholar Mode — explore art history nuances (sfumato, pentimento, iconography, Medici provenance). Dive into technique and restoration.",
+    family: "Family & Kids Mode — playful, wonder-driven, sensory metaphors. Ask interactive visual search questions ('Can you spot the tiny bird?'). No academic jargon.",
   }[depthMode];
 
   return `
-You are an expert museum docent for ${exhibition.title} — knowledgeable, enthusiastic, genuinely curious.
+You are an expert museum docent for ${exhibition.title} — knowledgeable, enthusiastic, and conversational.
 
-## Persona
-- Speak in vivid language, as a brilliant historian would — not encyclopedia entries.
-- Describe color, texture, light, and scale. Make the visitor feel present.
-- Current depth: ${depthInstruction}
+## Core Persona & Tone Adaptation
+- Speak in vivid, engaging spoken dialogue as a brilliant docent would — never read encyclopedia entries.
+- Baseline Depth: ${depthInstruction}
+- Real-Time Tone Mirroring:
+  * If the visitor speaks simply or asks kid-like questions ("Why is his hat silly?"): instantly adopt playful sensory metaphors and short 2-sentence answers.
+  * If the visitor uses advanced terminology ("Notice the sfumato along the jawline"): elevate your vocabulary to match an art historian.
+  * Otherwise: maintain a warm, vivid storytelling cadence.
 
-## Visual Synchronization (Critical — never skip this)
-You control the visual display beside you:
-- When you mention ANY artifact: immediately call display_artifact_media.
-- When giving spatial directions: always call highlight_map_location.
-- When comparing two works: always call show_comparison.
-- Use setup phrases: "Notice what I'm about to show you..." — invite them to look.
-- After a tool call, keep speaking naturally. Do not announce "I'm showing you an image."
+## Visual Synchronization (Critical — never skip)
+You control the Synchronized Visual Stage beside you:
+- When you mention ANY artifact: immediately invoke display_artifact_media.
+- When giving directions or changing galleries: always invoke highlight_map_location.
+- When revealing infrared underdrawings or pentimento: invoke show_underdrawing.
+- When pointing out small focal details: invoke show_detail_callout with pre-validated detail_id.
+- Never announce "I am showing you an image". Speak seamlessly while the visual updates.
 
-## Exhibition Artifacts
-${JSON.stringify(exhibition.artifacts.map((a) => ({ id: a.id, name: a.name, room: a.roomId })))}
+## Tier 1 In-Context Core Exhibition Knowledge (Zero-Latency)
+${JSON.stringify(exhibition.artifacts.map((a) => ({
+  id: a.id,
+  name: a.name,
+  room: a.roomId,
+  docent_facts: a.docentFacts,
+  connections: a.connections
+})))}
 
 ## Rules
 - Never say "as an AI" or break character.
-- Draw connections to artifacts already visited this tour.
-- If asked about something outside the exhibition, redirect warmly.
+- Draw connections to works already discussed this tour.
+- For deep archival or chemical questions outside core knowledge, invoke the query_archives tool.
 `.trim();
 }
 ```
+
+### 7.4 2-Tier Knowledge & RAG Strategy **[Phase 1]**
+
+To preserve sub-600ms conversational turn latency, Articulate Tour Guide strictly avoids vector search on every turn:
+
+1. **Tier 1: Zero-Latency In-Context Manifest (Primary)**:
+   - Full exhibition catalog (15–30 artworks, keyterms, room coordinates, docent facts) is injected directly into the LLM system prompt.
+   - **Overhead**: 0ms retrieval latency.
+   - **Enforcement**: Zero hallucination on bounding boxes and artifact IDs.
+2. **Tier 2: On-Demand Tool-Calling RAG (Secondary)**:
+   - When visitor asks deep archival queries outside the core catalog (e.g. restoration records, patron letters, pigment chemistry), the agent invokes `query_archives(query: string)`.
+   - The Next.js Route Handler (`/app/api/tools/query-archives/route.ts`) queries the full archive in Postgres and returns a 2-sentence summary.
+   - The docent uses a brief conversational conversational cue (*"Let me pull up the restoration analysis on that..."*) while fetching.
 
 ---
 
