@@ -56,11 +56,13 @@ import AudioWave01Icon from "@hugeicons/core-free-icons/AudioWave01Icon";
 
 ---
 
-## 4. Reusable UI Components Catalog
+---
 
-All UI components reside in `web/components/ui/`:
+## 4. Reusable Base UI Building Blocks Catalog
 
-### Button (`@/components/ui/button`)
+All building blocks reside in `web/components/ui/` as composable, atomic units:
+
+### 1. Button (`@/components/ui/button`)
 Supports 6 predefined variants:
 - `primary`: Dark `#1f1e1b` circular button with pure white icon (e.g. Voice Mode).
 - `soft-pill`: Elevated warm pill `bg-soft text-primary hover:bg-subtle` (e.g. "Free plan · Upgrade").
@@ -69,13 +71,21 @@ Supports 6 predefined variants:
 - `square-icon`: `rounded-lg border border-border-subtle hover:bg-subtle aspect-[9/8]` (e.g. Incognito, Apps).
 - `sidebar-row`: Full-width sidebar row `rounded-xl h-10 px-2 group-hover:bg-soft`.
 
-### Tabs (`@/components/ui/tabs`)
-Encapsulates `@base-ui/react/tabs` with the exact Perplexity sliding capsule track:
+### 2. Input (`@/components/ui/input`)
+Wraps `@base-ui/react/input` with sizes (`sm`, `md`, `lg`), `startIcon`, `endIcon`, and error states:
 ```tsx
-import { Tabs, TabsList, Tab } from "@/components/ui/tabs";
-import Search01Icon from "@hugeicons/core-free-icons/Search01Icon";
-import ComputerIcon from "@hugeicons/core-free-icons/ComputerIcon";
+<Input placeholder="Search..." startIcon={<HugeIcon icon={Search01Icon} size={15} />} />
+```
 
+### 3. Textarea (`@/components/ui/textarea`)
+Supports `variant="outline"` (framed inputs) and `variant="ghost"` (seamless zero-border search boxes):
+```tsx
+<Textarea variant="outline" rows={2} placeholder="Enter prompt..." />
+```
+
+### 4. Tabs (`@/components/ui/tabs`)
+Encapsulates `@base-ui/react/tabs` with sliding capsule track and dynamic chevron disclosure:
+```tsx
 <Tabs value={mode} onValueChange={setMode}>
   <TabsList activeValue={mode}>
     <Tab value="search" label="Search" icon={Search01Icon} isSelected={mode === "search"} width={107} />
@@ -83,25 +93,44 @@ import ComputerIcon from "@hugeicons/core-free-icons/ComputerIcon";
   </TabsList>
 </Tabs>
 ```
-- Capsule Track: `bg-subtle`, zero padding, `rounded-full`.
-- Active Indicator: Sliding white pill (`bg-raised border border-border-subtle shadow-xs`) with smooth transitions.
-- Chevron Slot: Automatically expands to 18px on the active tab and collapses to 0px on inactive tabs.
 
-### Card & SuggestionCard (`@/components/ui/card`)
-- `Card`: Base `rounded-2xl border border-border-subtle bg-raised shadow-xs ring-1 ring-border-subtlest`.
-- `SuggestionCard`: For research prompts and museum exhibit artifact cards.
+### 5. Dialog (`@/components/ui/dialog`)
+Accessible modal dialogs wrapping `@base-ui/react/dialog`:
+- `Dialog`, `DialogTrigger`, `DialogPortal`, `DialogBackdrop`, `DialogPopup`, `DialogTitle`, `DialogDescription`, `DialogCloseButton`.
 
----
+### 6. Popover (`@/components/ui/popover`)
+Floating contextual cards wrapping `@base-ui/react/popover`:
+- `Popover`, `PopoverTrigger`, `PopoverPortal`, `PopoverPositioner`, `PopoverPopup`, `PopoverArrow`.
 
-## 5. Ask Input Container Architecture
+### 7. Tooltip (`@/components/ui/tooltip`)
+Dark capsule tooltips wrapping `@base-ui/react/tooltip`:
+- `Tooltip`, `TooltipTrigger`, `TooltipPortal`, `TooltipPositioner`, `TooltipPopup`, `TooltipProvider`.
 
-The central Ask Input is built as a nested grid:
-```html
-<div class="relative z-[1] grid bg-raised ring-1 ring-border-subtlest pt-3 gap-4 rounded-b-2xl">
-  <div class="min-w-0 px-3 grid grid-cols-[1fr_auto] grid-rows-[1fr_auto] pb-3">
-    <!-- Row 1: Textarea col-start-1 col-end-3 pb-2 ml-2 mt-1 min-h-[3em] -->
-    <!-- Row 2 Left: (+) Button + Mode Tabs capsule -->
-    <!-- Row 2 Right: Model Selector + Mic Button + Voice Mode Button -->
-  </div>
-</div>
-```
+### 8. Menu (`@/components/ui/menu`)
+Dropdown action menus wrapping `@base-ui/react/menu`:
+- `Menu`, `MenuTrigger`, `MenuPortal`, `MenuPositioner`, `MenuPopup`, `MenuItem`, `MenuGroup`, `MenuGroupLabel`, `MenuSeparator`.
+
+### 9. Select (`@/components/ui/select`)
+Dropdown selection menus wrapping `@base-ui/react/select`:
+- `Select`, `SelectTrigger`, `SelectValue`, `SelectPortal`, `SelectPositioner`, `SelectPopup`, `SelectItem`.
+
+### 10. Switch (`@/components/ui/switch`)
+Accessible toggles wrapping `@base-ui/react/switch`:
+- `Switch` (with `data-[checked]:bg-primary`).
+
+### 11. Checkbox (`@/components/ui/checkbox`)
+Accessible checkboxes wrapping `@base-ui/react/checkbox`:
+- `Checkbox` (renders pure white checkmark on primary ink background).
+
+### 12. Badge (`@/components/ui/badge`)
+Atomic tags: `variant="soft" | "outline" | "raised" | "dark" | "error"`.
+
+### 13. Card (`@/components/ui/card`)
+Atomic container: `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`, `SuggestionCard`.
+
+### 14. Separator (`@/components/ui/separator`)
+Divider: `Separator` (horizontal or vertical hairline divider `bg-border-subtlest`).
+
+### 15. HugeIcon (`@/components/ui/hugeicon`)
+Icon renderer for `@hugeicons/core-free-icons` guaranteeing pure white stroke on black buttons.
+
