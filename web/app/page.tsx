@@ -3,16 +3,23 @@
 import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { SparklesIcon } from "@hugeicons/core-free-icons";
+import {
+  MicOff01Icon,
+  Mic01Icon,
+  CallIcon,
+} from "@hugeicons/core-free-icons";
 import { ArticulateAvatar } from "@/components/avatar/articulate-avatar";
 import {
   EXPRESSIONS_CATALOG,
   type ExpressionId,
 } from "@/components/avatar/avatar-expressions";
+import { Header } from "@/components/layout/header";
+import { Footer } from "@/components/layout/footer";
 
 export default function Home() {
   const [isTopLeft, setIsTopLeft] = React.useState(false);
   const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("listening");
+  const [isMuted, setIsMuted] = React.useState(true);
 
   // Automatically cycle through key tour guide states
   React.useEffect(() => {
@@ -37,6 +44,10 @@ export default function Home() {
     return () => clearInterval(stateInterval);
   }, []);
 
+  const handleEndCall = () => {
+    setActiveExpressionId("neutral");
+  };
+
   const activeExpression =
     EXPRESSIONS_CATALOG.find((e) => e.id === activeExpressionId) ??
     EXPRESSIONS_CATALOG[0];
@@ -46,79 +57,112 @@ export default function Home() {
   const isSpeaking = activeExpressionId === "speaking";
 
   return (
-    <main className="min-h-screen w-full bg-background flex flex-col items-center justify-center p-6 md:p-12 overflow-hidden select-none relative">
-      {/* Group Container */}
-      <div className="relative w-full max-w-4xl min-h-[440px] flex items-center justify-center">
-        {/* Mr. Triangle Avatar: Geometry stays 100% constant across every emotion */}
-        <ArticulateAvatar
-          expressionId={activeExpressionId}
-          size={220}
-          isDocked={isTopLeft}
-          onClick={() => setIsTopLeft((prev) => !prev)}
-          isListening={isListening}
-        />
+    <div className="min-h-screen w-full bg-background flex flex-col justify-between overflow-hidden select-none relative">
+      <Header />
 
-        {/* Text & indicator below blob when in center mode */}
-        {!isTopLeft && (
-          <div className="absolute top-[calc(50%+126px)] left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none transition-all duration-300 z-10">
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground tracking-[-0.1px] bg-card/85 backdrop-blur-xs px-3.5 py-1.5 rounded-full border border-border shadow-xs">
-              {isListening && <span>Listening...</span>}
+      <main className="flex-1 w-full max-w-6xl mx-auto px-6 relative flex items-center justify-center">
+        {/* Main Stage: Avatar, Status Text, and Media Control Dock centered directly in the screen */}
+        <div
+          className={`flex flex-col items-center justify-center gap-4 z-20 transition-opacity duration-300 ${
+            isTopLeft ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
+          }`}
+        >
+          {/* Mr. Triangle Avatar: Geometry stays 100% constant across every emotion */}
+          <ArticulateAvatar
+            expressionId={activeExpressionId}
+            size={280}
+            onClick={() => setIsTopLeft(true)}
+            isListening={isListening}
+          />
 
-              {isThinking && (
-                <>
-                  <HugeiconsIcon
-                    icon={SparklesIcon}
-                    size={14}
-                    className="text-secondary-text animate-spin [animation-duration:4s]"
-                  />
-                  <span>Thinking...</span>
-                </>
+          {/* Text indicator & Control bar */}
+          <div className="flex flex-col items-center gap-3 w-full max-w-[340px] px-2">
+            {/* Status Text (clean, no pill) */}
+            <div className="h-5 flex items-center justify-center whitespace-nowrap pointer-events-none">
+              {(isListening || isThinking || isSpeaking) && (
+                <div className="flex items-center gap-2 text-sm font-medium text-secondary-text tracking-[-0.1px] transition-all">
+                  {isListening && <span>Listening...</span>}
+                  {isThinking && <span>Thinking...</span>}
+
+                  {isSpeaking && (
+                    <>
+                      <div className="flex items-center gap-[2.5px] h-3.5 px-0.5">
+                        <span className="w-[2.5px] h-full bg-secondary-text rounded-full animate-[speaking-bar_0.7s_ease-in-out_infinite_alternate]" />
+                        <span className="w-[2.5px] h-full bg-secondary-text rounded-full animate-[speaking-bar_1.05s_ease-in-out_infinite_alternate_0.2s]" />
+                        <span className="w-[2.5px] h-full bg-secondary-text rounded-full animate-[speaking-bar_0.6s_ease-in-out_infinite_alternate_0.4s]" />
+                        <span className="w-[2.5px] h-full bg-secondary-text rounded-full animate-[speaking-bar_0.9s_ease-in-out_infinite_alternate_0.15s]" />
+                      </div>
+                      <span>Speaking...</span>
+                    </>
+                  )}
+                </div>
               )}
+            </div>
 
-              {isSpeaking && (
-                <>
-                  <div className="flex items-center gap-[2.5px] h-3.5 px-0.5">
-                    <span className="w-[2.5px] h-full bg-primary rounded-full animate-[speaking-bar_0.7s_ease-in-out_infinite_alternate]" />
-                    <span className="w-[2.5px] h-full bg-primary rounded-full animate-[speaking-bar_1.05s_ease-in-out_infinite_alternate_0.2s]" />
-                    <span className="w-[2.5px] h-full bg-primary rounded-full animate-[speaking-bar_0.6s_ease-in-out_infinite_alternate_0.4s]" />
-                    <span className="w-[2.5px] h-full bg-primary rounded-full animate-[speaking-bar_0.9s_ease-in-out_infinite_alternate_0.15s]" />
-                  </div>
-                  <span>Speaking...</span>
-                </>
-              )}
+            {/* Media Control Dock (centered) */}
+            <div className="w-full h-13 bg-card rounded-full border border-border/80 shadow-xs flex items-center justify-between p-1.5">
+              {/* Left: Mic Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setIsMuted((prev) => !prev)}
+                title={isMuted ? "Unmute microphone" : "Mute microphone"}
+                aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
+                className={`size-10 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+                  isMuted
+                    ? "bg-[#fde8e8] text-[#e02424] hover:bg-[#fbd5d5]"
+                    : "bg-subtle text-secondary-text hover:bg-soft hover:text-foreground"
+                }`}
+              >
+                <HugeiconsIcon icon={isMuted ? MicOff01Icon : Mic01Icon} size={18} />
+              </button>
 
-              {!isListening && !isThinking && !isSpeaking && (
-                <>
-                  <span className="text-secondary-text">Expression:</span>
-                  <span className="font-semibold text-foreground">{activeExpression.label}</span>
-                </>
-              )}
+              {/* Center Spacer */}
+              <div className="flex-1" />
+
+              {/* Right: End Call Button (phone icon without X) */}
+              <button
+                type="button"
+                onClick={handleEndCall}
+                title="End call"
+                aria-label="End call"
+                className="h-10 px-3.5 rounded-full bg-[#fde8e8] text-[#e02424] hover:bg-[#fbd5d5] flex items-center gap-1.5 font-bold text-xs tracking-wider transition-colors cursor-pointer uppercase"
+              >
+                <HugeiconsIcon icon={CallIcon} size={15} />
+                <span>END</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Empty Cards in the Group: Reveal in top-left mode, hide in center mode */}
+        {isTopLeft && (
+          <div className="absolute inset-0 max-w-4xl mx-auto p-6 md:p-10 flex flex-col justify-center gap-4 z-30 bg-background/95 backdrop-blur-xs">
+            {/* Top Row: Empty card reserving room for top-left avatar */}
+            <div className="flex items-center gap-3.5 h-[68px]">
+              <div className="size-[68px] shrink-0 flex items-center justify-center">
+                <ArticulateAvatar
+                  expressionId={activeExpressionId}
+                  size={220}
+                  isDocked={true}
+                  onClick={() => setIsTopLeft(false)}
+                  isListening={isListening}
+                />
+              </div>
+              <Card className="flex-1 h-full rounded-2xl border border-border bg-card shadow-xs" />
+            </div>
+
+            {/* Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="h-52 md:col-span-2 rounded-2xl border border-border bg-card shadow-xs" />
+              <Card className="h-52 rounded-2xl border border-border bg-card shadow-xs" />
+              <Card className="h-36 rounded-2xl border border-border bg-card shadow-xs" />
+              <Card className="h-36 md:col-span-2 rounded-2xl border border-border bg-card shadow-xs" />
             </div>
           </div>
         )}
+      </main>
 
-        {/* Empty Cards in the Group: Reveal in top-left mode, hide in center mode */}
-        <div
-          className={`w-full flex flex-col gap-4 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-            isTopLeft
-              ? "opacity-100 translate-y-0 pointer-events-auto"
-              : "opacity-0 translate-y-6 pointer-events-none"
-          }`}
-        >
-          {/* Top Row: Empty card reserving room for top-left avatar */}
-          <div className="flex items-center pl-[78px] h-[68px]">
-            <Card className="flex-1 h-full rounded-2xl border border-border bg-card shadow-xs" />
-          </div>
-
-          {/* Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="h-52 md:col-span-2 rounded-2xl border border-border bg-card shadow-xs" />
-            <Card className="h-52 rounded-2xl border border-border bg-card shadow-xs" />
-            <Card className="h-36 rounded-2xl border border-border bg-card shadow-xs" />
-            <Card className="h-36 md:col-span-2 rounded-2xl border border-border bg-card shadow-xs" />
-          </div>
-        </div>
-      </div>
-    </main>
-  );
+    <Footer />
+  </div>
+);
 }
