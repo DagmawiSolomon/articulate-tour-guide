@@ -3,8 +3,66 @@
 import { useState } from "react";
 import { Tabs, TabsList, Tab } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Card, SuggestionCard } from "@/components/ui/card";
-import { AskInput } from "@/components/ui/ask-input";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+  SuggestionCard,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogPortal,
+  DialogBackdrop,
+  DialogPopup,
+  DialogTitle,
+  DialogDescription,
+  DialogCloseButton,
+} from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverPortal,
+  PopoverPositioner,
+  PopoverPopup,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipPortal,
+  TooltipPositioner,
+  TooltipPopup,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
+import {
+  Menu,
+  MenuTrigger,
+  MenuPortal,
+  MenuPositioner,
+  MenuPopup,
+  MenuItem,
+  MenuGroup,
+  MenuGroupLabel,
+  MenuSeparator,
+} from "@/components/ui/menu";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectPortal,
+  SelectPositioner,
+  SelectPopup,
+  SelectItem,
+} from "@/components/ui/select";
 import { HugeIcon } from "@/components/ui/hugeicon";
 
 import AsteriskIcon from "@hugeicons/core-free-icons/AsteriskIcon";
@@ -36,6 +94,9 @@ export default function PerplexityLayout() {
   const [isMicActive, setIsMicActive] = useState(false);
   const [isProjectsCollapsed, setIsProjectsCollapsed] = useState(false);
   const [isSessionsCollapsed, setIsSessionsCollapsed] = useState(false);
+  const [switchActive, setSwitchActive] = useState(true);
+  const [checkboxChecked, setCheckboxChecked] = useState(true);
+  const [selectedModel, setSelectedModel] = useState("sonar");
 
   return (
     <div className="bg-base text-primary font-sans h-screen w-screen overflow-hidden flex selection:bg-soft selection:text-primary">
@@ -320,51 +381,75 @@ export default function PerplexityLayout() {
           <div className="mx-auto size-full max-w-screen-md px-4 md:px-8">
             <div className="relative flex h-full flex-col">
               
-              {/* ── INTERACTIVE COMPONENT SHOWCASE HERO SECTION ── */}
+              {/* ── BASE UI ATOMIC BUILDING BLOCKS SHOWCASE ── */}
               <div className="px-4 py-8 relative flex size-full flex-col md:px-0">
                 
                 {/* Hero Header */}
                 <div className="mb-8 flex w-full flex-col items-start gap-2">
                   <div className="inline-flex items-center gap-2 rounded-full border border-border-subtle bg-subtle px-2.5 py-0.5 text-xs font-medium text-secondary">
                     <span className="size-1.5 rounded-full bg-primary" />
-                    Base UI Primitives · 100% Hugeicons
+                    Atomic Base UI Primitives · 100% Hugeicons
                   </div>
                   <h1 className="font-sans text-2xl md:text-3xl font-normal text-primary">
-                    Interactive Component Showcase
+                    Base UI Building Blocks
                   </h1>
                   <p className="text-sm text-secondary max-w-xl">
-                    All reusable components engineered for the Perplexity research-desk aesthetic. Pure white icons on dark buttons, sliding capsule tabs, and modular primitives.
+                    Our customized, unstyled Base UI primitives styled strictly to the Perplexity research-desk design system. Modular, atomic, accessible, and composition-first.
                   </p>
                 </div>
 
-                <div className="space-y-8 pb-16">
+                <div className="space-y-10 pb-16">
                   
-                  {/* 1. REUSABLE ASK INPUT COMPONENT */}
-                  <section className="space-y-2.5">
-                    <div className="flex items-center justify-between">
+                  {/* 1. INPUTS & TEXTAREAS */}
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between border-b border-border-subtlest pb-2">
                       <span className="text-xs font-semibold uppercase tracking-wider text-secondary">
-                        1. Reusable AskInput Component
+                        1. Text Inputs &amp; Textareas
                       </span>
-                      <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
-                        &lt;AskInput /&gt;
-                      </code>
+                      <div className="flex gap-2">
+                        <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
+                          &lt;Input /&gt;
+                        </code>
+                        <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
+                          &lt;Textarea /&gt;
+                        </code>
+                      </div>
                     </div>
-                    <AskInput
-                      query={query}
-                      onQueryChange={setQuery}
-                      mode={mode}
-                      onModeChange={setMode}
-                      isMicActive={isMicActive}
-                      onMicToggle={() => setIsMicActive(!isMicActive)}
-                      placeholder="Type a research question or / for search modes..."
-                    />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-secondary">Input with Search Icon</label>
+                        <Input
+                          placeholder="Search exhibits or artifacts..."
+                          startIcon={<HugeIcon icon={Search01Icon} size={15} />}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-secondary">Small Filter Input</label>
+                        <Input
+                          sizeVariant="sm"
+                          placeholder="Filter session tags..."
+                          startIcon={<HugeIcon icon={FilterIcon} size={14} />}
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 space-y-2">
+                        <label className="text-xs font-medium text-secondary">Outline Textarea</label>
+                        <Textarea
+                          rows={2}
+                          placeholder="Enter a research note or synthesis prompt..."
+                          variant="outline"
+                        />
+                      </div>
+                    </div>
                   </section>
 
-                  {/* 2. BUTTON VARIANTS CATALOGUE */}
+                  {/* 2. BUTTONS & ICON BUTTONS */}
                   <section className="space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between border-b border-border-subtlest pb-2">
                       <span className="text-xs font-semibold uppercase tracking-wider text-secondary">
-                        2. Button Variants &amp; States
+                        2. Button Variants &amp; Icon Overrides
                       </span>
                       <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
                         &lt;Button variant=&quot;...&quot; /&gt;
@@ -470,11 +555,11 @@ export default function PerplexityLayout() {
                     </div>
                   </section>
 
-                  {/* 3. BASE UI TABS (SLIDING CAPSULE TRACK) */}
+                  {/* 3. TABS (SLIDING CAPSULE TRACK) */}
                   <section className="space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between border-b border-border-subtlest pb-2">
                       <span className="text-xs font-semibold uppercase tracking-wider text-secondary">
-                        3. Base UI Tabs with Animated Sliding Pill
+                        3. Tabs with Animated Sliding Pill
                       </span>
                       <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
                         &lt;Tabs /&gt; &lt;TabsList /&gt; &lt;Tab /&gt;
@@ -518,67 +603,248 @@ export default function PerplexityLayout() {
                     </div>
                   </section>
 
-                  {/* 4. CARDS & SUGGESTION CARDS */}
+                  {/* 4. OVERLAYS (DIALOG, POPOVER, TOOLTIP, MENU) */}
                   <section className="space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between border-b border-border-subtlest pb-2">
                       <span className="text-xs font-semibold uppercase tracking-wider text-secondary">
-                        4. Base Card &amp; Suggestion Cards
+                        4. Overlays: Dialog, Popover, Tooltip &amp; Menu
                       </span>
-                      <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
-                        &lt;Card /&gt; &lt;SuggestionCard /&gt;
-                      </code>
+                      <div className="flex gap-1.5">
+                        <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
+                          &lt;Dialog /&gt;
+                        </code>
+                        <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
+                          &lt;Popover /&gt;
+                        </code>
+                        <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
+                          &lt;Menu /&gt;
+                        </code>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <SuggestionCard
-                        title="Why did Botticelli shift Venus's neck 1.8 cm in the underdrawing?"
-                        description="Infrared reflectography reveals a deliberate revision away from anatomical accuracy toward weightless neo-Platonic harmony."
-                        onClick={() => setQuery("Why did Botticelli shift Venus's neck 1.8 cm in the underdrawing?")}
-                      />
+                    <TooltipProvider>
+                      <div className="p-4 rounded-2xl border border-border-subtle bg-raised shadow-xs flex flex-wrap items-center gap-3">
+                        
+                        {/* Dialog Trigger & Modal */}
+                        <Dialog>
+                          <DialogTrigger render={<Button variant="outline-pill" />}>
+                            Open Dialog
+                          </DialogTrigger>
+                          <DialogPortal>
+                            <DialogBackdrop />
+                            <DialogPopup>
+                              <DialogTitle>Artifact Investigation</DialogTitle>
+                              <DialogDescription>
+                                Underdrawing analysis shows deliberate anatomical revision toward neo-Platonic harmony.
+                              </DialogDescription>
+                              <div className="mt-5 flex justify-end gap-2">
+                                <Button variant="outline-pill" onClick={() => {}}>Dismiss</Button>
+                                <Button variant="primary" onClick={() => {}}>Confirm</Button>
+                              </div>
+                              <DialogCloseButton />
+                            </DialogPopup>
+                          </DialogPortal>
+                        </Dialog>
 
-                      <SuggestionCard
-                        title="How did this painting survive Savonarola's Bonfire?"
-                        description="Protected deep in the Medici Villa di Castello, it escaped the Dominican friar's purge of secular mythological masterworks."
-                        onClick={() => setQuery("How did the Medici commission survive Savonarola's Bonfire?")}
-                      />
+                        {/* Popover Trigger & Popup */}
+                        <Popover>
+                          <PopoverTrigger render={<Button variant="outline-pill" />}>
+                            Open Popover
+                          </PopoverTrigger>
+                          <PopoverPortal>
+                            <PopoverPositioner>
+                              <PopoverPopup>
+                                <h4 className="text-xs font-medium text-primary">Medici Villa Archive</h4>
+                                <p className="text-[11px] text-secondary mt-1 leading-relaxed">
+                                  Protected deep in Villa di Castello away from the 1497 Dominican purge.
+                                </p>
+                              </PopoverPopup>
+                            </PopoverPositioner>
+                          </PopoverPortal>
+                        </Popover>
+
+                        {/* Menu Dropdown */}
+                        <Menu>
+                          <MenuTrigger render={<Button variant="outline-pill" />}>
+                            <span>Thread Actions</span>
+                            <HugeIcon icon={MoreHorizontalIcon} size={14} className="ml-1" />
+                          </MenuTrigger>
+                          <MenuPortal>
+                            <MenuPositioner>
+                              <MenuPopup>
+                                <MenuGroup>
+                                  <MenuGroupLabel>Options</MenuGroupLabel>
+                                  <MenuItem>
+                                    <HugeIcon icon={AsteriskIcon} size={14} />
+                                    <span>Duplicate Thread</span>
+                                  </MenuItem>
+                                  <MenuItem>
+                                    <HugeIcon icon={Settings01Icon} size={14} />
+                                    <span>Thread Settings</span>
+                                  </MenuItem>
+                                </MenuGroup>
+                                <MenuSeparator />
+                                <MenuItem destructive>
+                                  <HugeIcon icon={FilterIcon} size={14} />
+                                  <span>Clear Filters</span>
+                                </MenuItem>
+                              </MenuPopup>
+                            </MenuPositioner>
+                          </MenuPortal>
+                        </Menu>
+
+                        {/* Tooltip Demonstration */}
+                        <Tooltip>
+                          <TooltipTrigger render={<Button variant="square-icon" size="sm" aria-label="Notifications" />}>
+                            <HugeIcon icon={BellIcon} size={16} />
+                          </TooltipTrigger>
+                          <TooltipPortal>
+                            <TooltipPositioner>
+                              <TooltipPopup>
+                                Notifications &amp; Alerts
+                              </TooltipPopup>
+                            </TooltipPositioner>
+                          </TooltipPortal>
+                        </Tooltip>
+
+                      </div>
+                    </TooltipProvider>
+                  </section>
+
+                  {/* 5. SELECTIONS & TOGGLES (SELECT, SWITCH, CHECKBOX) */}
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between border-b border-border-subtlest pb-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-secondary">
+                        5. Form Controls: Select, Switch &amp; Checkbox
+                      </span>
+                      <div className="flex gap-1.5">
+                        <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
+                          &lt;Select /&gt;
+                        </code>
+                        <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
+                          &lt;Switch /&gt;
+                        </code>
+                        <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
+                          &lt;Checkbox /&gt;
+                        </code>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* Select Dropdown */}
+                      <div className="p-4 rounded-2xl border border-border-subtle bg-raised shadow-xs flex flex-col justify-between gap-3">
+                        <div>
+                          <span className="text-xs font-medium text-secondary block">Select Component</span>
+                          <span className="text-xs text-primary font-medium mt-1 block">Model Selector</span>
+                        </div>
+                        <Select value={selectedModel} onValueChange={(v) => setSelectedModel(v as string)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select model..." />
+                          </SelectTrigger>
+                          <SelectPortal>
+                            <SelectPositioner>
+                              <SelectPopup>
+                                <SelectItem value="sonar">Sonar Deep Research</SelectItem>
+                                <SelectItem value="claude">Claude 3.5 Sonnet</SelectItem>
+                                <SelectItem value="gpt4o">GPT-4o Omnimodal</SelectItem>
+                              </SelectPopup>
+                            </SelectPositioner>
+                          </SelectPortal>
+                        </Select>
+                      </div>
+
+                      {/* Switch Toggle */}
+                      <div className="p-4 rounded-2xl border border-border-subtle bg-raised shadow-xs flex flex-col justify-between gap-3">
+                        <div>
+                          <span className="text-xs font-medium text-secondary block">Switch Component</span>
+                          <span className="text-xs text-primary font-medium mt-1 block">Live Docent Voice</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-secondary">{switchActive ? "Streaming STT On" : "Muted"}</span>
+                          <Switch checked={switchActive} onCheckedChange={setSwitchActive} />
+                        </div>
+                      </div>
+
+                      {/* Checkbox */}
+                      <div className="p-4 rounded-2xl border border-border-subtle bg-raised shadow-xs flex flex-col justify-between gap-3">
+                        <div>
+                          <span className="text-xs font-medium text-secondary block">Checkbox Component</span>
+                          <span className="text-xs text-primary font-medium mt-1 block">Auto Citations</span>
+                        </div>
+                        <Checkbox
+                          checked={checkboxChecked}
+                          onCheckedChange={setCheckboxChecked}
+                          label="Include primary sources"
+                          description="Attaches museum archive notes"
+                        />
+                      </div>
                     </div>
                   </section>
 
-                  {/* 5. DESIGN SYSTEM TOKENS REFERENCE */}
+                  {/* 6. CARDS, BADGES & SEPARATORS */}
                   <section className="space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between border-b border-border-subtlest pb-2">
                       <span className="text-xs font-semibold uppercase tracking-wider text-secondary">
-                        5. Design System Tokens Reference
+                        6. Cards, Badges &amp; Dividers
                       </span>
-                      <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
-                        globals.css
-                      </code>
+                      <div className="flex gap-1.5">
+                        <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
+                          &lt;Card /&gt;
+                        </code>
+                        <code className="text-xs text-tertiary bg-subtle px-1.5 py-0.5 rounded font-mono">
+                          &lt;Badge /&gt;
+                        </code>
+                      </div>
                     </div>
 
-                    <Card className="p-4">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                        <div className="space-y-1">
-                          <div className="size-6 rounded-md border border-border-subtle bg-base shadow-xs" />
-                          <span className="font-medium text-primary block">bg-base</span>
-                          <span className="text-tertiary block font-mono text-[11px]">#fdfbfa</span>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="size-6 rounded-md border border-border-subtle bg-subtle shadow-xs" />
-                          <span className="font-medium text-primary block">bg-subtle</span>
-                          <span className="text-tertiary block font-mono text-[11px]">#f5f3ee</span>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="size-6 rounded-md border border-border-subtle bg-raised shadow-xs" />
-                          <span className="font-medium text-primary block">bg-raised</span>
-                          <span className="text-tertiary block font-mono text-[11px]">#ffffff</span>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="size-6 rounded-md bg-button-bg shadow-xs" />
-                          <span className="font-medium text-primary block">bg-button-bg</span>
-                          <span className="text-tertiary block font-mono text-[11px]">#1f1e1b</span>
-                        </div>
+                    <div className="space-y-4">
+                      {/* Badges row */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="soft">badge=&quot;soft&quot;</Badge>
+                        <Badge variant="outline">badge=&quot;outline&quot;</Badge>
+                        <Badge variant="raised">badge=&quot;raised&quot;</Badge>
+                        <Badge variant="dark">badge=&quot;dark&quot; (white text)</Badge>
+                        <Badge variant="error">badge=&quot;error&quot;</Badge>
                       </div>
-                    </Card>
+
+                      <Separator />
+
+                      {/* Card with atomic parts */}
+                      <Card className="p-1">
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <CardTitle>Atomic Card Container</CardTitle>
+                            <Badge variant="soft">Composed</Badge>
+                          </div>
+                          <CardDescription>
+                            Engineered with CardHeader, CardTitle, CardDescription, CardContent, and CardFooter.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-xs text-secondary leading-relaxed">
+                            This modular structure allows full composition flexibility across research artifacts, exhibit descriptions, and sidebar panels.
+                          </p>
+                        </CardContent>
+                        <CardFooter>
+                          <span className="text-[11px] text-tertiary">Design token: bg-raised · border-border-subtle</span>
+                        </CardFooter>
+                      </Card>
+
+                      {/* Suggestion Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                        <SuggestionCard
+                          title="Why did Botticelli shift Venus's neck 1.8 cm in the underdrawing?"
+                          description="Infrared reflectography reveals a deliberate revision away from anatomical accuracy toward weightless neo-Platonic harmony."
+                          onClick={() => setQuery("Why did Botticelli shift Venus's neck 1.8 cm in the underdrawing?")}
+                        />
+
+                        <SuggestionCard
+                          title="How did this painting survive Savonarola's Bonfire?"
+                          description="Protected deep in the Medici Villa di Castello, it escaped the Dominican friar's purge of secular mythological masterworks."
+                          onClick={() => setQuery("How did the Medici commission survive Savonarola's Bonfire?")}
+                        />
+                      </div>
+                    </div>
                   </section>
 
                 </div>
