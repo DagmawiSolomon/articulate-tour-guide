@@ -6,7 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   MicOff01Icon,
   Mic01Icon,
-  CallIcon,
+  Cancel01Icon,
 } from "@hugeicons/core-free-icons";
 import { ArticulateAvatar } from "@/components/avatar/articulate-avatar";
 import {
@@ -18,11 +18,17 @@ import { Footer } from "@/components/layout/footer";
 
 export default function Home() {
   const [isTopLeft, setIsTopLeft] = React.useState(false);
-  const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("listening");
-  const [isMuted, setIsMuted] = React.useState(true);
+  const [isCallActive, setIsCallActive] = React.useState(false);
+  const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("neutral");
+  const [isMuted, setIsMuted] = React.useState(false);
 
-  // Automatically cycle through key tour guide states
+  // Automatically cycle through key tour guide states when call is active
   React.useEffect(() => {
+    if (!isCallActive) {
+      setActiveExpressionId("neutral");
+      return;
+    }
+
     const cycleStates: ExpressionId[] = [
       "listening",
       "thinking",
@@ -33,6 +39,8 @@ export default function Home() {
       "shy",
     ];
 
+    setActiveExpressionId("listening");
+
     const stateInterval = setInterval(() => {
       setActiveExpressionId((prev) => {
         const idx = cycleStates.indexOf(prev);
@@ -42,9 +50,15 @@ export default function Home() {
     }, 3400);
 
     return () => clearInterval(stateInterval);
-  }, []);
+  }, [isCallActive]);
+
+  const handleStartCall = () => {
+    setIsCallActive(true);
+    setIsMuted(false);
+  };
 
   const handleEndCall = () => {
+    setIsCallActive(false);
     setActiveExpressionId("neutral");
   };
 
@@ -100,36 +114,47 @@ export default function Home() {
             </div>
 
             {/* Media Control Dock (centered) */}
-            <div className="w-full h-13 bg-card rounded-full border border-border/80 shadow-xs flex items-center justify-between p-1.5">
-              {/* Left: Mic Toggle Button */}
-              <button
-                type="button"
-                onClick={() => setIsMuted((prev) => !prev)}
-                title={isMuted ? "Unmute microphone" : "Mute microphone"}
-                aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
-                className={`size-10 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-                  isMuted
-                    ? "bg-[#fde8e8] text-[#e02424] hover:bg-[#fbd5d5]"
-                    : "bg-subtle text-secondary-text hover:bg-soft hover:text-foreground"
-                }`}
-              >
-                <HugeiconsIcon icon={isMuted ? MicOff01Icon : Mic01Icon} size={18} />
-              </button>
+            <div className="flex items-center justify-center transition-all">
+              {!isCallActive ? (
+                <button
+                  type="button"
+                  onClick={handleStartCall}
+                  className="h-11 px-6 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2 font-medium text-xs tracking-[-0.1px] transition-all cursor-pointer active:scale-95 shadow-xs"
+                >
+                  <HugeiconsIcon icon={Mic01Icon} size={16} color="#ffffff" className="text-white" />
+                  <span>Speak</span>
+                </button>
+              ) : (
+                <div className="h-13 px-2 bg-card rounded-full border border-border/80 shadow-xs flex items-center gap-2.5 transition-all">
+                  {/* Left: Mic Toggle Button (Circle) */}
+                  <button
+                    type="button"
+                    onClick={() => setIsMuted((prev) => !prev)}
+                    title={isMuted ? "Unmute microphone" : "Mute microphone"}
+                    aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
+                    className={`size-10 rounded-full flex items-center justify-center transition-colors cursor-pointer active:scale-95 ${
+                      isMuted
+                        ? "bg-[#fde8e8] text-[#e02424] hover:bg-[#fbd5d5]"
+                        : "bg-subtle text-secondary-text hover:bg-soft hover:text-foreground"
+                    }`}
+                  >
+                    <HugeiconsIcon icon={isMuted ? MicOff01Icon : Mic01Icon} size={18} />
+                  </button>
 
-              {/* Center Spacer */}
-              <div className="flex-1" />
+                  <div className="w-px h-5 bg-border/80" />
 
-              {/* Right: End Call Button (phone icon without X) */}
-              <button
-                type="button"
-                onClick={handleEndCall}
-                title="End call"
-                aria-label="End call"
-                className="h-10 px-3.5 rounded-full bg-[#fde8e8] text-[#e02424] hover:bg-[#fbd5d5] flex items-center gap-1.5 font-bold text-xs tracking-wider transition-colors cursor-pointer uppercase"
-              >
-                <HugeiconsIcon icon={CallIcon} size={15} />
-                <span>END</span>
-              </button>
+                  {/* Right: Circle with X icon inside it to end */}
+                  <button
+                    type="button"
+                    onClick={handleEndCall}
+                    title="End call"
+                    aria-label="End call"
+                    className="size-10 rounded-full bg-[#fde8e8] text-[#e02424] hover:bg-[#fbd5d5] flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+                  >
+                    <HugeiconsIcon icon={Cancel01Icon} size={18} />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
