@@ -1,40 +1,17 @@
-"use client";
+import * as React from "react"
+import { cn } from "cn"
 
-import * as React from "react";
-
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  variant?: "ghost" | "outline" | "raised";
-  error?: boolean;
+function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
+  return (
+    <textarea
+      data-slot="textarea"
+      className={cn(
+        "flex field-sizing-content min-h-16 w-full resize-none rounded-2xl border border-transparent bg-input/50 px-2.5 py-2 text-base transition-[color,box-shadow] duration-200 outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ variant = "outline", error = false, className = "", disabled, ...props }, ref) => {
-    const baseClasses =
-      "w-full font-sans text-primary placeholder:text-tertiary outline-none transition-colors resize-none";
-
-    const variantClasses = {
-      ghost: "bg-transparent border-none p-0 focus:outline-none focus:ring-0",
-      outline: `rounded-xl p-3 border bg-raised ${
-        error
-          ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
-          : "border-border-subtle focus:border-primary focus:ring-1 focus:ring-primary hover:border-secondary/40"
-      }`,
-      raised:
-        "rounded-2xl p-3.5 border border-border-subtle bg-raised shadow-xs focus:ring-1 focus:ring-primary",
-    };
-
-    return (
-      <textarea
-        ref={ref}
-        disabled={disabled}
-        className={`${baseClasses} ${variantClasses[variant]} ${
-          disabled ? "opacity-50 cursor-not-allowed bg-subtle" : ""
-        } ${className}`}
-        {...props}
-      />
-    );
-  }
-);
-
-Textarea.displayName = "Textarea";
+export { Textarea }

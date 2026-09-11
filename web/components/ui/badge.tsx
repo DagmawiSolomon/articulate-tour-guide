@@ -1,42 +1,54 @@
-import * as React from "react";
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "cn"
 
-export type BadgeVariant = "soft" | "outline" | "raised" | "dark" | "error";
+const badgeVariants = cva(
+  "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-2xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        soft: "bg-accent text-accent-foreground border border-transparent rounded-full px-2.5 py-0.5",
+        raised: "bg-card text-card-foreground border border-border shadow-xs rounded-full px-2.5 py-0.5",
+        dark: "bg-primary text-primary-foreground border border-transparent rounded-full px-2.5 py-0.5 [&_svg]:stroke-white",
+        secondary:
+          "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
+        destructive:
+          "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+        outline:
+          "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
+        ghost:
+          "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
 
-export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: BadgeVariant;
-  size?: "xs" | "sm";
-  children: React.ReactNode;
-}
-
-export function Badge({
-  variant = "soft",
-  size = "sm",
-  className = "",
-  children,
+function Badge({
+  className,
+  variant = "default",
+  render,
   ...props
-}: BadgeProps) {
-  const baseClasses =
-    "inline-flex items-center gap-1.5 font-medium rounded-full font-sans transition-colors";
-
-  const sizeClasses = {
-    xs: "px-2 py-0.5 text-[11px] leading-tight",
-    sm: "px-2.5 py-1 text-xs leading-none",
-  };
-
-  const variantClasses: Record<BadgeVariant, string> = {
-    soft: "bg-soft text-primary border border-transparent",
-    outline: "bg-transparent text-secondary border border-border-subtle hover:border-secondary/50",
-    raised: "bg-raised text-primary border border-border-subtle shadow-xs",
-    dark: "bg-button-bg text-white border border-transparent [&_svg]:stroke-white",
-    error: "bg-red-50 text-red-700 border border-red-200",
-  };
-
-  return (
-    <span
-      className={`${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`}
-      {...props}
-    >
-      {children}
-    </span>
-  );
+}: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
+  return useRender({
+    defaultTagName: "span",
+    props: mergeProps<"span">(
+      {
+        className: cn(badgeVariants({ variant }), className),
+      },
+      props
+    ),
+    render,
+    state: {
+      slot: "badge",
+      variant,
+    },
+  })
 }
+
+export { Badge, badgeVariants }

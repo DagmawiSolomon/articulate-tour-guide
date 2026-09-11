@@ -1,114 +1,81 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { Tabs as BaseTabs } from "@base-ui/react/tabs";
-import { HugeIcon, HugeIconData } from "@/components/ui/hugeicon";
-import ArrowDown01Icon from "@hugeicons/core-free-icons/ArrowDown01Icon";
+import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "cn"
 
-export const Tabs = BaseTabs.Root;
-
-interface TabsListProps extends React.ComponentProps<typeof BaseTabs.List> {
-  activeValue?: string;
-  tabs?: Array<{ value: string; width?: number }>;
-}
-
-export function TabsList({
-  activeValue,
-  tabs = [
-    { value: "search", width: 107 },
-    { value: "computer", width: 109 },
-  ],
-  className = "",
-  children,
+function Tabs({
+  className,
+  orientation = "horizontal",
   ...props
-}: TabsListProps) {
-  const activeIndex = tabs.findIndex((t) => t.value === activeValue);
-  const activeTab = tabs[activeIndex] ?? tabs[0];
-  
-  // Calculate offset
-  const offset = tabs
-    .slice(0, Math.max(0, activeIndex))
-    .reduce((acc, t) => acc + (t.width ?? 107), 0);
-
+}: TabsPrimitive.Root.Props) {
   return (
-    <BaseTabs.List
-      className={`relative flex items-center shrink-0 gap-0 rounded-full transition-colors duration-quick bg-subtle ${className}`}
+    <TabsPrimitive.Root
+      data-slot="tabs"
+      data-orientation={orientation}
+      className={cn(
+        "group/tabs flex gap-2 data-horizontal:flex-col",
+        className
+      )}
       {...props}
-    >
-      {/* Sliding White Indicator Pill */}
-      <div
-        aria-hidden="true"
-        data-testid="ask-input-mode-toggle-indicator"
-        className="pointer-events-none absolute top-0 z-0 h-full rounded-full border border-border-subtle bg-raised shadow-xs transition-all duration-200"
-        style={{
-          insetInlineStart: `${offset}px`,
-          width: `${activeTab?.width ?? 107}px`,
-          opacity: 1,
-        }}
-      />
-      {children}
-    </BaseTabs.List>
-  );
+    />
+  )
 }
 
-interface TabProps extends React.ComponentProps<typeof BaseTabs.Tab> {
-  icon?: HugeIconData;
-  label: string;
-  isSelected?: boolean;
-  width?: number;
-  hasChevron?: boolean;
-}
+const tabsListVariants = cva(
+  "group/tabs-list inline-flex w-fit items-center justify-center rounded-2xl p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col group-data-vertical/tabs:p-1 data-[variant=line]:rounded-none",
+  {
+    variants: {
+      variant: {
+        default: "bg-muted",
+        line: "gap-1 bg-transparent",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
 
-export function Tab({
-  value,
-  icon,
-  label,
-  isSelected,
-  width = 107,
-  hasChevron = true,
-  className = "",
+function TabsList({
+  className,
+  variant = "default",
   ...props
-}: TabProps) {
+}: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
   return (
-    <span
-      data-testid="ask-input-mode-toggle-width-wrapper"
-      className="relative z-[1] inline-flex flex-none overflow-hidden rounded-full"
-      style={{ width: `${width}px` }}
-    >
-      <span className="inline-flex w-max">
-        <BaseTabs.Tab
-          value={value}
-          className={`reset interactable-alt inline-flex select-none max-w-full items-center border transition-colors duration-150 cursor-pointer rounded-full h-8 text-sm pl-2 pr-2 relative gap-0 overflow-visible !border-solid !border-transparent !bg-transparent hover:!bg-transparent ${
-            isSelected ? "text-primary font-medium" : "text-secondary hover:text-primary"
-          } ${className}`}
-          style={{ minWidth: "36px" }}
-          {...props}
-        >
-          {icon && (
-            <span className="inline-flex items-center px-1">
-              <HugeIcon icon={icon} size={14} />
-            </span>
-          )}
-          <span className="inline-flex items-center whitespace-nowrap">
-            {label}
-            {hasChevron && (
-              <span
-                aria-hidden="true"
-                data-testid="ask-input-mode-toggle-chevron-slot"
-                className="inline-flex items-center justify-end overflow-hidden transition-all duration-150"
-                style={{ width: isSelected ? "18px" : "0px" }}
-              >
-                <span
-                  className="ml-1 inline-flex origin-right transition-opacity duration-150"
-                  style={{ opacity: isSelected ? 1 : 0 }}
-                >
-                  <HugeIcon icon={ArrowDown01Icon} size={14} />
-                </span>
-              </span>
-            )}
-          </span>
-        </BaseTabs.Tab>
-      </span>
-    </span>
-  );
+    <TabsPrimitive.List
+      data-slot="tabs-list"
+      data-variant={variant}
+      className={cn(tabsListVariants({ variant }), className)}
+      {...props}
+    />
+  )
 }
+
+function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
+  return (
+    <TabsPrimitive.Tab
+      data-slot="tabs-trigger"
+      className={cn(
+        "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-2xl border border-transparent! px-1.5 py-0.5 text-sm font-medium whitespace-nowrap text-foreground/60 transition-all group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start group-data-vertical/tabs:px-3 group-data-vertical/tabs:py-0.5 hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 dark:text-muted-foreground dark:hover:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent",
+        "data-active:bg-background data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30 dark:data-active:text-foreground",
+        "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
+  return (
+    <TabsPrimitive.Panel
+      data-slot="tabs-content"
+      className={cn("flex-1 text-sm outline-none", className)}
+      {...props}
+    />
+  )
+}
+
+export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }

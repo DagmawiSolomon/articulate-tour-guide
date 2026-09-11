@@ -1,76 +1,19 @@
-"use client";
+import * as React from "react"
+import { Input as InputPrimitive } from "@base-ui/react/input"
+import { cn } from "cn"
 
-import * as React from "react";
-import { Input as BaseInput } from "@base-ui/react/input";
-
-export interface InputProps extends React.ComponentProps<typeof BaseInput> {
-  sizeVariant?: "sm" | "md" | "lg";
-  startIcon?: React.ReactNode;
-  endIcon?: React.ReactNode;
-  error?: boolean;
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  return (
+    <InputPrimitive
+      type={type}
+      data-slot="input"
+      className={cn(
+        "h-8 w-full min-w-0 rounded-2xl border border-transparent bg-input/50 px-2.5 py-1 text-base transition-[color,box-shadow] duration-200 outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  (
-    {
-      sizeVariant = "md",
-      startIcon,
-      endIcon,
-      error = false,
-      className = "",
-      disabled,
-      ...props
-    },
-    ref
-  ) => {
-    const sizeClasses = {
-      sm: "h-8 text-xs px-2.5 rounded-lg",
-      md: "h-9 text-sm px-3 rounded-xl",
-      lg: "h-11 text-base px-4 rounded-2xl",
-    };
-
-    const hasIcons = Boolean(startIcon || endIcon);
-
-    const baseInputClasses = `w-full bg-raised text-primary placeholder:text-tertiary border transition-colors outline-none font-sans font-normal ${
-      error
-        ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
-        : "border-border-subtle focus:border-primary focus:ring-1 focus:ring-primary hover:border-secondary/40"
-    } ${disabled ? "opacity-50 cursor-not-allowed bg-subtle" : ""}`;
-
-    if (!hasIcons) {
-      return (
-        <BaseInput
-          ref={ref}
-          disabled={disabled}
-          className={`${baseInputClasses} ${sizeClasses[sizeVariant]} ${className}`}
-          {...props}
-        />
-      );
-    }
-
-    return (
-      <div className={`relative flex items-center w-full ${disabled ? "opacity-50" : ""}`}>
-        {startIcon && (
-          <div className="absolute left-3 flex items-center pointer-events-none text-secondary">
-            {startIcon}
-          </div>
-        )}
-        <BaseInput
-          ref={ref}
-          disabled={disabled}
-          className={`${baseInputClasses} ${sizeClasses[sizeVariant]} ${
-            startIcon ? "pl-9" : ""
-          } ${endIcon ? "pr-9" : ""} ${className}`}
-          {...props}
-        />
-        {endIcon && (
-          <div className="absolute right-3 flex items-center pointer-events-none text-secondary">
-            {endIcon}
-          </div>
-        )}
-      </div>
-    );
-  }
-);
-
-Input.displayName = "Input";
+export { Input }

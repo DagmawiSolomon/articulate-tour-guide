@@ -1,54 +1,28 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
-import { HugeIcon } from "@/components/ui/hugeicon";
-import Tick02Icon from "@hugeicons/core-free-icons/Tick02Icon";
+import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
+import { cn } from "cn"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Tick02Icon } from "@hugeicons/core-free-icons"
 
-export interface CheckboxProps
-  extends React.ComponentProps<typeof BaseCheckbox.Root> {
-  label?: string;
-  description?: string;
+function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
+  return (
+    <CheckboxPrimitive.Root
+      data-slot="checkbox"
+      className={cn(
+        "peer relative flex size-4 shrink-0 items-center justify-center rounded-[5px] border border-transparent bg-input/90 transition-shadow outline-none group-has-disabled/field:opacity-50 group-has-[:focus-visible]/field-label:ring-0 group-has-[:focus-visible]/field-label:not-data-checked:border-transparent after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground group-has-[:focus-visible]/field-label:data-checked:border-primary dark:data-checked:bg-primary",
+        className
+      )}
+      {...props}
+    >
+      <CheckboxPrimitive.Indicator
+        data-slot="checkbox-indicator"
+        className="grid place-content-center text-current transition-none [&>svg]:size-3.5"
+      >
+        <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} />
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Root>
+  )
 }
 
-export const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
-  ({ label, description, className = "", id, ...props }, ref) => {
-    const generatedId = React.useId();
-    const checkboxId = id ?? generatedId;
-
-    const checkboxControl = (
-      <BaseCheckbox.Root
-        ref={ref}
-        id={checkboxId}
-        className={`flex size-4.5 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-raised transition-colors outline-none focus-visible:ring-1 focus-visible:ring-primary data-[checked]:bg-primary data-[checked]:border-primary cursor-pointer ${className}`}
-        {...props}
-      >
-        <BaseCheckbox.Indicator className="flex items-center justify-center text-white">
-          <HugeIcon icon={Tick02Icon} size={12} color="#ffffff" className="text-white" strokeWidth={2.5} />
-        </BaseCheckbox.Indicator>
-      </BaseCheckbox.Root>
-    );
-
-    if (!label) {
-      return checkboxControl;
-    }
-
-    return (
-      <div className="flex items-start gap-2.5 cursor-pointer select-none">
-        {checkboxControl}
-        <div className="flex flex-col">
-          <label htmlFor={checkboxId} className="text-xs font-medium text-primary cursor-pointer leading-tight">
-            {label}
-          </label>
-          {description && (
-            <span className="text-[11px] text-secondary leading-snug mt-0.5">
-              {description}
-            </span>
-          )}
-        </div>
-      </div>
-    );
-  }
-);
-
-Checkbox.displayName = "Checkbox";
+export { Checkbox }
