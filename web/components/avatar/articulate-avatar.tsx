@@ -21,6 +21,8 @@ export interface ArticulateAvatarProps {
   onClick?: () => void;
   /** Whether conversational state is currently listening (triggers eye flutter blink) */
   isListening?: boolean;
+  /** Custom class names for the outer wrapper */
+  className?: string;
 }
 
 /**
@@ -44,6 +46,7 @@ export function ArticulateAvatar({
   isDocked = false,
   onClick,
   isListening = false,
+  className,
 }: ArticulateAvatarProps) {
   const currentConfig =
     EXPRESSIONS_CATALOG.find((e) => e.id === expressionId) ??
@@ -52,31 +55,31 @@ export function ArticulateAvatar({
   const resolvedExpression = customExpression ?? currentConfig.expression;
   const isCurvedEyes = !!currentConfig.isCurvedEyes;
   const isShy = expressionId === "shy";
+  const currentSize = isDocked ? 64 : size;
 
   return (
     <div
       onClick={onClick}
-      title={isDocked ? "Click to switch to center view" : "Click to switch to top-left cards view"}
-      className={`absolute cursor-pointer transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] z-20 flex items-center justify-center hover:scale-105 active:scale-95 ${
-        !isDocked
-          ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-          : "top-0 left-0 translate-x-0 translate-y-0"
-      }`}
+      title={isDocked ? "Click to switch to center view" : "Click to switch to cards view"}
+      className={
+        className ??
+        `cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-20 flex items-center justify-center hover:scale-105 active:scale-95 relative ${
+          isDocked ? "size-16 shrink-0" : ""
+        }`
+      }
     >
       {/* Main Avatar Container: Triangle body stays 100% constant and identical across all emotions */}
       <div
-        className={`transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] origin-top-left relative rounded-full ${
-          !isDocked ? "scale-100" : "scale-[0.32]"
-        } ${isListening ? "avatar-listening" : ""} ${
-          isCurvedEyes ? "curved-eyes-mode" : ""
-        }`}
-        style={{ width: size, height: size }}
+        className={`relative rounded-full flex items-center justify-center ${
+          isListening ? "avatar-listening" : ""
+        } ${isCurvedEyes ? "curved-eyes-mode" : ""}`}
+        style={{ width: currentSize, height: currentSize }}
       >
         {/* Layer 1: Base Blobatar (Locked to Mr. Triangle: shape 0.99) */}
         <div className="absolute inset-0">
           <Blobatar
             name="Articulate"
-            size={size}
+            size={currentSize}
             animate="always"
             expression={resolvedExpression}
             traits={{ shape: 0.99 }}
@@ -86,8 +89,8 @@ export function ArticulateAvatar({
         {/* Layer 2: Precision SVG Overlay for Tip Blush & Curved Eyes */}
         <svg
           viewBox="0 0 100 100"
-          width={size}
-          height={size}
+          width={currentSize}
+          height={currentSize}
           className="absolute inset-0 pointer-events-none z-10"
           aria-hidden="true"
         >
