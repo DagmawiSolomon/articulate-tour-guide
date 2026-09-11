@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, DM_Sans } from "next/font/google";
 import "./globals.css";
+import { cn } from "@/lib/utils";
+
+const dmSansHeading = DM_Sans({subsets:['latin'],variable:'--font-heading'});
 
 const inter = Inter({
   variable: "--font-inter",
@@ -20,9 +23,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} h-full antialiased`}
+      className={cn("light", "h-full", "antialiased", inter.variable, dmSansHeading.variable)}
+      style={{ colorScheme: "light" }}
     >
-      <body className="h-full overflow-hidden">{children}</body>
+      <body className="h-full overflow-hidden bg-background text-foreground">{children}</body>
     </html>
   );
 }
