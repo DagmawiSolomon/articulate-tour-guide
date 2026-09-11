@@ -12,12 +12,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Settings02Icon,
-  Mic01Icon,
   Key01Icon,
   CheckmarkCircle02Icon,
 } from "@hugeicons/core-free-icons";
@@ -88,23 +86,7 @@ export function Header() {
           <div className="flex flex-col gap-5 py-2">
             {/* AssemblyAI Section */}
             <div className="flex flex-col gap-2.5 p-3.5 rounded-xl bg-subtle/70 border border-border-subtle">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <HugeiconsIcon icon={Mic01Icon} size={15} className="text-foreground" />
-                  <span className="font-medium text-xs text-foreground">
-                    AssemblyAI Speech-to-Text
-                  </span>
-                </div>
-                <Badge variant="soft" className="text-[10px] px-2">
-                  Universal-3.5 Pro
-                </Badge>
-              </div>
-
-              <p className="text-xs text-secondary-text leading-relaxed">
-                Powers real-time speech transcription and drives Mr. Triangle&apos;s listening and conversational expressions.
-              </p>
-
-              <div className="flex flex-col gap-1.5 mt-1">
+              <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
                   <HugeiconsIcon icon={Key01Icon} size={12} className="text-secondary-text" />
                   <span>AssemblyAI API Key</span>
