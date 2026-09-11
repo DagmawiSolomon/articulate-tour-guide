@@ -1,11 +1,11 @@
 ---
 name: articulate-ui
-description: Use when building, styling, or reviewing UI components for the Articulate app. Enforces the Perplexity-inspired research-desk design system, Base UI primitives, Hugeicons, and exact padding and color tokens.
+description: Use when building, styling, or reviewing UI components for the Articulate app. Enforces the Articulate UI research-desk design system, Base UI primitives, Hugeicons, and exact padding and color tokens.
 ---
 
 # Articulate UI & Design System Guide
 
-This skill governs all frontend interface development in Articulate. All components must adhere strictly to the live Perplexity AI research-desk aesthetic, using Base UI (`@base-ui/react`) primitives and Hugeicons.
+This skill governs all frontend interface development in Articulate. All components adhere strictly to the Articulate UI research-desk aesthetic, utilizing **shadcn/ui** components customized with our exact tokens and Hugeicons.
 
 ---
 
@@ -26,6 +26,27 @@ Strictly monochrome ink with warm off-white parchment desk tones. **NEVER use te
 | **Tertiary Text** | `--color-tertiary` | `#92918b` | Shortcuts, placeholders, collapse chevrons |
 | **Button Primary**| `--color-button-bg` | `#1f1e1b` | Voice mode and primary dark action buttons |
 | **Button Text**   | `--color-inverse` | `#ffffff` | Pure white text/icons on dark buttons |
+
+### shadcn/ui Theme Token Mapping
+When configuring or generating shadcn/ui components:
+- `--background`: `#fdfbfa`
+- `--foreground`: `#1f1e1b`
+- `--card`: `#ffffff`
+- `--card-foreground`: `#1f1e1b`
+- `--popover`: `#ffffff`
+- `--popover-foreground`: `#1f1e1b`
+- `--primary`: `#1f1e1b`
+- `--primary-foreground`: `#ffffff`
+- `--secondary`: `#f5f3ee`
+- `--secondary-foreground`: `#1f1e1b`
+- `--muted`: `#f5f3ee`
+- `--muted-foreground`: `#72706b`
+- `--accent`: `#eae7e1`
+- `--accent-foreground`: `#1f1e1b`
+- `--border`: `#e2e0d8`
+- `--input`: `#e2e0d8`
+- `--ring`: `#1f1e1b`
+- `--radius`: `0.75rem` (`rounded-xl`)
 
 ---
 
@@ -56,11 +77,9 @@ import AudioWave01Icon from "@hugeicons/core-free-icons/AudioWave01Icon";
 
 ---
 
----
+## 4. Reusable Building Blocks Catalog (shadcn/ui Customization Spec)
 
-## 4. Reusable Base UI Building Blocks Catalog
-
-All building blocks reside in `web/components/ui/` as composable, atomic units:
+All building blocks reside in `web/components/ui/` using shadcn/ui primitives customized to our exact aesthetic:
 
 ### 1. Button (`@/components/ui/button`)
 Supports 6 predefined variants:

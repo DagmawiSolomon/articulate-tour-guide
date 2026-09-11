@@ -1,7 +1,7 @@
 # Design System & UI Rules for Articulate
 
 ## Visual Aesthetic & Theme
-- The interface strictly adheres to the Perplexity AI research-desk aesthetic.
+- The interface strictly adheres to the Articulate UI research-desk aesthetic.
 - Canvas background is `#fdfbfa` (`--color-base` / `bg-base`).
 - Primary actions and highlights are strictly monochrome ink (`#1f1e1b`). NEVER use teal, electric blue, or purple.
 - Typography is Inter with strictly `-0.1px` letter-spacing.
