@@ -91,13 +91,22 @@ export default function Home() {
   const baselineY = notchH - 0.5;
   const apexY = baselineY - notchD;
   const centerX = notchW / 2;
-  const shoulderX = centerX - (notchW * 0.16);
-  const shoulderY = apexY + (notchD * 0.6);
-  const cp1X = notchW * 0.16;
-  const cp2X = notchW * 0.27;
-  const cp2Y = baselineY - (notchD * 0.15);
+  const shoulderX = notchW * 0.25;
+  const shoulderY = baselineY - notchD * 0.5;
+  const shoulderHandleX = notchW * 0.1;
+  const shoulderHandleY = notchD * 0.32;
+  const edgeHandle = notchW * 0.14;
+  const crestHandle = notchW * 0.14;
 
-  const bottomNotchPath = `M 0 ${baselineY} C ${cp1X} ${baselineY}, ${cp2X} ${cp2Y}, ${shoulderX} ${shoulderY} C ${shoulderX + 12} ${shoulderY - 12}, ${centerX - 9} ${apexY}, ${centerX} ${apexY} C ${centerX + 9} ${apexY}, ${notchW - shoulderX - 12} ${shoulderY - 12}, ${notchW - shoulderX} ${shoulderY} C ${notchW - cp2X} ${cp2Y}, ${notchW - cp1X} ${baselineY}, ${notchW} ${baselineY}`;
+  // Mirrored, equal-length handles keep every join tangent-continuous.
+  // Scale both axes with the controls so the shoulders stay soft at any size.
+  const bottomNotchPath = [
+    `M 0 ${baselineY}`,
+    `C ${edgeHandle} ${baselineY}, ${shoulderX - shoulderHandleX} ${shoulderY + shoulderHandleY}, ${shoulderX} ${shoulderY}`,
+    `C ${shoulderX + shoulderHandleX} ${shoulderY - shoulderHandleY}, ${centerX - crestHandle} ${apexY}, ${centerX} ${apexY}`,
+    `C ${centerX + crestHandle} ${apexY}, ${notchW - shoulderX - shoulderHandleX} ${shoulderY - shoulderHandleY}, ${notchW - shoulderX} ${shoulderY}`,
+    `C ${notchW - shoulderX + shoulderHandleX} ${shoulderY + shoulderHandleY}, ${notchW - edgeHandle} ${baselineY}, ${notchW} ${baselineY}`,
+  ].join(" ");
   const bottomNotchMask = `${bottomNotchPath} L ${notchW} ${notchH + 4} L 0 ${notchH + 4} Z`;
 
   // Dynamic top-right inverted border radius (outer edge of circle matches top and right borders)
