@@ -20,14 +20,7 @@ import {
   CheckmarkCircle02Icon,
 } from "@hugeicons/core-free-icons";
 
-export type CardLayoutOption = "top" | "bottom" | "mr-t-cradle";
-
-export interface HeaderProps {
-  dockLayout?: CardLayoutOption;
-  onDockLayoutChange?: (layout: CardLayoutOption) => void;
-}
-
-export function Header({ dockLayout, onDockLayoutChange }: HeaderProps = {}) {
+export function Header() {
   const [isOpen, setIsOpen] = React.useState(false);
   const [apiKey, setApiKey] = React.useState("");
   const [isAutoSpeak, setIsAutoSpeak] = React.useState(true);
@@ -66,45 +59,6 @@ export function Header({ dockLayout, onDockLayoutChange }: HeaderProps = {}) {
       >
         articulate tour guide.
       </span>
-
-      {/* Dock Layout Switcher in Header */}
-      {onDockLayoutChange && dockLayout && (
-        <div className="flex items-center rounded-full border border-border-subtle bg-subtle p-0.5 text-xs shadow-2xs">
-          <button
-            type="button"
-            onClick={() => onDockLayoutChange("top")}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
-              dockLayout === "top"
-                ? "bg-card text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Top Controls
-          </button>
-          <button
-            type="button"
-            onClick={() => onDockLayoutChange("bottom")}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
-              dockLayout === "bottom"
-                ? "bg-card text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Bottom Cradle
-          </button>
-          <button
-            type="button"
-            onClick={() => onDockLayoutChange("mr-t-cradle")}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
-              dockLayout === "mr-t-cradle"
-                ? "bg-card text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Mr. T Bottom Cradle
-          </button>
-        </div>
-      )}
 
       {/* Settings Dialog on the Right: rounded rectangle like image in light mode */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
