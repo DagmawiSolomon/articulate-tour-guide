@@ -332,11 +332,6 @@ body {
   left: 42px;
   transform: translateX(-50%) scale(0.2416666667);
 }
-.guide-stage[data-expanded="true"][data-dock-layout="mr-t-cradle"] .guide-avatar {
-  top: calc(100% - 96px);
-  left: 42px;
-  transform: translateX(-50%) scale(0.2416666667);
-}
 .guide-card-layer {
   opacity: 0;
   transform: translateY(18px) scale(0.96);
@@ -344,19 +339,29 @@ body {
   transition: opacity 400ms ease, transform 650ms var(--guide-ease);
 }
 .guide-stage[data-expanded="true"] .guide-card-layer { opacity: 1; transform: none; }
-.guide-start-controls {
+.guide-status {
   position: absolute;
   z-index: 25;
-  top: calc(50% + 94px);
+  top: calc(50% + 104px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  transition: opacity 180ms ease, visibility 180ms, top 400ms var(--guide-ease), left 400ms var(--guide-ease);
+  justify-content: center;
+  transition: opacity 200ms ease, visibility 200ms ease;
 }
-.guide-stage[data-expanded="true"] .guide-start-controls { opacity: 0; visibility: hidden; pointer-events: none; }
+.guide-stage[data-expanded="true"] .guide-status {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.guide-dock {
+  position: absolute;
+  z-index: 25;
+  bottom: 0.5px;
+  left: 50%;
+  transform: translateX(-50%);
+}
 @media (prefers-reduced-motion: reduce) {
-  .guide-avatar, .guide-card-layer, .guide-start-controls { transition: none; }
+  .guide-avatar, .guide-card-layer, .guide-status { transition: none; }
 }
