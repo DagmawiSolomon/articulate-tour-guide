@@ -17,6 +17,7 @@ import {
 } from "@/components/avatar/avatar-expressions";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { Sidebar, type TourStop, type TourDiscovery } from "@/components/layout/sidebar";
 
 type AgentStatus = "listening" | "thinking" | "speaking";
 
@@ -36,10 +37,26 @@ const THINKING_EMOTIONS: ExpressionId[] = [
 
 export default function Home() {
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  const [activeStopId, setActiveStopId] = React.useState("stop-2");
   const [isCallActive, setIsCallActive] = React.useState(false);
   const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("neutral");
   const [agentStatus, setAgentStatus] = React.useState<AgentStatus>("listening");
   const [isMuted, setIsMuted] = React.useState(false);
+
+  const handleSelectStop = (stop: TourStop) => {
+    setActiveStopId(stop.id);
+    setActiveExpressionId("interested");
+    if (!isCallActive) {
+      setIsCallActive(true);
+      setAgentStatus("listening");
+    }
+  };
+
+  const handleSelectDiscovery = (_discovery: TourDiscovery) => {
+    setActiveExpressionId("focused");
+    setIsExpanded(true);
+  };
 
   // Fixed card geometry.
   const tuning = {
@@ -206,9 +223,17 @@ export default function Home() {
   // Monotonic shoulders meet the capsule at its widest points, avoiding a lower bulge.
   const dockPath = "M 0 63.5 C 12 63.5 14 53.5 14 37.5 A 32 32 0 0 1 46 5.5 H 178 A 32 32 0 0 1 210 37.5 C 210 53.5 212 63.5 224 63.5";
   return (
-    <div className="h-dvh min-h-[480px] w-full bg-background grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden select-none relative">
-      <Header />
-      <main className="min-h-0 w-full max-w-6xl mx-auto px-6 py-6 relative flex items-center justify-center">
+    <div className="h-dvh min-h-[480px] w-full bg-background flex overflow-hidden select-none relative">
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen((prev) => !prev)}
+        activeStopId={activeStopId}
+        onSelectStop={handleSelectStop}
+        onSelectDiscovery={handleSelectDiscovery}
+      />
+      <div className="flex-1 min-w-0 h-full grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden relative">
+        <Header />
+        <main className="min-h-0 w-full max-w-6xl mx-auto px-6 py-6 relative flex items-center justify-center">
         <div className="guide-stage relative w-full h-full max-h-[600px]" data-expanded={isExpanded}>
           <div className="guide-card-layer absolute inset-0" inert={!isExpanded} aria-hidden={!isExpanded}>
             <div className="guide-card w-full h-full rounded-2xl border border-border bg-card shadow-xs relative flex items-center justify-center overflow-visible">
@@ -306,7 +331,8 @@ export default function Home() {
 
         </div>
       </main>
-      <Footer />
+        <Footer />
+      </div>
     </div>
   );
 }
