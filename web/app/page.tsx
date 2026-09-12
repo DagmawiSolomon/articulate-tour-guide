@@ -15,7 +15,7 @@ import { ArticulateAvatar } from "@/components/avatar/articulate-avatar";
 import {
   type ExpressionId,
 } from "@/components/avatar/avatar-expressions";
-import { Header, type CardLayoutOption } from "@/components/layout/header";
+import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 
 type AgentStatus = "listening" | "thinking" | "speaking";
@@ -40,7 +40,6 @@ export default function Home() {
   const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("neutral");
   const [agentStatus, setAgentStatus] = React.useState<AgentStatus>("listening");
   const [isMuted, setIsMuted] = React.useState(false);
-  const [dockLayout, setDockLayout] = React.useState<CardLayoutOption>("top");
 
   // Fixed card geometry.
   const tuning = {
@@ -106,8 +105,6 @@ export default function Home() {
   // A rounded corner cutout houses the avatar without changing the card bounds.
   const avatarNotchPath = "M 104 0.5 C 95 0.5 88 7.5 88 16.5 L 88 58 C 88 68 80 76 70 76 L 18.5 76 C 8.5 76 0.5 84 0.5 94";
   const avatarNotchMask = `${avatarNotchPath} L -4 94 L -4 -4 L 104 -4 Z`;
-  const avatarBottomNotchPath = "M 0.5 1 C 0.5 11 8.5 19 18.5 19 L 70 19 C 80 19 88 27 88 37 L 88 78.5 C 88 87.5 95 94.5 104 94.5";
-  const avatarBottomNotchMask = `${avatarBottomNotchPath} L 104 99 L -4 99 L -4 1 Z`;
   // Dynamic top-right inverted border radius (outer edge of circle matches top and right borders)
   const btnRadius = tuning.closeSize / 2;
   const cornerMargin = tuning.cornerMargin;
@@ -210,9 +207,9 @@ export default function Home() {
   const dockPath = "M 0 63.5 C 12 63.5 14 53.5 14 37.5 A 32 32 0 0 1 46 5.5 H 178 A 32 32 0 0 1 210 37.5 C 210 53.5 212 63.5 224 63.5";
   return (
     <div className="h-dvh min-h-[480px] w-full bg-background grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden select-none relative">
-      <Header dockLayout={dockLayout} onDockLayoutChange={setDockLayout} />
+      <Header />
       <main className="min-h-0 w-full max-w-6xl mx-auto px-6 py-6 relative flex items-center justify-center">
-        <div className="guide-stage relative w-full h-full max-h-[600px]" data-expanded={isExpanded} data-dock-layout={dockLayout}>
+        <div className="guide-stage relative w-full h-full max-h-[600px]" data-expanded={isExpanded}>
           <div className="guide-card-layer absolute inset-0" inert={!isExpanded} aria-hidden={!isExpanded}>
             <div className="guide-card w-full h-full rounded-2xl border border-border bg-card shadow-xs relative flex items-center justify-center overflow-visible">
 
@@ -263,47 +260,23 @@ export default function Home() {
                 <HugeIcon icon={Cancel01Icon} size={15} />
               </button>
 
-              {/* Top-Left Avatar Notch: Only active when Mr. T is at top-left ("top" or "bottom" mode) */}
-              {dockLayout !== "mr-t-cradle" && (
-                <div className="absolute -top-px -left-px pointer-events-none z-10" aria-hidden="true">
-                  <svg viewBox="0 0 105 95" width="105" height="95" fill="none" className="overflow-visible">
-                    <path d={avatarNotchMask} className="fill-background" />
-                    <path d={avatarNotchPath} className="stroke-border" strokeWidth="1" />
-                  </svg>
-                </div>
-              )}
+              {/* Top-Left Avatar Notch: Houses Mr. T at top-left */}
+              <div className="absolute -top-px -left-px pointer-events-none z-10" aria-hidden="true">
+                <svg viewBox="0 0 105 95" width="105" height="95" fill="none" className="overflow-visible">
+                  <path d={avatarNotchMask} className="fill-background" />
+                  <path d={avatarNotchPath} className="stroke-border" strokeWidth="1" />
+                </svg>
+              </div>
 
-              {/* Bottom-Left Avatar Notch: Active when Mr. T's cradle moves down */}
-              {dockLayout === "mr-t-cradle" && (
-                <div className="absolute -bottom-px -left-px pointer-events-none z-10" aria-hidden="true">
-                  <svg viewBox="0 0 105 95" width="105" height="95" fill="none" className="overflow-visible">
-                    <path d={avatarBottomNotchMask} className="fill-background" />
-                    <path d={avatarBottomNotchPath} className="stroke-border" strokeWidth="1" />
-                  </svg>
-                </div>
-              )}
+              <div className="w-full h-full px-6 md:px-8 pt-28 pb-20" />
 
-              {/* Top Bar Call Controls: Rendered only when dockLayout === "top" */}
-              {dockLayout === "top" && (
-                <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-20 transition-all duration-300">
-                  {callGroup}
-                </div>
-              )}
-
-              <div className={`w-full h-full px-6 md:px-8 ${dockLayout === "bottom" || dockLayout === "mr-t-cradle" ? "pt-28 pb-20" : "pt-24 pb-8"}`} />
-
-              {/* Bottom Pill Cradle: Active when dockLayout === "bottom" or "mr-t-cradle" */}
-              {(dockLayout === "bottom" || dockLayout === "mr-t-cradle") && (
-                <div className="absolute -bottom-px left-1/2 -translate-x-1/2 z-20 h-16 w-[224px] pointer-events-none">
-                  <svg viewBox="0 0 224 64" width="224" height="64" fill="none" aria-hidden="true" className="overflow-visible">
-                    <path d={`${dockPath} L 224 68 L 0 68 Z`} className="fill-background" />
-                    <path d={dockPath} className="stroke-border" strokeWidth="1" />
-                  </svg>
-                  <div className="absolute bottom-[0.5px] left-1/2 -translate-x-1/2 pointer-events-auto">
-                    {callGroup}
-                  </div>
-                </div>
-              )}
+              {/* Bottom Pill Cradle Notch: Frames the dock */}
+              <div className="absolute -bottom-px left-1/2 -translate-x-1/2 z-20 h-16 w-[224px] pointer-events-none" aria-hidden="true">
+                <svg viewBox="0 0 224 64" width="224" height="64" fill="none" className="overflow-visible">
+                  <path d={`${dockPath} L 224 68 L 0 68 Z`} className="fill-background" />
+                  <path d={dockPath} className="stroke-border" strokeWidth="1" />
+                </svg>
+              </div>
             </div>
           </div>
           {/* One persistent avatar travels between the two positions. */}
@@ -317,8 +290,17 @@ export default function Home() {
             <ArticulateAvatar expressionId={activeExpressionId} size={480} isListening={isListening} className="relative flex items-center justify-center" />
           </button>
 
-          <div className="guide-start-controls" inert={isExpanded} aria-hidden={isExpanded} role="group" aria-label="Call controls">
+          {/* Status Indicator: Positioned directly below Mr. T with padding */}
+          <div
+            className="guide-status"
+            inert={isExpanded}
+            aria-hidden={isExpanded}
+          >
             {statusIndicator}
+          </div>
+
+          {/* Persistent Media Dock: Exact same position at bottom whether uncollapsed or collapsed */}
+          <div className="guide-dock" role="group" aria-label="Call controls">
             {callGroup}
           </div>
 
