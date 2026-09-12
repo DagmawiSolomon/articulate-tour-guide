@@ -26,9 +26,9 @@ export default function Home() {
   // Interactive tuning controls for positioning, curvature, and cutout geometry
   const [tuning, setTuning] = React.useState({
     avatarSize: 116,
-    avatarOverlap: 54,
+    avatarOverlap: 116 * 0.7012, // Visible triangle base within its square canvas.
     notchWidth: 164,
-    notchDepth: 50,
+    notchDepth: 66,
     cornerMargin: 0,
     cradleGap: 6,
     shoulderRadius: 14,
@@ -143,10 +143,10 @@ export default function Home() {
   const cornerNotchMask = `${cornerNotchPath} L ${cornerS + 4} ${s2y} L ${cornerS + 4} -4 L ${s1x} -4 Z`;
 
   return (
-    <div className="min-h-screen w-full bg-background flex flex-col justify-between overflow-hidden select-none relative">
+    <div className="h-dvh min-h-[480px] w-full bg-background grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden select-none relative">
       <Header />
 
-      <main className="flex-1 w-full max-w-6xl mx-auto px-6 relative flex items-center justify-center">
+      <main className="min-h-0 w-full max-w-6xl mx-auto px-6 py-6 relative flex items-center justify-center">
         {/* Center Guide View: Avatar in center, Speak button / Call controls below */}
         {!isExpanded ? (
           <div className="flex flex-col items-center justify-center gap-4 z-20">
@@ -203,10 +203,10 @@ export default function Home() {
             </div>
           </div>
         ) : (
-          /* Expanded Mode: Unified Group (Card + Mr. Triangle) perfectly centered */
-          <div className="w-full max-w-5xl flex flex-col items-center justify-center z-20 my-auto">
+          /* Center the card itself; the avatar is anchored without adding layout height. */
+          <div className="relative w-full h-full max-h-[600px] z-20">
             {/* 1. Large Area for the Artifact - Crisp Rectangular Sharpness Preserved */}
-            <div className="w-full h-[480px] md:h-[540px] max-h-[66vh] min-h-[360px] rounded-2xl border border-border bg-card shadow-xs relative flex items-center justify-center">
+            <div className="w-full h-full rounded-2xl border border-border bg-card shadow-xs relative flex items-center justify-center">
               {/* Inverted Border Radius Cradle on Top-Right Corner */}
               <div
                 className="absolute -top-px -right-px pointer-events-none z-10 flex items-start justify-end"
@@ -289,8 +289,8 @@ export default function Home() {
 
             {/* 2. The Blob at the Bottom (Dock removed, pure guide companion) */}
             <div
-              className="flex flex-col items-center justify-center z-20"
-              style={{ marginTop: -tuning.avatarOverlap }}
+              className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center justify-center z-20"
+              style={{ top: `calc(100% - ${tuning.avatarOverlap}px)` }}
             >
               {/* The Blob nestled into the card cutout */}
               <div
@@ -320,9 +320,9 @@ export default function Home() {
                   type="button"
                   onClick={() => setTuning({
                     avatarSize: 116,
-                    avatarOverlap: 54,
+                    avatarOverlap: 116 * 0.7012, // Visible triangle base within its square canvas.
                     notchWidth: 164,
-                    notchDepth: 50,
+                    notchDepth: 66,
                     cornerMargin: 0,
                     cradleGap: 6,
                     shoulderRadius: 14,
@@ -340,12 +340,12 @@ export default function Home() {
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between text-[11px] text-secondary-text">
                     <span>Avatar Housing (Overlap)</span>
-                    <span className="font-mono text-foreground">{tuning.avatarOverlap}px</span>
+                    <span className="font-mono text-foreground">{Math.round(tuning.avatarOverlap)}px</span>
                   </div>
                   <input
                     type="range"
                     min="20"
-                    max="90"
+                    max="120"
                     value={tuning.avatarOverlap}
                     onChange={(e) => setTuning((p) => ({ ...p, avatarOverlap: Number(e.target.value) }))}
                     className="accent-primary w-full h-1.5 bg-subtle rounded-lg cursor-pointer"
@@ -363,7 +363,7 @@ export default function Home() {
                     min="80"
                     max="150"
                     value={tuning.avatarSize}
-                    onChange={(e) => setTuning((p) => ({ ...p, avatarSize: Number(e.target.value) }))}
+                    onChange={(e) => setTuning((p) => ({ ...p, avatarSize: Number(e.target.value), avatarOverlap: Number(e.target.value) * 0.7012 }))}
                     className="accent-primary w-full h-1.5 bg-subtle rounded-lg cursor-pointer"
                   />
                 </div>
