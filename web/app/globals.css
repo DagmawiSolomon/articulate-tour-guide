@@ -26,6 +26,17 @@
   --color-button-bg: #1f1e1b;
   --color-inverse: #ffffff;
 
+  /* Ink & Surface Aliases */
+  --color-ink: #1f1e1b;
+  --color-ink-2: #72706b;
+  --color-ink-3: #92918b;
+  --color-hover-2: #eae7e1;
+  --color-surface: #ffffff;
+  --color-field: #ffffff;
+  --color-line: #e2e0d8;
+  --color-line-strong: #d8d5cb;
+  --radius-control: 8px;
+
   /* Typography Scale */
   --text-caption: 11px;
   --text-body-sm: 12px;
@@ -364,4 +375,68 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .guide-avatar, .guide-card-layer, .guide-status { transition: none; }
+}
+
+/* ==========================================================================
+   Sidebar Motion & Copy Transitions
+   ========================================================================== */
+
+[data-sidebar-collapsed="true"] .sidebar-copy {
+  opacity: 0 !important;
+  transform: translateX(calc(var(--sidebar-copy-offset, 8px) * -1)) !important;
+  pointer-events: none !important;
+  transition: opacity var(--sidebar-copy-duration, 180ms) var(--sidebar-easing, cubic-bezier(0.16, 1, 0.3, 1)),
+              transform var(--sidebar-copy-duration, 180ms) var(--sidebar-easing, cubic-bezier(0.16, 1, 0.3, 1)) !important;
+}
+
+[data-sidebar-collapsed="false"] .sidebar-copy {
+  opacity: 1 !important;
+  transform: translateX(0) !important;
+  transition: opacity var(--sidebar-copy-duration, 180ms) var(--sidebar-easing, cubic-bezier(0.16, 1, 0.3, 1)),
+              transform var(--sidebar-copy-duration, 180ms) var(--sidebar-easing, cubic-bezier(0.16, 1, 0.3, 1)) !important;
+}
+
+[data-sidebar-collapsed="true"] .sidebar-collapse-control {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+[data-sidebar-collapsed="false"] .sidebar-collapse-control {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+[data-sidebar-collapsed="true"] .sidebar-expand-control {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+[data-sidebar-collapsed="false"] .sidebar-expand-control {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+[data-sidebar-collapsed="true"] .sidebar-workspace-control {
+  width: 36px !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+
+.shadow-hairline {
+  box-shadow: 0 0 0 1px var(--color-border-subtle);
+}
+
+.shadow-overlay {
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--color-border-subtle);
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
