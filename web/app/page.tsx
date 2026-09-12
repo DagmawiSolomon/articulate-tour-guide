@@ -1,17 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { Card } from "@/components/ui/card";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverTrigger, PopoverContent, PopoverTitle } from "@/components/ui/popover";
+import { HugeIcon } from "@/components/ui/hugeicon";
 import {
   MicOff01Icon,
   Mic01Icon,
   Cancel01Icon,
-  Settings02Icon,
+  CallEnd01Icon,
+  Call02Icon,
 } from "@hugeicons/core-free-icons";
 import { ArticulateAvatar } from "@/components/avatar/articulate-avatar";
 import {
-  EXPRESSIONS_CATALOG,
   type ExpressionId,
 } from "@/components/avatar/avatar-expressions";
 import { Header } from "@/components/layout/header";
@@ -23,18 +24,13 @@ export default function Home() {
   const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("neutral");
   const [isMuted, setIsMuted] = React.useState(false);
 
-  // Interactive tuning controls for positioning, curvature, and cutout geometry
-  const [tuning, setTuning] = React.useState({
-    avatarSize: 116,
-    avatarOverlap: 116 * 0.7012, // Visible triangle base within its square canvas.
-    notchWidth: 164,
-    notchDepth: 66,
+  // Fixed card geometry.
+  const tuning = {
     cornerMargin: 0,
     cradleGap: 6,
     shoulderRadius: 14,
     closeSize: 34,
-  });
-  const [showTuning, setShowTuning] = React.useState(true);
+  };
 
   // Automatically cycle through key tour guide states when call is active
   React.useEffect(() => {
@@ -68,7 +64,7 @@ export default function Home() {
 
   const handleStartCall = () => {
     setIsCallActive(true);
-    setIsMuted(false);
+
   };
 
   const handleEndCall = () => {
@@ -76,39 +72,11 @@ export default function Home() {
     setActiveExpressionId("neutral");
   };
 
-  const activeExpression =
-    EXPRESSIONS_CATALOG.find((e) => e.id === activeExpressionId) ??
-    EXPRESSIONS_CATALOG[0];
-
   const isListening = activeExpressionId === "listening";
-  const isThinking = activeExpressionId === "thinking";
-  const isSpeaking = activeExpressionId === "speaking";
 
-  // Dynamic bottom notch calculation based on live tuning controls
-  const notchW = tuning.notchWidth;
-  const notchD = tuning.notchDepth;
-  const notchH = notchD + 6;
-  const baselineY = notchH - 0.5;
-  const apexY = baselineY - notchD;
-  const centerX = notchW / 2;
-  const shoulderX = notchW * 0.25;
-  const shoulderY = baselineY - notchD * 0.5;
-  const shoulderHandleX = notchW * 0.1;
-  const shoulderHandleY = notchD * 0.32;
-  const edgeHandle = notchW * 0.14;
-  const crestHandle = notchW * 0.14;
-
-  // Mirrored, equal-length handles keep every join tangent-continuous.
-  // Scale both axes with the controls so the shoulders stay soft at any size.
-  const bottomNotchPath = [
-    `M 0 ${baselineY}`,
-    `C ${edgeHandle} ${baselineY}, ${shoulderX - shoulderHandleX} ${shoulderY + shoulderHandleY}, ${shoulderX} ${shoulderY}`,
-    `C ${shoulderX + shoulderHandleX} ${shoulderY - shoulderHandleY}, ${centerX - crestHandle} ${apexY}, ${centerX} ${apexY}`,
-    `C ${centerX + crestHandle} ${apexY}, ${notchW - shoulderX - shoulderHandleX} ${shoulderY - shoulderHandleY}, ${notchW - shoulderX} ${shoulderY}`,
-    `C ${notchW - shoulderX + shoulderHandleX} ${shoulderY + shoulderHandleY}, ${notchW - edgeHandle} ${baselineY}, ${notchW} ${baselineY}`,
-  ].join(" ");
-  const bottomNotchMask = `${bottomNotchPath} L ${notchW} ${notchH + 4} L 0 ${notchH + 4} Z`;
-
+  // A rounded corner cutout houses the avatar without changing the card bounds.
+  const avatarNotchPath = "M 104 0.5 C 95 0.5 88 7.5 88 16.5 L 88 58 C 88 68 80 76 70 76 L 18.5 76 C 8.5 76 0.5 84 0.5 94";
+  const avatarNotchMask = `${avatarNotchPath} L -4 94 L -4 -4 L 104 -4 Z`;
   // Dynamic top-right inverted border radius (outer edge of circle matches top and right borders)
   const btnRadius = tuning.closeSize / 2;
   const cornerMargin = tuning.cornerMargin;
@@ -142,72 +110,46 @@ export default function Home() {
   const cornerNotchPath = `M ${s1x} ${yTop} A ${shoulderR} ${shoulderR} 0 0 1 ${t1x} ${t1y} A ${cradleRadius} ${cradleRadius} 0 0 0 ${t2x} ${t2y} A ${shoulderR} ${shoulderR} 0 0 1 ${xRight} ${s2y}`;
   const cornerNotchMask = `${cornerNotchPath} L ${cornerS + 4} ${s2y} L ${cornerS + 4} -4 L ${s1x} -4 Z`;
 
+  const micControl = (
+    <Popover>
+      <PopoverTrigger render={<Button type="button" aria-label="Microphone settings" title="Microphone settings" className="size-10 rounded-full bg-primary text-white p-0" />}>
+        <HugeIcon icon={isMuted ? MicOff01Icon : Mic01Icon} size={18} color="#ffffff" className="text-white" />
+
+      </PopoverTrigger>
+      <PopoverContent side="top" sideOffset={12} className="w-60 rounded-2xl border border-border bg-card p-4 gap-3">
+        <PopoverTitle className="text-sm font-medium">Microphone settings</PopoverTitle>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-secondary-text">{isMuted ? "Microphone muted" : "Microphone on"}</span>
+          <Button type="button" variant="outline" size="sm" aria-pressed={isMuted} onClick={() => setIsMuted((value) => !value)} className="rounded-full text-xs">
+            {isMuted ? "Unmute" : "Mute"}
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+  const callControl = (
+    <Button type="button" variant="outline" onClick={isCallActive ? handleEndCall : handleStartCall} aria-label={isCallActive ? "End call" : "Start call"} title={isCallActive ? "End call" : "Start call"} className="size-10 rounded-full bg-card p-0">
+      <HugeIcon icon={isCallActive ? CallEnd01Icon : Call02Icon} size={18} />
+
+    </Button>
+  );
+  const callGroup = (
+    <div className="flex h-[52px] w-[120px] items-center justify-center gap-2.5 rounded-full border border-border bg-card px-2 shadow-xs" role="group" aria-label="Call controls">
+      {micControl}
+      <span className="h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+      {callControl}
+    </div>
+  );
+  // Monotonic shoulders meet the capsule at its widest points, avoiding a lower bulge.
+  const dockPath = "M 0 63.5 C 12 63.5 14 53.5 14 37.5 A 32 32 0 0 1 46 5.5 H 114 A 32 32 0 0 1 146 37.5 C 146 53.5 148 63.5 160 63.5";
   return (
     <div className="h-dvh min-h-[480px] w-full bg-background grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden select-none relative">
       <Header />
-
       <main className="min-h-0 w-full max-w-6xl mx-auto px-6 py-6 relative flex items-center justify-center">
-        {/* Center Guide View: Avatar in center, Speak button / Call controls below */}
-        {!isExpanded ? (
-          <div className="flex flex-col items-center justify-center gap-4 z-20">
-            {/* Mr. Triangle Avatar: Geometry stays 100% constant across every emotion */}
-            <ArticulateAvatar
-              expressionId={activeExpressionId}
-              size={280}
-              onClick={() => setIsExpanded(true)}
-              isListening={isListening}
-            />
+        <div className="guide-stage relative w-full h-full max-h-[600px]" data-expanded={isExpanded}>
+          <div className="guide-card-layer absolute inset-0" inert={!isExpanded} aria-hidden={!isExpanded}>
+            <div className="guide-card w-full h-full rounded-2xl border border-border bg-card shadow-xs relative flex items-center justify-center">
 
-            {/* Control bar */}
-            <div className="flex items-center justify-center transition-all pt-1">
-              {!isCallActive ? (
-                <button
-                  type="button"
-                  onClick={handleStartCall}
-                  className="h-11 px-6 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2 font-medium text-xs tracking-[-0.1px] transition-all cursor-pointer active:scale-95 shadow-xs"
-                >
-                  <HugeiconsIcon icon={Mic01Icon} size={16} color="#ffffff" className="text-white" />
-                  <span>Speak</span>
-                </button>
-              ) : (
-                <div className="h-13 px-2 bg-card rounded-full border border-border/80 shadow-xs flex items-center gap-2.5 transition-all">
-                  {/* Left: Mic Toggle Button (Circle) */}
-                  <button
-                    type="button"
-                    onClick={() => setIsMuted((prev) => !prev)}
-                    title={isMuted ? "Unmute microphone" : "Mute microphone"}
-                    aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
-                    className={`size-10 rounded-full flex items-center justify-center transition-colors cursor-pointer active:scale-95 ${
-                      isMuted
-                        ? "bg-[#fde8e8] text-[#e02424] hover:bg-[#fbd5d5]"
-                        : "bg-subtle text-secondary-text hover:bg-soft hover:text-foreground"
-                    }`}
-                  >
-                    <HugeiconsIcon icon={isMuted ? MicOff01Icon : Mic01Icon} size={18} />
-                  </button>
-
-                  <div className="w-px h-5 bg-border/80" />
-
-                  {/* Right: Circle with X icon inside it to end */}
-                  <button
-                    type="button"
-                    onClick={handleEndCall}
-                    title="End call"
-                    aria-label="End call"
-                    className="size-10 rounded-full bg-[#fde8e8] text-[#e02424] hover:bg-[#fbd5d5] flex items-center justify-center transition-colors cursor-pointer active:scale-95"
-                  >
-                    <HugeiconsIcon icon={Cancel01Icon} size={18} />
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* Center the card itself; the avatar is anchored without adding layout height. */
-          <div className="relative w-full h-full max-h-[600px] z-20">
-            {/* 1. Large Area for the Artifact - Crisp Rectangular Sharpness Preserved */}
-            <div className="w-full h-full rounded-2xl border border-border bg-card shadow-xs relative flex items-center justify-center">
-              {/* Inverted Border Radius Cradle on Top-Right Corner */}
               <div
                 className="absolute -top-px -right-px pointer-events-none z-10 flex items-start justify-end"
                 style={{
@@ -252,235 +194,42 @@ export default function Home() {
                 }}
                 className="absolute rounded-full bg-card hover:bg-muted text-secondary-text hover:text-foreground border border-border flex items-center justify-center transition-all cursor-pointer z-20 shadow-xs active:scale-95"
               >
-                <HugeiconsIcon icon={Cancel01Icon} size={15} />
+                <HugeIcon icon={Cancel01Icon} size={15} />
               </button>
 
-              {/* Large Artifact Display Canvas (clean, unobstructed) */}
-              <div className="w-full h-full p-6 md:p-8 flex items-center justify-center" />
-
-              {/* Cutout Notch matching Mr. Triangle's shape: ultra-smooth continuous bezier curve with seamless border continuation */}
-              <div
-                className="absolute -bottom-px left-1/2 -translate-x-1/2 pointer-events-none z-10 flex items-end justify-center"
-                style={{ width: notchW, height: notchH }}
-              >
-                <svg
-                  viewBox={`0 0 ${notchW} ${notchH}`}
-                  style={{ width: notchW, height: notchH }}
-                  className="overflow-visible"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  {/* Fill with background token to mask card background & bottom border */}
-                  <path
-                    d={bottomNotchMask}
-                    className="fill-background"
-                  />
-                  {/* Ultra-smooth continuous hairline border contour wrapping around Mr. Triangle */}
-                  <path
-                    d={bottomNotchPath}
-                    className="stroke-border"
-                    strokeWidth="1"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+              <div className="absolute -top-px -left-px pointer-events-none z-10" aria-hidden="true">
+                <svg viewBox="0 0 105 95" width="105" height="95" fill="none" className="overflow-visible">
+                  <path d={avatarNotchMask} className="fill-background" />
+                  <path d={avatarNotchPath} className="stroke-border" strokeWidth="1" />
                 </svg>
               </div>
-            </div>
-
-            {/* 2. The Blob at the Bottom (Dock removed, pure guide companion) */}
-            <div
-              className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center justify-center z-20"
-              style={{ top: `calc(100% - ${tuning.avatarOverlap}px)` }}
-            >
-              {/* The Blob nestled into the card cutout */}
-              <div
-                onClick={() => setIsExpanded(false)}
-                title="Click to center guide"
-                className="cursor-pointer hover:scale-105 active:scale-95 transition-transform shrink-0"
-              >
-                <ArticulateAvatar
-                  expressionId={activeExpressionId}
-                  size={tuning.avatarSize}
-                  isListening={isListening}
-                />
+              <div className="w-full h-full px-6 pt-28 pb-20 md:px-8" />
+              <div className="absolute -bottom-px left-1/2 -translate-x-1/2 z-20 h-16 w-40">
+                <svg viewBox="0 0 160 64" width="160" height="64" fill="none" aria-hidden="true" className="pointer-events-none overflow-visible">
+                  <path d={`${dockPath} L 160 68 L 0 68 Z`} className="fill-background" />
+                  <path d={dockPath} className="stroke-border" strokeWidth="1" />
+                </svg>
+                <div className="absolute bottom-[0.5px] left-1/2 -translate-x-1/2">{callGroup}</div>
               </div>
             </div>
           </div>
-        )}
-      </main>
-
-      {/* Floating Interactive Controls for Positioning & Curvature */}
-      {isExpanded && (
-        <div className="fixed bottom-5 right-6 z-50 flex flex-col items-end gap-2 select-none">
-          {showTuning && (
-            <div className="w-76 p-4 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-md flex flex-col gap-3 text-xs text-foreground animate-in fade-in slide-in-from-bottom-3 duration-200">
-              <div className="flex items-center justify-between pb-1.5 border-b border-border/70">
-                <span className="font-semibold tracking-[-0.1px] text-xs">Position & Curvature Controls</span>
-                <button
-                  type="button"
-                  onClick={() => setTuning({
-                    avatarSize: 116,
-                    avatarOverlap: 116 * 0.7012, // Visible triangle base within its square canvas.
-                    notchWidth: 164,
-                    notchDepth: 66,
-                    cornerMargin: 0,
-                    cradleGap: 6,
-                    shoulderRadius: 14,
-                    closeSize: 34,
-                  })}
-                  className="text-[11px] text-secondary-text hover:text-foreground underline cursor-pointer"
-                >
-                  Reset
-                </button>
-              </div>
-
-              {/* Sliders */}
-              <div className="flex flex-col gap-2.5">
-                {/* Avatar Overlap / Housing */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[11px] text-secondary-text">
-                    <span>Avatar Housing (Overlap)</span>
-                    <span className="font-mono text-foreground">{Math.round(tuning.avatarOverlap)}px</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="20"
-                    max="120"
-                    value={tuning.avatarOverlap}
-                    onChange={(e) => setTuning((p) => ({ ...p, avatarOverlap: Number(e.target.value) }))}
-                    className="accent-primary w-full h-1.5 bg-subtle rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                {/* Avatar Size */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[11px] text-secondary-text">
-                    <span>Avatar Size</span>
-                    <span className="font-mono text-foreground">{tuning.avatarSize}px</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="80"
-                    max="150"
-                    value={tuning.avatarSize}
-                    onChange={(e) => setTuning((p) => ({ ...p, avatarSize: Number(e.target.value), avatarOverlap: Number(e.target.value) * 0.7012 }))}
-                    className="accent-primary w-full h-1.5 bg-subtle rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                {/* Notch Width */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[11px] text-secondary-text">
-                    <span>Notch Curvature Width</span>
-                    <span className="font-mono text-foreground">{tuning.notchWidth}px</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="120"
-                    max="220"
-                    value={tuning.notchWidth}
-                    onChange={(e) => setTuning((p) => ({ ...p, notchWidth: Number(e.target.value) }))}
-                    className="accent-primary w-full h-1.5 bg-subtle rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                {/* Notch Depth */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[11px] text-secondary-text">
-                    <span>Notch Curvature Depth</span>
-                    <span className="font-mono text-foreground">{tuning.notchDepth}px</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="25"
-                    max="75"
-                    value={tuning.notchDepth}
-                    onChange={(e) => setTuning((p) => ({ ...p, notchDepth: Number(e.target.value) }))}
-                    className="accent-primary w-full h-1.5 bg-subtle rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                {/* Cradle Gap / Breathing Room */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[11px] text-secondary-text">
-                    <span>Cradle Gap (Concentric Arc)</span>
-                    <span className="font-mono text-foreground">{tuning.cradleGap}px</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="2"
-                    max="16"
-                    value={tuning.cradleGap}
-                    onChange={(e) => setTuning((p) => ({ ...p, cradleGap: Number(e.target.value) }))}
-                    className="accent-primary w-full h-1.5 bg-subtle rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                {/* Shoulder Fillet Radius */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[11px] text-secondary-text">
-                    <span>Shoulder Fillet Radius</span>
-                    <span className="font-mono text-foreground">{tuning.shoulderRadius}px</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="6"
-                    max="22"
-                    value={tuning.shoulderRadius}
-                    onChange={(e) => setTuning((p) => ({ ...p, shoulderRadius: Number(e.target.value) }))}
-                    className="accent-primary w-full h-1.5 bg-subtle rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                {/* Circle Border Offset (0 = perfectly flush with borders) */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[11px] text-secondary-text">
-                    <span>Circle Border Offset</span>
-                    <span className="font-mono text-foreground">
-                      {tuning.cornerMargin === 0 ? "0px (flush)" : `${tuning.cornerMargin}px`}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-4"
-                    max="14"
-                    value={tuning.cornerMargin}
-                    onChange={(e) => setTuning((p) => ({ ...p, cornerMargin: Number(e.target.value) }))}
-                    className="accent-primary w-full h-1.5 bg-subtle rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                {/* Close Button Size */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[11px] text-secondary-text">
-                    <span>Circle Size (Radius: {tuning.closeSize / 2}px)</span>
-                    <span className="font-mono text-foreground">{tuning.closeSize}px</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="26"
-                    max="42"
-                    value={tuning.closeSize}
-                    onChange={(e) => setTuning((p) => ({ ...p, closeSize: Number(e.target.value) }))}
-                    className="accent-primary w-full h-1.5 bg-subtle rounded-lg cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Toggle Button */}
+          {/* One persistent avatar travels between the two positions. */}
           <button
             type="button"
-            onClick={() => setShowTuning((v) => !v)}
-            title={showTuning ? "Hide tuning controls" : "Show tuning controls"}
-            className="size-9 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-xs hover:bg-muted text-secondary-text hover:text-foreground flex items-center justify-center transition-all cursor-pointer active:scale-95"
+            className="guide-avatar absolute z-20 border-0 bg-transparent p-0 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            onClick={() => setIsExpanded((value) => !value)}
+            aria-label={isExpanded ? "Close card" : "Open card"}
+            aria-expanded={isExpanded}
           >
-            <HugeiconsIcon icon={Settings02Icon} size={16} />
+            <ArticulateAvatar expressionId={activeExpressionId} size={360} isListening={isListening} className="relative flex items-center justify-center" />
           </button>
-        </div>
-      )}
 
+          <div className="guide-start-controls" inert={isExpanded} aria-hidden={isExpanded} role="group" aria-label="Call controls">
+            {callGroup}
+          </div>
+
+        </div>
+      </main>
       <Footer />
     </div>
   );
