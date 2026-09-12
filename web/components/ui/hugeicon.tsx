@@ -1,6 +1,8 @@
 import * as React from "react";
 
-export type HugeIconData = Array<[string, Record<string, string | number>]>;
+export type HugeIconData =
+  | Array<[string, Record<string, string | number>]>
+  | ReadonlyArray<readonly [string, { readonly [key: string]: string | number }]>;
 
 interface HugeIconProps extends React.SVGProps<SVGSVGElement> {
   icon: HugeIconData;
