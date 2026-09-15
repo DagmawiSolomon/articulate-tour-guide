@@ -20,7 +20,7 @@ This document details the feelings, expressions, visual traits, and animation be
 
 ## 2. Expressions Catalog
 
-Below is the complete inventory of the 11 supported feelings:
+Below is the complete inventory of the 13 supported feelings:
 
 | Feeling / ID | Label | Visual Characteristics | Best Used When |
 | :--- | :--- | :--- | :--- |
@@ -28,7 +28,9 @@ Below is the complete inventory of the 11 supported feelings:
 | `thinking` | **Thinking** | Thoughtful upward and sideways gaze (`bdy: 0` fixed). Accompanied by rotating Sparkles indicator in UI. | Query processing, tool calling, or synthesizing tour guide responses. |
 | `speaking` | **Speaking** | Natural, friendly, communicative gaze with subtle asymmetrical eye balance (`esx: 1.08`, `esy: 0.98`, `tilt: 2`). Accompanied by animated audio wave bars. | TTS voice playback or tour narration. |
 | `neutral` | **Neutral** | Balanced, calm baseline posture (`esx: 1.05`, `esy: 1.0`, zero tilt or displacement). | Resting or idle tour state. |
-| `excited` | **Excited** | Joyful smiling curved arcs `^ ^` (`isCurvedEyes: true`). Default capsule eyes are hidden (`.curved-eyes-mode`) to ensure zero eyebrow overlap. | Welcoming the visitor, sharing fun facts, or celebrating discoveries. |
+| `happy` | **Happy** | Warm, joyful smiling eyes (`esx: 1.24`, `esy: 0.92`, `tilt: 5`, `tilt2: -5`, `edy: -1.7`). Uses living Blobatar eyes with pupils and natural blinking. | Welcoming the visitor, sharing fun facts, or celebrating discoveries. |
+| `excited` | **Excited** | Energetic, wide-open joyful eyes (`esx: 1.28`, `esy: 1.18`, `tilt: 4`, `tilt2: -4`, `edy: -2.0`). | High-enthusiasm tour moments. |
+| `muted` | **Muted** | Attentive, patient resting eye shape (`esx: 1.02`, `esy: 0.88`, `tilt: 6`, `tilt2: -3`, `edy: 0.8`) paired with a subtle head tilt (`.avatar-muted`). | Visitor microphone is muted during a call. |
 | `curious` | **Curious** | Inquisitive gaze with pronounced opposing eye tilts (`tilt: 16`, `tilt2: -32`, `edy: -1.2`). | Asking the visitor questions or exploring new topics. |
 | `interested` | **Interested** | Leaning-in, attentive posture with lifted open eyes (`esx: 1.25`, `esy: 1.28`, `edy: -1.4`). | Highlighting landmark features or acknowledging user interests. |
 | `focused` | **Focused** | Narrowed, highly observant eyes (`esx: 1.42`, `esy: 0.42`, `edy: 0.5`). | Inspecting fine details on a map, artifact, or research card. |
@@ -40,16 +42,22 @@ Below is the complete inventory of the 11 supported feelings:
 
 ## 3. Special Expression Mechanics
 
-### 3.1 Smiling Curved Eyes (`excited`)
-- When `isCurvedEyes: true` is active, the `.curved-eyes-mode` CSS class hides Blobatar's default capsule eyes (`.mo-eyes { opacity: 0 !important; visibility: hidden !important; }`).
-- A dedicated SVG overlay renders twin curved smiling arcs (`^ ^`):
-  ```svg
-  <path d="M 36 53.5 Q 42 46.5 48 53.5" />
-  <path d="M 52 53.5 Q 58 46.5 64 53.5" />
-  ```
-- **Benefit**: Completely eliminates the awkward "eyebrow floating over capsule eye" problem, ensuring the curve *is* the eye.
+### 3.1 Living Eyes & Warmth (`happy`)
+- Rather than replacing the eyes with static stick-figure SVG arcs, `happy` leverages Blobatar's authentic living capsule eyes (`esx: 1.24`, `esy: 0.92`, `edy: -1.7`, `tilt: 5`, `tilt2: -5`).
+- This preserves natural pupil animation, subtle gaze tracking, organic blinking, and seamless spring morphs while maintaining the rock-solid body invariant (`bdy: 0`).
 
-### 3.2 Soft Tip-to-2/3 Blush Gradient (`shy`)
+### 3.2 Subtle Attentive Head Tilt (`muted`)
+- When the visitor mutes their microphone, the character enters an attentive, patient waiting state.
+- The `.avatar-muted` class applies a delicate 2.4° rotational tilt and 0.985 scale:
+  ```css
+  .avatar-muted {
+    transform: rotate(2.4deg) scale(0.985);
+    transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  ```
+- Conversational emotion cycling pauses, flutter-blinking rests, and the status indicator displays `"Muted"` with tranquil, resting dots.
+
+### 3.3 Soft Tip-to-2/3 Blush Gradient (`shy`)
 - **Visual Description**: A soft pastel pink blush (`#ffa6be` at `0.65` opacity) glowing at the head apex, gently fading down to super light / transparent at **2/3 of the guy** (`Y = 52%`, cheek/eye level). The bottom 1/3 remains clean.
 - **Gradient Formulation**:
   ```svg
@@ -78,10 +86,11 @@ import { type ExpressionId } from "@/components/avatar/avatar-expressions";
 export function TourGuide() {
   return (
     <ArticulateAvatar
-      expressionId="shy"
+      expressionId="happy"
       size={220}
       isDocked={false}
       isListening={false}
+      isMuted={false}
     />
   );
 }
@@ -94,11 +103,13 @@ type ExpressionId =
   | "thinking"
   | "speaking"
   | "neutral"
+  | "happy"
   | "excited"
   | "curious"
   | "interested"
   | "focused"
   | "surprised"
   | "confused"
-  | "shy";
+  | "shy"
+  | "muted";
 ```
