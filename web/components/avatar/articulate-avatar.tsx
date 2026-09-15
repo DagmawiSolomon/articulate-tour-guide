@@ -21,22 +21,10 @@ export interface ArticulateAvatarProps {
   onClick?: () => void;
   /** Whether conversational state is currently listening (triggers eye flutter blink) */
   isListening?: boolean;
+  /** Whether the microphone is muted (triggers subtle attentive head tilt) */
+  isMuted?: boolean;
   /** Custom class names for the outer wrapper */
   className?: string;
-}
-
-/**
- * Curved Smile Eyes:
- * Full smiling eye arcs `^ ^` that completely replace the capsule eyes during Excited.
- * Zero eyebrows, zero overlap — the curve IS the eye!
- */
-function CurvedSmileEyes() {
-  return (
-    <g stroke="#160d07" strokeWidth="3.4" strokeLinecap="round" fill="none">
-      <path d="M 36 53.5 Q 42 46.5 48 53.5" />
-      <path d="M 52 53.5 Q 58 46.5 64 53.5" />
-    </g>
-  );
 }
 
 export function ArticulateAvatar({
@@ -46,6 +34,7 @@ export function ArticulateAvatar({
   isDocked = false,
   onClick,
   isListening = false,
+  isMuted = false,
   className,
 }: ArticulateAvatarProps) {
   const currentConfig =
@@ -53,7 +42,6 @@ export function ArticulateAvatar({
     EXPRESSIONS_CATALOG[0];
 
   const resolvedExpression = customExpression ?? currentConfig.expression;
-  const isCurvedEyes = !!currentConfig.isCurvedEyes;
   const isShy = expressionId === "shy";
   const currentSize = isDocked ? 64 : size;
 
@@ -72,7 +60,7 @@ export function ArticulateAvatar({
       <div
         className={`relative rounded-full flex items-center justify-center ${
           isListening ? "avatar-listening" : ""
-        } ${isCurvedEyes ? "curved-eyes-mode" : ""}`}
+        } ${isMuted ? "avatar-muted" : ""}`}
         style={{ width: currentSize, height: currentSize }}
       >
         {/* Layer 1: Base Blobatar (Locked to Mr. Triangle: shape 0.99) */}
@@ -86,7 +74,7 @@ export function ArticulateAvatar({
           />
         </div>
 
-        {/* Layer 2: Precision SVG Overlay for Tip Blush & Curved Eyes */}
+        {/* Layer 2: Precision SVG Overlay for Tip Blush */}
         <svg
           viewBox="0 0 100 100"
           width={currentSize}
@@ -117,9 +105,6 @@ export function ArticulateAvatar({
               fill="url(#blush-shy-gradient)"
             />
           </g>
-
-          {/* Entire eye curves into smiling arcs for excited (replaces capsule eyes) */}
-          {isCurvedEyes && <CurvedSmileEyes />}
         </svg>
       </div>
     </div>
