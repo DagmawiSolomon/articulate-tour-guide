@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverTrigger, PopoverContent, PopoverTitle } from "@/components/ui/popover";
 import { HugeIcon } from "@/components/ui/hugeicon";
 import {
   MicOff01Icon,
@@ -93,14 +92,78 @@ export default function Home() {
     };
   }, [isCallActive, agentStatus]);
 
-  const handleStartCall = () => {
+  const mediaStreamRef = React.useRef<MediaStream | null>(null);
+
+  const startMic = React.useCallback(async () => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStreamRef.current = stream;
+        stream.getAudioTracks().forEach((track) => {
+          track.enabled = true;
+        });
+        setIsMuted(false);
+        return stream;
+      }
+    } catch (err) {
+      console.warn("Microphone access error or denied:", err);
+      setIsMuted(true);
+    }
+    return null;
+  }, []);
+
+  const stopMic = React.useCallback(() => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+  }, []);
+
+  const toggleMic = React.useCallback(async () => {
+    if (isMuted) {
+      const stream = mediaStreamRef.current;
+      const audioTrack = stream?.getAudioTracks().find((t) => t.readyState === "live");
+      if (audioTrack) {
+        audioTrack.enabled = true;
+        setIsMuted(false);
+      } else {
+        await startMic();
+      }
+    } else {
+      if (!mediaStreamRef.current) {
+        const stream = await startMic();
+        if (!stream) {
+          setIsMuted(true);
+        }
+      } else {
+        mediaStreamRef.current.getAudioTracks().forEach((track) => {
+          track.enabled = false;
+        });
+        setIsMuted(true);
+      }
+    }
+  }, [isMuted, startMic]);
+
+  React.useEffect(() => {
+    return () => {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  const handleStartCall = async () => {
     setIsCallActive(true);
     setAgentStatus("listening");
+    if (!isMuted) {
+      await startMic();
+    }
   };
 
   const handleEndCall = () => {
     setIsCallActive(false);
     setActiveExpressionId("neutral");
+    stopMic();
   };
 
   const isListening = activeExpressionId === "listening";
@@ -142,20 +205,20 @@ export default function Home() {
   const cornerNotchMask = `${cornerNotchPath} L ${cornerS + 4} ${s2y} L ${cornerS + 4} -4 L ${s1x} -4 Z`;
 
   const micControl = (
-    <Popover>
-      <PopoverTrigger render={<Button type="button" aria-label="Microphone settings" title="Microphone settings" variant="outline" className="size-10 rounded-full bg-card hover:bg-muted text-foreground p-0 border border-border cursor-pointer transition-all active:scale-95" />}>
-        <HugeIcon icon={isMuted ? MicOff01Icon : Mic01Icon} size={18} />
-      </PopoverTrigger>
-      <PopoverContent side="top" sideOffset={12} className="w-60 rounded-2xl border border-border bg-card p-4 gap-3">
-        <PopoverTitle className="text-sm font-medium">Microphone settings</PopoverTitle>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-xs text-secondary-text">{isMuted ? "Microphone muted" : "Microphone on"}</span>
-          <Button type="button" variant="outline" size="sm" aria-pressed={isMuted} onClick={() => setIsMuted((value) => !value)} className="rounded-full text-xs">
-            {isMuted ? "Unmute" : "Mute"}
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+    <Button
+      type="button"
+      onClick={toggleMic}
+      aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
+      title={isMuted ? "Unmute microphone" : "Mute microphone"}
+      variant="outline"
+      className={`size-10 rounded-full p-0 border border-border cursor-pointer transition-all active:scale-95 flex items-center justify-center ${
+        isMuted
+          ? "bg-muted text-secondary-text hover:bg-soft hover:text-foreground"
+          : "bg-card hover:bg-muted text-foreground"
+      }`}
+    >
+      <HugeIcon icon={isMuted ? MicOff01Icon : Mic01Icon} size={18} />
+    </Button>
   );
   const callControl = (
     <Button
@@ -213,8 +276,8 @@ export default function Home() {
 
       <div className="flex-1 min-w-0 h-full grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden relative">
         <Header />
-        <main className="min-h-0 w-full max-w-6xl mx-auto px-6 py-6 relative flex items-center justify-center">
-        <div className="guide-stage relative w-full h-full max-h-[600px]" data-expanded={isExpanded}>
+        <main className="min-h-0 w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 py-6 relative flex items-center justify-center">
+        <div className="guide-stage relative w-full h-full max-h-[660px] 2xl:max-h-[740px]" data-expanded={isExpanded}>
           <div className="guide-card-layer absolute inset-0" inert={!isExpanded} aria-hidden={!isExpanded}>
             <div className="guide-card w-full h-full rounded-2xl border border-border bg-card shadow-xs relative flex items-center justify-center overflow-visible">
 
