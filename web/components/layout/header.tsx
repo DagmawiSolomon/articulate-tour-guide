@@ -47,7 +47,7 @@ export function Header() {
   };
 
   return (
-    <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-end z-30 select-none">
+    <header className="w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-end z-30 select-none">
       {/* Settings Dialog on the Right: rounded rectangle like image in light mode */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger

@@ -4,7 +4,7 @@ import * as React from "react";
 
 export function Footer() {
   return (
-    <footer className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between text-xs text-secondary-text z-30 select-none">
+    <footer className="w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between text-xs text-secondary-text z-30 select-none">
       {/* Left: Made by with brand name in small letter */}
       <div>
         Made by{" "}
