@@ -16,7 +16,7 @@ const buttonVariants = cva(
         "outline-pill":
           "border border-border-subtle text-primary hover:border-border-subtle hover:bg-subtle rounded-full px-2.5",
         "ghost-icon":
-          "rounded-full aspect-square p-0 aspect-[9/8] text-secondary hover:text-primary hover:bg-soft data-[active=true]:bg-red-700 data-[active=true]:text-white data-[active=true]:[&_svg]:text-white",
+          "rounded-full aspect-square p-0 aspect-[9/8] text-secondary-text hover:text-primary hover:bg-soft data-[active=true]:bg-red-700 data-[active=true]:text-white data-[active=true]:[&_svg]:text-white",
         "square-icon":
           "border border-solid border-border-subtle text-primary hover:bg-subtle rounded-lg aspect-[9/8] p-0",
         "sidebar-row":
