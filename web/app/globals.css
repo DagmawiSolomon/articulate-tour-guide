@@ -322,10 +322,10 @@ body {
   }
 }
 
-/* Hide native capsule eyes when rendering full curved smile eyes */
-.curved-eyes-mode .mo-eyes {
-  opacity: 0 !important;
-  visibility: hidden !important;
+/* Subtle attentive posture tilt when muted: patient, observant waiting */
+.avatar-muted {
+  transform: rotate(2.4deg) scale(0.985);
+  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 /* Keep the avatar mounted while its card fades and it settles into the cradle. */
 .guide-stage { --guide-ease: cubic-bezier(0.22, 1, 0.36, 1); }
