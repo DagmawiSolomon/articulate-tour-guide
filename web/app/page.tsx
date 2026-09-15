@@ -16,6 +16,16 @@ import {
 } from "@/components/avatar/avatar-expressions";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import {
+  initSounds,
+  playCallStart,
+  playCallEnd,
+  playMute,
+  playUnmute,
+  playStageOpen,
+  playStageClose,
+  playTactileTap,
+} from "@/lib/sounds";
 
 
 type AgentStatus = "listening" | "thinking" | "speaking";
@@ -39,7 +49,7 @@ export default function Home() {
   const [isCallActive, setIsCallActive] = React.useState(false);
   const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("neutral");
   const [agentStatus, setAgentStatus] = React.useState<AgentStatus>("listening");
-  const [isMuted, setIsMuted] = React.useState(false);
+  const [isMuted, setIsMuted] = React.useState(true);
 
 
 
@@ -94,9 +104,23 @@ export default function Home() {
 
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
 
+  const stopMic = React.useCallback(() => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => {
+        track.stop();
+      });
+      mediaStreamRef.current = null;
+    }
+    setIsMuted(true);
+  }, []);
+
   const startMic = React.useCallback(async () => {
     try {
       if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+          mediaStreamRef.current = null;
+        }
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaStreamRef.current = stream;
         stream.getAudioTracks().forEach((track) => {
@@ -112,39 +136,18 @@ export default function Home() {
     return null;
   }, []);
 
-  const stopMic = React.useCallback(() => {
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-      mediaStreamRef.current = null;
-    }
-  }, []);
-
   const toggleMic = React.useCallback(async () => {
     if (isMuted) {
-      const stream = mediaStreamRef.current;
-      const audioTrack = stream?.getAudioTracks().find((t) => t.readyState === "live");
-      if (audioTrack) {
-        audioTrack.enabled = true;
-        setIsMuted(false);
-      } else {
-        await startMic();
-      }
+      playUnmute();
+      await startMic();
     } else {
-      if (!mediaStreamRef.current) {
-        const stream = await startMic();
-        if (!stream) {
-          setIsMuted(true);
-        }
-      } else {
-        mediaStreamRef.current.getAudioTracks().forEach((track) => {
-          track.enabled = false;
-        });
-        setIsMuted(true);
-      }
+      playMute();
+      stopMic();
     }
-  }, [isMuted, startMic]);
+  }, [isMuted, startMic, stopMic]);
 
   React.useEffect(() => {
+    initSounds();
     return () => {
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -153,14 +156,14 @@ export default function Home() {
   }, []);
 
   const handleStartCall = async () => {
+    playCallStart();
     setIsCallActive(true);
     setAgentStatus("listening");
-    if (!isMuted) {
-      await startMic();
-    }
+    await startMic();
   };
 
   const handleEndCall = () => {
+    playCallEnd();
     setIsCallActive(false);
     setActiveExpressionId("neutral");
     stopMic();
@@ -237,10 +240,23 @@ export default function Home() {
       <span>{isCallActive ? "End call" : "Start call"}</span>
     </Button>
   );
+  const handleToggleExpanded = () => {
+    setIsExpanded((prev) => {
+      const next = !prev;
+      if (next) {
+        playStageOpen();
+      } else {
+        playStageClose();
+      }
+      return next;
+    });
+  };
+
   const statusIndicator = (
     <button
       type="button"
       onClick={() => {
+        playTactileTap();
         if (!isCallActive) {
           handleStartCall();
           return;
@@ -314,7 +330,10 @@ export default function Home() {
               {/* Close Button: Circle with X icon inside, outer edges flush with top and right borders */}
               <button
                 type="button"
-                onClick={() => setIsExpanded(false)}
+                onClick={() => {
+                  playStageClose();
+                  setIsExpanded(false);
+                }}
                 title="Close artifact stage"
                 aria-label="Close artifact stage"
                 style={{
@@ -351,7 +370,7 @@ export default function Home() {
           <button
             type="button"
             className="guide-avatar absolute z-20 border-0 bg-transparent p-0 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-            onClick={() => setIsExpanded((value) => !value)}
+            onClick={handleToggleExpanded}
             aria-label={isExpanded ? "Close card" : "Open card"}
             aria-expanded={isExpanded}
           >

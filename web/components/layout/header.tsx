@@ -19,6 +19,15 @@ import {
   Key01Icon,
   CheckmarkCircle02Icon,
 } from "@hugeicons/core-free-icons";
+import {
+  isSoundEnabled,
+  setSoundEnabled,
+  playTactileTap,
+  playSuccess,
+  playSettingsOpen,
+  playSettingsClose,
+  playToggle,
+} from "@/lib/sounds";
 
 export function Header() {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -32,13 +41,25 @@ export function Header() {
     if (typeof window !== "undefined") {
       const storedKey = localStorage.getItem("assemblyai_api_key") || "";
       setApiKey(storedKey);
+      setIsSoundEffects(isSoundEnabled());
     }
   }, []);
+
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
+      playSettingsOpen();
+    } else {
+      playSettingsClose();
+    }
+    setIsOpen(open);
+  };
 
   const handleSave = () => {
     if (typeof window !== "undefined") {
       localStorage.setItem("assemblyai_api_key", apiKey);
+      setSoundEnabled(isSoundEffects);
     }
+    playSuccess();
     setIsSaved(true);
     setTimeout(() => {
       setIsSaved(false);
@@ -49,7 +70,7 @@ export function Header() {
   return (
     <header className="w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-end z-30 select-none">
       {/* Settings Dialog on the Right: rounded rectangle like image in light mode */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogTrigger
           render={
             <Button
@@ -116,7 +137,10 @@ export function Header() {
                     <button
                       key={mode.id}
                       type="button"
-                      onClick={() => setPersonality(mode.id as typeof personality)}
+                      onClick={() => {
+                        playToggle();
+                        setPersonality(mode.id as typeof personality);
+                      }}
                       className={`flex flex-col items-start p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                         isSelected
                           ? "bg-card border-foreground text-foreground shadow-xs"
@@ -140,7 +164,13 @@ export function Header() {
                     Speak responses automatically using TTS when listening completes.
                   </span>
                 </div>
-                <Switch checked={isAutoSpeak} onCheckedChange={setIsAutoSpeak} />
+                <Switch
+                  checked={isAutoSpeak}
+                  onCheckedChange={(checked) => {
+                    playToggle();
+                    setIsAutoSpeak(checked);
+                  }}
+                />
               </div>
 
               <div className="flex items-center justify-between">
@@ -150,7 +180,14 @@ export function Header() {
                     Subtle acoustic cues when entering listening or thinking states.
                   </span>
                 </div>
-                <Switch checked={isSoundEffects} onCheckedChange={setIsSoundEffects} />
+                <Switch
+                  checked={isSoundEffects}
+                  onCheckedChange={(checked) => {
+                    setIsSoundEffects(checked);
+                    setSoundEnabled(checked);
+                    if (checked) playToggle();
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -159,7 +196,10 @@ export function Header() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                playSettingsClose();
+                setIsOpen(false);
+              }}
               className="text-xs"
             >
               Cancel
