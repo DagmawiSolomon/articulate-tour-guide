@@ -11,20 +11,20 @@ export type ExpressionId =
   | "thinking"
   | "speaking"
   | "neutral"
+  | "happy"
   | "excited"
   | "curious"
   | "interested"
   | "focused"
   | "surprised"
   | "confused"
-  | "shy";
+  | "shy"
+  | "muted";
 
 export interface ExpressionConfig {
   id: ExpressionId;
   label: string;
   expression: Expression;
-  /** When true, the entire eye curves into smiling arcs `^ ^` without underlying capsule eyes */
-  isCurvedEyes?: boolean;
 }
 
 /** Helper to construct precise Blobatar eye poses with rock-solid body (bdy = 0) */
@@ -62,7 +62,7 @@ const fixedThinking: Expression = {
 };
 
 /**
- * 11 Curated Expressions for Mr. Triangle:
+ * Curated Expressions for Mr. Triangle:
  * The triangle body geometry remains 100% constant and stable.
  */
 export const EXPRESSIONS_CATALOG: ExpressionConfig[] = [
@@ -102,15 +102,40 @@ export const EXPRESSIONS_CATALOG: ExpressionConfig[] = [
     expression: makePose({ esx: 1.05, esy: 1.0, tilt: 0, edy: 0, edx: 0 }),
   },
   {
+    id: "happy",
+    label: "Happy",
+    expression: makePose({
+      esx: 1.24,
+      esy: 0.92,   // warm, smiling eye shape that keeps pupils and life
+      tilt: 5,     // gentle joyful tilt
+      tilt2: -5,   // symmetric warm lift
+      edy: -1.7,   // lifted with delight
+      edx: 0.18,
+    }),
+  },
+  {
     id: "excited",
     label: "Excited",
     expression: makePose({
-      esx: 1.1,
-      esy: 1.0,
-      tilt: 0,
-      edy: -1.0,
+      esx: 1.28,
+      esy: 1.18,   // bright, wide, joyful eyes
+      tilt: 4,
+      tilt2: -4,
+      edy: -2.0,
+      edx: 0.25,
     }),
-    isCurvedEyes: true, // Entire eye curves into ^ ^
+  },
+  {
+    id: "muted",
+    label: "Muted",
+    expression: makePose({
+      esx: 1.02,
+      esy: 0.88,   // gentle, relaxed, attentive eye shape
+      tilt: 6,     // subtle inquisitive/attentive angle
+      tilt2: -3,
+      edy: 0.8,    // resting slightly lower, calm and patient
+      edx: 0.15,
+    }),
   },
   {
     id: "curious",
