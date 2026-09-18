@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { HugeIcon } from "@/components/ui/hugeicon";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Dialog,
   DialogContent,
@@ -15,14 +16,21 @@ import {
   MicOff01Icon,
   Mic01Icon,
   Cancel01Icon,
-  CallEnd01Icon,
-  CallPaused02Icon,
+  CallDisabled02Icon,
+  PauseIcon,
   PlayIcon,
 } from "@hugeicons/core-free-icons";
 import { ArticulateAvatar } from "@/components/avatar/articulate-avatar";
 import {
   type ExpressionId,
 } from "@/components/avatar/avatar-expressions";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import {
@@ -56,6 +64,7 @@ const THINKING_EMOTIONS: ExpressionId[] = [
 export default function Home() {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isTourActive, setIsTourActive] = React.useState(false);
+  const [visitorName, setVisitorName] = React.useState("Visitor");
   const [isPaused, setIsPaused] = React.useState(false);
   const [isEndDialogOpen, setIsEndDialogOpen] = React.useState(false);
   const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("neutral");
@@ -274,7 +283,7 @@ export default function Home() {
           : "bg-card hover:bg-muted text-secondary-text hover:text-foreground"
       }`}
     >
-      <HugeIcon icon={isPaused ? PlayIcon : CallPaused02Icon} size={16} />
+      <HugeiconsIcon icon={isPaused ? PlayIcon : PauseIcon} size={16} />
     </Button>
   );
 
@@ -289,8 +298,8 @@ export default function Home() {
       title="End tour"
       className="h-9 px-3 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer transition-all active:scale-95 shadow-xs"
     >
-      <HugeIcon
-        icon={CallEnd01Icon}
+      <HugeiconsIcon
+        icon={CallDisabled02Icon}
         size={15}
         color="#ffffff"
         className="text-white shrink-0"
@@ -366,71 +375,30 @@ export default function Home() {
   return (
     <div className="h-dvh min-h-[480px] w-full bg-background flex overflow-hidden select-none relative">
       <div className="flex-1 min-w-0 h-full grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden relative">
-        <Header />
-        <main className="min-h-0 h-full w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 py-6 relative flex items-stretch justify-center">
-
+        <Header showSettings={isTourActive} />
+        <main
+          className={
+            !isTourActive
+              ? "min-h-0 h-full w-full relative flex items-stretch overflow-y-auto"
+              : "min-h-0 h-full w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 py-6 relative flex items-stretch justify-center"
+          }
+        >
           {!isTourActive ? (
-            /* Full-page "Start tour" landing card */
-            <button
-              type="button"
-              onClick={handleStartTour}
-              aria-label="Start tour"
-              className="w-full h-full max-h-[660px] 2xl:max-h-[740px] rounded-2xl border border-border bg-card shadow-xs overflow-hidden cursor-pointer group transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:scale-[1.006] active:scale-[0.994] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring flex flex-col"
-            >
-              {/* ── Image mosaic: top 55% ─────────────────────── */}
-              <div className="relative flex-1 min-h-0 w-full overflow-hidden">
-                {/* Three-panel masonry: left wide + right column stacked */}
-                <div className="absolute inset-0 flex gap-0.5">
-                  {/* Left: gallery hall – wider panel */}
-                  <div className="relative flex-[2] overflow-hidden">
-                    <img
-                      src="/museum-gallery.jpg"
-                      alt="Museum gallery corridor"
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/20" />
-                  </div>
-                  {/* Right column: two stacked panels */}
-                  <div className="flex-1 flex flex-col gap-0.5">
-                    <div className="relative flex-1 overflow-hidden">
-                      <img
-                        src="/museum-bust.jpg"
-                        alt="Roman marble bust"
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/15" />
-                    </div>
-                    <div className="relative flex-1 overflow-hidden">
-                      <img
-                        src="/museum-artifact.jpg"
-                        alt="Museum artifact"
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/15" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Text content: bottom portion ──────────────── */}
-              <div className="shrink-0 flex flex-col items-center justify-center text-center px-8 py-7 gap-4 border-t border-border">
-                {/* Title + description */}
-                <div className="space-y-1.5">
-                  <h1 className="text-3xl sm:text-4xl font-semibold tracking-[-0.1px] text-foreground">
-                    Start tour
-                  </h1>
-                  <p className="text-sm text-secondary-text tracking-[-0.1px] max-w-xs mx-auto leading-relaxed">
+            <div className="w-full h-full flex items-center justify-center p-4">
+              <Card className="w-full max-w-sm">
+                <CardHeader>
+                  <CardTitle>Start tour</CardTitle>
+                  <CardDescription>
                     Begin your voice-guided journey with Mr. Triangle, your AI docent for this exhibition.
-                  </p>
-                </div>
-
-                {/* CTA */}
-                <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-medium tracking-[-0.1px] shadow-xs group-hover:bg-primary/90 transition-all">
-                  <HugeIcon icon={PlayIcon} size={14} color="#ffffff" className="text-white shrink-0" />
-                  <span>Begin tour</span>
-                </div>
-              </div>
-            </button>
+                  </CardDescription>
+                </CardHeader>
+                <CardFooter>
+                  <Button className="w-full cursor-pointer" onClick={handleStartTour}>
+                    Start tour
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
           ) : (
             /* Active Tour Stage */
             <div className="guide-stage relative w-full h-full max-h-[660px] 2xl:max-h-[740px]" data-expanded={isExpanded}>
