@@ -32,7 +32,7 @@ export const HugeIcon = React.forwardRef<SVGSVGElement, HugeIconProps>(
         {...props}
       >
         {icon.map(([tag, attrs], index) => {
-          const Tag = tag as keyof React.JSX.IntrinsicElements;
+          const Tag = tag as any;
           const { key, strokeWidth: defaultStrokeWidth, stroke, ...restAttrs } = attrs;
           return (
             <Tag

@@ -25,6 +25,10 @@ export interface ArticulateAvatarProps {
   isMuted?: boolean;
   /** Custom class names for the outer wrapper */
   className?: string;
+  /** Optional blob shape trait override (default: 0.99) */
+  shape?: number;
+  /** Optional blob seed name (default: "Articulate") */
+  seedName?: string;
 }
 
 export function ArticulateAvatar({
@@ -36,6 +40,8 @@ export function ArticulateAvatar({
   isListening = false,
   isMuted = false,
   className,
+  shape = 0.99,
+  seedName = "Articulate",
 }: ArticulateAvatarProps) {
   const currentConfig =
     EXPRESSIONS_CATALOG.find((e) => e.id === expressionId) ??
@@ -56,21 +62,21 @@ export function ArticulateAvatar({
         }`
       }
     >
-      {/* Main Avatar Container: Triangle body stays 100% constant and identical across all emotions */}
+      {/* Main Avatar Container */}
       <div
         className={`relative rounded-full flex items-center justify-center ${
           isListening ? "avatar-listening" : ""
         } ${isMuted ? "avatar-muted" : ""}`}
         style={{ width: currentSize, height: currentSize }}
       >
-        {/* Layer 1: Base Blobatar (Locked to Mr. Triangle: shape 0.99) */}
+        {/* Layer 1: Base Blobatar */}
         <div className="absolute inset-0">
           <Blobatar
-            name="Articulate"
+            name={seedName}
             size={currentSize}
             animate="always"
             expression={resolvedExpression}
-            traits={{ shape: 0.99 }}
+            traits={{ shape }}
           />
         </div>
 

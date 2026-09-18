@@ -29,7 +29,7 @@ import {
   playToggle,
 } from "@/lib/sounds";
 
-export function Header() {
+export function Header({ showSettings = true }: { showSettings?: boolean }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [apiKey, setApiKey] = React.useState("");
   const [isAutoSpeak, setIsAutoSpeak] = React.useState(true);
@@ -68,9 +68,22 @@ export function Header() {
   };
 
   return (
-    <header className="w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-end z-30 select-none">
-      {/* Settings Dialog on the Right: rounded rectangle like image in light mode */}
-      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+    <header className="w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between z-30 select-none">
+      {/* Logo on the Left: articulate tour guide. at 16pt in Afacad Flux font with -3% letter spacing */}
+      <span
+        className="font-medium text-foreground select-none leading-none"
+        style={{
+          fontFamily: "'Afacad Flux', sans-serif",
+          fontSize: "16pt",
+          letterSpacing: "-0.03em",
+        }}
+      >
+        articulate tour guide.
+      </span>
+
+      {/* Settings Dialog on the Right (conditionally rendered) */}
+      {showSettings && (
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogTrigger
           render={
             <Button
@@ -222,6 +235,7 @@ export function Header() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </header>
   );
 }
