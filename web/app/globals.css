@@ -372,9 +372,38 @@ body {
   bottom: 0.5px;
   left: 50%;
   transform: translateX(-50%);
+  transition: top 650ms var(--guide-ease), left 650ms var(--guide-ease), bottom 650ms var(--guide-ease), transform 650ms var(--guide-ease);
+}
+
+@media (min-width: 768px) {
+  .guide-stage[data-expanded="true"] .guide-dock {
+    bottom: auto;
+    top: 50%;
+    left: 28px;
+    transform: translate(-50%, -50%);
+  }
+  .guide-stage[data-expanded="true"] .guide-dock .call-group-container {
+    flex-direction: column;
+    width: 48px;
+    height: auto;
+    gap: 8px;
+    padding: 8px 6px;
+  }
+  .guide-stage[data-expanded="true"] .guide-dock .call-group-divider {
+    width: 20px;
+    height: 1px;
+  }
+  .guide-stage[data-expanded="true"] .guide-dock .call-group-end-label {
+    display: none;
+  }
+  .guide-stage[data-expanded="true"] .guide-dock .call-group-end-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .guide-avatar, .guide-card-layer, .guide-status { transition: none; }
+  .guide-avatar, .guide-card-layer, .guide-status, .guide-dock { transition: none; }
 }
 
 /* ==========================================================================
