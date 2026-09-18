@@ -545,16 +545,14 @@ export default function Home() {
 
       {/* Confirmation Dialog: End Tour */}
       <Dialog open={isEndDialogOpen} onOpenChange={setIsEndDialogOpen}>
-        <DialogContent className="max-w-sm rounded-2xl p-6 bg-card border border-border shadow-xl">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold tracking-[-0.1px] text-foreground">
-              End tour?
-            </DialogTitle>
-            <DialogDescription className="text-sm text-secondary-text tracking-[-0.1px] mt-1.5 leading-relaxed">
+            <DialogTitle>End tour?</DialogTitle>
+            <DialogDescription>
               Are you sure you want to end your tour? This will disconnect your conversation session with Mr. Triangle.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex flex-row items-center justify-end gap-2 pt-4">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
@@ -562,14 +560,15 @@ export default function Home() {
                 playTactileTap();
                 setIsEndDialogOpen(false);
               }}
-              className="h-9 px-4 rounded-full text-xs font-medium tracking-[-0.1px] cursor-pointer"
+              className="rounded-lg h-9 px-4 text-sm font-medium bg-card hover:bg-subtle border border-border text-foreground cursor-pointer shadow-none"
             >
               Cancel
             </Button>
             <Button
               type="button"
+              variant="default"
               onClick={handleConfirmEndTour}
-              className="h-9 px-4 rounded-full text-xs font-medium tracking-[-0.1px] bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
+              className="rounded-lg h-9 px-4 text-sm font-medium cursor-pointer"
             >
               End tour
             </Button>
