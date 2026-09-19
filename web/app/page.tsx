@@ -75,6 +75,9 @@ export default function Home() {
   const [activeArtifact, setActiveArtifact] = React.useState<ArtifactType>("info");
   const [activeMapRoute, setActiveMapRoute] = React.useState<"restrooms" | "gauguin" | "elevator">("restrooms");
   const [activeHotspotId, setActiveHotspotId] = React.useState<"cypress" | "star" | "steeple">("cypress");
+  // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
+  // Will be wired to real events once voice is connected.
+  const [isArtifactLoading, setIsArtifactLoading] = React.useState(false);
 
   // Fixed card geometry.
   const tuning = {
@@ -478,6 +481,7 @@ export default function Home() {
                       artifactType={activeArtifact}
                       mapRouteId={activeMapRoute}
                       hotspotId={activeHotspotId}
+                      isLoading={isArtifactLoading}
                     />
                   </div>
 
@@ -552,6 +556,16 @@ export default function Home() {
 
           {isTourActive && (
             <div className="flex items-center gap-2">
+              {/* Dev toggle: simulates skeleton loading state */}
+              <Button
+                size="sm"
+                variant={isArtifactLoading ? "default" : "outline"}
+                className="h-6 px-2.5 text-[11px] rounded-full cursor-pointer font-mono"
+                onClick={() => setIsArtifactLoading((v) => !v)}
+                title="Toggle skeleton loading state (dev)"
+              >
+                {isArtifactLoading ? "⏳ loading" : "skeleton"}
+              </Button>
               <Tabs
                 value={activeArtifact}
                 onValueChange={(val) => {
