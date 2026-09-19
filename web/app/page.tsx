@@ -220,10 +220,23 @@ export default function Home() {
       setChatMessages([{ id: "v-1", role: "visitor", text: "Can you tell me about this painting?", timestamp: now() }])
     );
     // t=3.2s  Thinking
-    after(3200, () => setIsChatThinking(true));
+    after(3200, () => setChatMessages((prev) => [
+      ...prev,
+      {
+        id: "think-1",
+        role: "reasoning",
+        variant: "Steps",
+        active: "Consulting Museum Archives…",
+        done: "Verified in 1889 Archives",
+        rows: [
+          { primary: "Accessing Saint-Rémy asylum records (1889)" },
+          { primary: "Cross-referencing Letter 782 to Theo" }
+        ],
+        timestamp: now()
+      }
+    ]));
     // t=5.5s  Agent streams response with Beautiful UI StreamingText
     after(5500, () => {
-      setIsChatThinking(false);
       const fullText = "Of course! You're looking at The Starry Night[1] — painted by Vincent van Gogh in June 1889 from his room at the Saint-Paul-de-Mausole asylum in Saint-Rémy-de-Provence[2].";
       setChatMessages((prev) => [
         ...prev,
@@ -260,24 +273,21 @@ export default function Home() {
         { id: "v-2", role: "visitor", text: "What about those dark shapes?", timestamp: now() },
       ])
     );
-    after(18700, () => setIsChatThinking(true));
-    // t=20.5s Tool call badge (ToolChips with clickable artifact action)
-    after(20500, () => {
-      setIsChatThinking(false);
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          id: "tool-1",
-          role: "tool",
-          toolName: "show_hotspots",
-          label: "Cypress Flame",
-          artifactType: "hotspots",
-          params: { hotspotId: "cypress" },
-          detail: "High-resolution inspection focused on foreground cypresses",
-          timestamp: now(),
-        },
-      ]);
-    });
+    after(18700, () => setChatMessages((prev) => [
+      ...prev,
+      {
+        id: "think-2",
+        role: "reasoning",
+        variant: "Reasoning",
+        active: "Synthesizing Docent Insights…",
+        done: "Context synthesized",
+        rows: [
+          { primary: "Visitor inquired about foreground landscape elements." },
+          { primary: "Identified cypress flame motif connecting earth with the cosmos." }
+        ],
+        timestamp: now()
+      }
+    ]));
     // t=21s   Agent explains cypress with Beautiful UI StreamingText
     after(21000, () => {
       const fullText = "Those are cypress trees — Van Gogh was obsessed with them. They appear almost flame-like, connecting the turbulent earth to the swirling heavens above.";
@@ -309,8 +319,19 @@ export default function Home() {
             { text: "above." },
           ],
         },
+        {
+          id: "tool-1",
+          role: "tool",
+          toolName: "show_hotspots",
+          label: "Cypress Flame",
+          artifactType: "hotspots",
+          params: { hotspotId: "cypress" },
+          detail: "High-resolution inspection focused on foreground cypresses",
+          timestamp: now(),
+        },
       ]);
     });
+
     // t=28s   Docent syncs map location
     after(28000, () => {
       setChatMessages((prev) => [
