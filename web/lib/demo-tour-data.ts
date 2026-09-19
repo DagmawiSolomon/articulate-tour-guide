@@ -36,6 +36,8 @@ export interface TimelineMilestone {
   location: string;
   title: string;
   description: string;
+  artworkTitle?: string;
+  imageSrc?: string;
   isCurrent?: boolean;
 }
 
@@ -148,28 +150,36 @@ export const TIMELINE_MILESTONES: TimelineMilestone[] = [
     year: "1885",
     location: "Nuenen",
     title: "Peasant Realism",
+    artworkTitle: "The Potato Eaters",
     description: "Somber earthy umbers, rustic domestic light, and gritty realism culminating in The Potato Eaters.",
+    imageSrc: "/assets/timeline/nuenen.jpg",
   },
   {
     id: "paris",
     year: "1886–1887",
     location: "Paris",
     title: "The Impressionist Awakening",
+    artworkTitle: "Self-Portrait in Grey Felt Hat",
     description: "Encounter with Pissarro, Monet, and Seurat; adoption of bright sunlight palettes and optical brushwork.",
+    imageSrc: "/assets/timeline/paris.jpg",
   },
   {
     id: "arles",
     year: "1888",
     location: "Arles",
     title: "The Studio of the South",
+    artworkTitle: "Sunflowers & Yellow House",
     description: "Dazzling Mediterranean yellows and bold complementary contrasts in The Yellow House and Bedroom in Arles.",
+    imageSrc: "/assets/timeline/arles.jpg",
   },
   {
     id: "saint-remy",
     year: "1889",
     location: "Saint-Rémy",
     title: "Cosmic & Spiritual Rhythms",
+    artworkTitle: "The Starry Night",
     description: "Convalescence at Saint-Paul asylum; turbulent swirling vortexes and cosmic nightscapes including The Starry Night.",
+    imageSrc: "/starry-night.jpg",
     isCurrent: true,
   },
   {
@@ -177,7 +187,9 @@ export const TIMELINE_MILESTONES: TimelineMilestone[] = [
     year: "1890",
     location: "Auvers-sur-Oise",
     title: "The Final Tempest",
+    artworkTitle: "Wheatfield with Crows",
     description: "Agitated skies, vast undulating wheatfields, and seventy feverish final canvases under Dr. Gachet's care.",
+    imageSrc: "/assets/timeline/auvers.jpg",
   },
 ];
 
