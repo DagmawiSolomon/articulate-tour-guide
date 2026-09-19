@@ -36,7 +36,7 @@
   --color-surface: #ffffff;
   --color-canvas: #fdfbfa;
   --color-inset: #f5f3ee;
-  --color-field: #ffffff;
+  --color-field: #f4f5f7;
   --color-line: #e2e0d8;
   --color-line-strong: #d8d5cb;
   --color-green: #1f7a5f;
@@ -91,7 +91,7 @@
   --surface: #ffffff;
   --canvas: #fdfbfa;
   --inset: #f5f3ee;
-  --field: #ffffff;
+  --field: #f4f5f7;
   --hover: #f5f3ee;
   --hover-2: #eae7e1;
   --green: #1f7a5f;
@@ -594,5 +594,27 @@ body {
   }
   62% {
     opacity: 0.15;
+  }
+}
+
+/* ==========================================================================
+   BUI #06 / ThinkingState — Spinner & Skeleton Pulse
+   ========================================================================== */
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
   }
 }
