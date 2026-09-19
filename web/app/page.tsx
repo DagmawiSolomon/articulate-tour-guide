@@ -34,7 +34,7 @@ import {
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArtifactStage, type ArtifactType } from "@/components/artifacts/artifact-stage";
+import { ArtifactStage, type ArtifactType, type ChatMessage } from "@/components/artifacts/artifact-stage";
 import {
   initSounds,
   playCallStart,
@@ -78,6 +78,10 @@ export default function Home() {
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
   // Will be wired to real events once voice is connected.
   const [isArtifactLoading, setIsArtifactLoading] = React.useState(false);
+  // Chat history state — messages accumulate as the tour progresses.
+  const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([]);
+  const [isChatThinking, setIsChatThinking] = React.useState(false);
+  const demoTimersRef = React.useRef<NodeJS.Timeout[]>([]);
 
   // Fixed card geometry.
   const tuning = {
@@ -199,6 +203,115 @@ export default function Home() {
     setIsPaused(false);
     setAgentStatus("listening");
     setActiveExpressionId("listening");
+    // Reset chat and kick off the scripted demo sequence
+    setChatMessages([]);
+    setIsChatThinking(false);
+    demoTimersRef.current.forEach(clearTimeout);
+    demoTimersRef.current = [];
+
+    // Helper to schedule a message and track the timer
+    const after = (ms: number, fn: () => void) => {
+      const t = setTimeout(fn, ms);
+      demoTimersRef.current.push(t);
+    };
+    const uid = () => Math.random().toString(36).slice(2);
+    const now = () => new Date();
+
+    // ── Scripted demo conversation ──────────────────────────────────────────
+    // t=1.5s  Visitor partial
+    after(1500, () =>
+      setChatMessages([{ id: "v-partial", role: "visitor", text: "Can you tell me about this painting?", isPartial: true, timestamp: now() }])
+    );
+    // t=3s    Visitor final
+    after(3000, () =>
+      setChatMessages([{ id: "v-1", role: "visitor", text: "Can you tell me about this painting?", timestamp: now() }])
+    );
+    // t=3.2s  Thinking
+    after(3200, () => setIsChatThinking(true));
+    // t=5.5s  Agent streams response with Beautiful UI StreamingText
+    after(5500, () => {
+      setIsChatThinking(false);
+      const fullText = "Of course! You're looking at The Starry Night — painted by Vincent van Gogh in June 1889 from his room at the Saint-Paul-de-Mausole asylum in Saint-Rémy-de-Provence.";
+      setChatMessages((prev) => [
+        ...prev,
+        { id: uid(), role: "agent", text: fullText, timestamp: now() },
+      ]);
+    });
+    // t=17s   Visitor asks about the cypresses
+    after(17000, () =>
+      setChatMessages((prev) => [...prev, { id: "v-partial-2", role: "visitor", text: "What about those dark shapes?", isPartial: true, timestamp: now() }])
+    );
+    after(18500, () =>
+      setChatMessages((prev) => [
+        ...prev.filter((m) => m.id !== "v-partial-2"),
+        { id: "v-2", role: "visitor", text: "What about those dark shapes?", timestamp: now() },
+      ])
+    );
+    after(18700, () => setIsChatThinking(true));
+    // t=20.5s Tool call badge (ToolChips with clickable artifact action)
+    after(20500, () => {
+      setIsChatThinking(false);
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: "tool-1",
+          role: "tool",
+          toolName: "show_hotspots",
+          label: "Zooming to: Cypress Flame",
+          artifactType: "hotspots",
+          params: { hotspotId: "cypress" },
+          detail: "High-resolution inspection focused on foreground cypresses",
+          timestamp: now(),
+        },
+      ]);
+    });
+    // t=21s   Agent explains cypress with Beautiful UI StreamingText
+    after(21000, () => {
+      const fullText = "Those are cypress trees — Van Gogh was obsessed with them. They appear almost flame-like, connecting the turbulent earth to the swirling heavens above.";
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: uid(),
+          role: "agent",
+          text: fullText,
+          timestamp: now(),
+          artifactTokens: [
+            { text: "Those" }, { text: "are" },
+            {
+              text: "cypress trees",
+              artifactTarget: {
+                type: "hotspots",
+                label: "Cypress Hotspot",
+                params: { hotspotId: "cypress" },
+              },
+            },
+            { text: "—" }, { text: "Van" }, { text: "Gogh" }, { text: "was" },
+            { text: "obsessed" }, { text: "with" }, { text: "them." },
+            { text: "They" }, { text: "appear" }, { text: "almost" },
+            { text: "flame-like," }, { text: "connecting" }, { text: "the" },
+            { text: "turbulent" }, { text: "earth" }, { text: "to" },
+            { text: "the" }, { text: "swirling" }, { text: "heavens" },
+            { text: "above." },
+          ],
+        },
+      ]);
+    });
+    // t=28s   Docent syncs map location
+    after(28000, () => {
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: "tool-2",
+          role: "tool",
+          toolName: "highlight_map_location",
+          label: "Gallery 37: 19th Century Post-Impressionism",
+          artifactType: "map",
+          params: { routeId: "restrooms" },
+          detail: "Position verified on Museum Level 2 Floorplan",
+          timestamp: now(),
+        },
+      ]);
+    });
     await startMic();
   };
 
@@ -210,6 +323,11 @@ export default function Home() {
     setIsExpanded(false);
     setActiveArtifact("info");
     setActiveExpressionId("neutral");
+    // Clear demo timers and chat
+    demoTimersRef.current.forEach(clearTimeout);
+    demoTimersRef.current = [];
+    setChatMessages([]);
+    setIsChatThinking(false);
     stopMic();
   };
 
@@ -219,13 +337,23 @@ export default function Home() {
       if (next) {
         playToggle();
         setActiveExpressionId("neutral");
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getAudioTracks().forEach((track) => {
+            track.enabled = false;
+          });
+        }
       } else {
         playCallStart();
         setActiveExpressionId("listening");
+        if (mediaStreamRef.current && !isMuted) {
+          mediaStreamRef.current.getAudioTracks().forEach((track) => {
+            track.enabled = true;
+          });
+        }
       }
       return next;
     });
-  }, []);
+  }, [isMuted]);
 
   const isListening = isTourActive && !isMuted && !isPaused && activeExpressionId === "listening";
 
@@ -286,14 +414,17 @@ export default function Home() {
       onClick={togglePause}
       aria-label={isPaused ? "Resume tour" : "Pause tour"}
       title={isPaused ? "Resume tour" : "Pause tour"}
-      variant="outline"
-      className={`size-9 rounded-full p-0 border border-border cursor-pointer transition-all active:scale-95 flex items-center justify-center ${
-        isPaused
-          ? "bg-muted text-foreground hover:bg-soft"
-          : "bg-card hover:bg-muted text-secondary-text hover:text-foreground"
-      }`}
+      className="call-group-pause-btn h-9 px-3.5 rounded-full flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer transition-all active:scale-95 bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-none"
     >
-      <HugeiconsIcon icon={isPaused ? PlayIcon : PauseIcon} size={16} />
+      <HugeIcon
+        icon={isPaused ? PlayIcon : PauseIcon}
+        size={15}
+        color="#ffffff"
+        className="text-white shrink-0"
+      />
+      <span className="call-group-pause-label tracking-[-0.1px]">
+        {isPaused ? "Resume" : "Pause"}
+      </span>
     </Button>
   );
 
@@ -306,15 +437,14 @@ export default function Home() {
       }}
       aria-label="End tour"
       title="End tour"
-      className="call-group-end-btn h-9 px-3 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer transition-all active:scale-95 shadow-xs"
+      className="call-group-end-btn size-9 rounded-full p-0 bg-red-600 hover:bg-red-700 text-white flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0 border-0 shadow-none"
     >
-      <HugeiconsIcon
+      <HugeIcon
         icon={CallDisabled02Icon}
-        size={15}
+        size={16}
         color="#ffffff"
         className="text-white shrink-0"
       />
-      <span className="call-group-end-label">End</span>
     </Button>
   );
 
@@ -323,6 +453,8 @@ export default function Home() {
       const next = !prev;
       if (next) {
         playStageOpen();
+        // Default to chat tab when opening the card
+        setActiveArtifact("chat");
       } else {
         playStageClose();
       }
@@ -368,7 +500,7 @@ export default function Home() {
   // Call group: horizontal on mobile / unexpanded; transitions to vertical under Mr. T on larger screens
   const callGroup = (
     <div
-      className="call-group-container flex h-[52px] w-[184px] items-center justify-center gap-1.5 rounded-full border border-border bg-card px-2 shadow-xs transition-all duration-300"
+      className="call-group-container flex h-[52px] w-[196px] items-center justify-center gap-1.5 rounded-full border border-border bg-card px-2 shadow-xs transition-all duration-300"
       role="group"
       aria-label="Tour controls"
     >
@@ -482,6 +614,14 @@ export default function Home() {
                       mapRouteId={activeMapRoute}
                       hotspotId={activeHotspotId}
                       isLoading={isArtifactLoading}
+                      chatMessages={chatMessages}
+                      isChatThinking={isChatThinking}
+                      onSelectArtifact={(type, params) => {
+                        setActiveArtifact(type);
+                        if (params?.routeId) setActiveMapRoute(params.routeId as any);
+                        if (params?.hotspotId) setActiveHotspotId(params.hotspotId as any);
+                        playTactileTap();
+                      }}
                     />
                   </div>
 
@@ -577,6 +717,9 @@ export default function Home() {
                 }}
               >
                 <TabsList className="h-7 bg-muted/60 p-0.5 rounded-full gap-0.5">
+                  <TabsTrigger value="chat" className="text-xs px-2.5 h-6 rounded-full font-medium">
+                    Chat
+                  </TabsTrigger>
                   <TabsTrigger value="info" className="text-xs px-2.5 h-6 rounded-full font-medium">
                     Info
                   </TabsTrigger>
