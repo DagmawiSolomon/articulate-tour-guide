@@ -33,14 +33,7 @@ function Shimmer({ className }: { className?: string }) {
   );
 }
 
-// Centred BUI LoadingState overlay for image/map zones
-function LoadingOverlay({ label }: { label: string }) {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center">
-      <LoadingState label={label} active showTimer={false} />
-    </div>
-  );
-}
+
 
 /* ── Info ──────────────────────────────────────────────── */
 function InfoSkeleton() {
@@ -48,9 +41,8 @@ function InfoSkeleton() {
     <div
       className="flex flex-col lg:flex-row w-full h-full max-w-4xl mx-auto overflow-hidden p-0 gap-6 lg:gap-10 shadow-none border-none bg-transparent items-center justify-center"
     >
-      {/* Image zone */}
-      <div className="relative w-full lg:w-1/2 h-[280px] sm:h-[320px] lg:h-[400px] shrink-0 rounded-2xl overflow-hidden" style={{ background: "var(--inset)" }}>
-        <LoadingOverlay label="Loading artwork" />
+      <div className="relative w-full lg:w-1/2 h-[280px] sm:h-[320px] lg:h-[400px] shrink-0 rounded-2xl overflow-hidden">
+        <Shimmer className="w-full h-full rounded-2xl" />
       </div>
 
       {/* Info card zone */}
@@ -122,33 +114,29 @@ function MapSkeleton() {
 /* ── Comparison ───────────────────────────────────────── */
 function ComparisonSkeleton() {
   return (
-    <div className="w-full h-full flex flex-col gap-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {[0, 1].map((i) => (
-          <div key={i} className="flex flex-col gap-2">
-            <Shimmer className="aspect-[4/3] w-full rounded-xl" />
-            <Shimmer className="h-3 w-1/2" />
-            <Shimmer className="h-2.5 w-2/3" />
+    <div className="w-full h-full flex flex-col justify-center overflow-hidden">
+      <div className="flex flex-col md:flex-row w-full gap-4 overflow-hidden">
+        
+        <div className="flex flex-col w-full md:w-1/2">
+          <div className="relative w-full aspect-[4/3] overflow-hidden rounded-2xl">
+            <Shimmer className="w-full h-full rounded-2xl" />
           </div>
-        ))}
-      </div>
-      <Shimmer className="h-px w-full rounded-none" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="rounded-xl p-3 space-y-2"
-            style={{ border: "1px solid var(--line)", background: "var(--surface)", boxShadow: "var(--shadow-card)" }}
-          >
-            <Shimmer className="h-2.5 w-16" />
-            <Shimmer className="h-3 w-3/4" />
-            <div className="space-y-1 pt-1">
-              <Shimmer className="h-2.5 w-full" />
-              <Shimmer className="h-2.5 w-5/6" />
-              <Shimmer className="h-2.5 w-4/6" />
-            </div>
+          <div className="flex flex-col gap-1.5 p-3 pb-4">
+            <Shimmer className="h-3 w-16" />
+            <Shimmer className="h-4 w-3/4" />
           </div>
-        ))}
+        </div>
+        
+        <div className="flex flex-col w-full md:w-1/2">
+          <div className="relative w-full aspect-[4/3] overflow-hidden rounded-2xl">
+            <Shimmer className="w-full h-full rounded-2xl" />
+          </div>
+          <div className="flex flex-col gap-1.5 p-3 pb-4">
+            <Shimmer className="h-3 w-16" />
+            <Shimmer className="h-4 w-3/4" />
+          </div>
+        </div>
+
       </div>
     </div>
   );
