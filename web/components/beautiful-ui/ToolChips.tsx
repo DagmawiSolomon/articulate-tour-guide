@@ -34,47 +34,30 @@ const DEFAULT_STEPS: ToolStep[] = [
 interface ToolChipsProps {
   steps?: ToolStep[];
   labels?: { header?: string };
+  isResolving?: boolean;
+  isExpanded?: boolean;
+  onToggle?: (expanded: boolean) => void;
   onSelectArtifact?: (type: string, params?: Record<string, any>) => void;
   className?: string;
 }
 
-// BUI icon — map pin
-function MapIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-      <circle cx="12" cy="10" r="3" />
-    </svg>
-  );
+import { getArtifactConfig, MapIcon, ZoomIcon, ArchiveIcon, CompareIcon } from "@/lib/artifact-config";
+
+function getStepIcon(type?: string) {
+  switch (type) {
+    case "map":    return <MapIcon />;
+    case "zoom":   return <ZoomIcon />;
+    case "archive": return <ArchiveIcon />;
+    default:       return <CompareIcon />;
+  }
 }
 
-function ZoomIcon() {
+function SpinnerIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <path d="M21 21l-4.35-4.35" />
-    </svg>
-  );
-}
-
-function ArchiveIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="21 8 21 21 3 21 3 8" />
-      <rect x="1" y="3" width="22" height="5" />
-      <line x1="10" y1="12" x2="14" y2="12" />
-    </svg>
-  );
-}
-
-function CompareIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M12 3v18" />
+      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+      style={{ animation: "spin 1.1s linear infinite" }}>
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>
   );
 }
@@ -90,27 +73,21 @@ function ChevronDown({ open }: { open: boolean }) {
   );
 }
 
-function ArrowRightIcon() {
+function ArrowUpRightIcon() {
   return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 12h14M13 6l6 6-6 6" />
+      <path d="M7 17L17 7M7 7h10v10" />
     </svg>
   );
-}
-
-function getStepIcon(type?: string) {
-  switch (type) {
-    case "map":    return <MapIcon />;
-    case "zoom":   return <ZoomIcon />;
-    case "archive": return <ArchiveIcon />;
-    default:       return <CompareIcon />;
-  }
 }
 
 export default function ToolChips({
   steps = DEFAULT_STEPS,
   labels,
+  isResolving = false,
+  isExpanded = true,
+  onToggle,
   onSelectArtifact,
   className = "",
 }: ToolChipsProps) {
@@ -130,6 +107,7 @@ export default function ToolChips({
         style={{ color: "var(--ink-2)" }}
       >
         <ChevronDown open={open} />
+        {isResolving && <span className="flex shrink-0"><SpinnerIcon /></span>}
         <span className="tabular-nums">{headerLabel}</span>
       </button>
 
@@ -157,25 +135,31 @@ export default function ToolChips({
                   ? "timeline"
                   : "info");
 
+              const config = getArtifactConfig(target);
+
               return (
-                <div
+                <button
                   key={step.chip + step.label}
-                  className="flex items-center gap-2.5 rounded-control px-2.5 py-2 transition-colors duration-100"
-                  style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
+                  type="button"
+                  onClick={() => {
+                    if (target) onSelectArtifact?.(target, step.params);
+                  }}
+                  className="group flex w-full text-left items-center gap-2.5 rounded-control px-1 py-1 transition-colors duration-100 hover:bg-hover-2 cursor-pointer"
                 >
                   {/* Icon */}
                   <span
-                    className="flex size-6 shrink-0 items-center justify-center rounded-md"
+                    className="flex shrink-0 items-center justify-center rounded-md"
                     style={{
-                      background: "var(--inset)",
-                      border: "1px solid var(--line)",
-                      color: "var(--ink)",
+                      width: 24,
+                      height: 24,
+                      background: config.bg,
+                      color: config.color,
                     }}
                   >
                     {getStepIcon(step.icon)}
                   </span>
 
-                  {/* Label + chip */}
+                  {/* Label */}
                   <div className="min-w-0 flex-1 flex flex-col">
                     <div className="flex items-center gap-2 min-w-0">
                       <span
@@ -183,17 +167,6 @@ export default function ToolChips({
                         style={{ color: "var(--ink)" }}
                       >
                         {step.label}
-                      </span>
-                      <span
-                        className="font-mono text-[10px] px-1.5 py-0.5 rounded"
-                        style={{
-                          color: "var(--ink-2)",
-                          background: "var(--field)",
-                          border: "1px solid var(--line-strong)",
-                          flexShrink: 0,
-                        }}
-                      >
-                        {step.chip}
                       </span>
                     </div>
                     {step.detail && (
@@ -206,23 +179,11 @@ export default function ToolChips({
                     )}
                   </div>
 
-                  {/* View Artifact button — BUI-style rounded-full pill */}
-                  <button
-                    type="button"
-                    onClick={() => onSelectArtifact?.(target, step.params)}
-                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-medium transition-colors duration-100 shrink-0 cursor-pointer hover:opacity-80"
-                    style={{
-                      background: "var(--field)",
-                      color: "var(--ink)",
-                      border: "1px solid var(--line-strong)",
-                    }}
-                  >
-                    <span>View</span>
-                    <span style={{ color: "var(--ink-3)" }}>
-                      <ArrowRightIcon />
-                    </span>
-                  </button>
-                </div>
+                  {/* Action (arrow shows on hover) */}
+                  <span className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity pr-2" style={{ color: "var(--ink-3)" }}>
+                    <ArrowUpRightIcon />
+                  </span>
+                </button>
               );
             })}
           </div>
