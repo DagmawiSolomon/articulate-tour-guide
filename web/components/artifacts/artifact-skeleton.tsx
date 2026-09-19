@@ -37,7 +37,7 @@ function Shimmer({ className }: { className?: string }) {
 function LoadingOverlay({ label }: { label: string }) {
   return (
     <div className="absolute inset-0 flex items-center justify-center">
-      <LoadingState label={label} active />
+      <LoadingState label={label} active showTimer={false} />
     </div>
   );
 }
@@ -45,34 +45,33 @@ function LoadingOverlay({ label }: { label: string }) {
 /* ── Info ──────────────────────────────────────────────── */
 function InfoSkeleton() {
   return (
-    <div className="w-full h-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+    <div
+      className="flex flex-col lg:flex-row w-full h-full max-w-4xl mx-auto overflow-hidden p-0 gap-6 lg:gap-10 shadow-none border-none bg-transparent items-center justify-center"
+    >
       {/* Image zone */}
-      <div className="lg:col-span-7 h-full flex flex-col items-center justify-center">
-        <div
-          className="relative w-full h-[340px] sm:h-[380px] lg:h-full max-h-[480px] 2xl:max-h-[540px] rounded-xl overflow-hidden"
-          style={{ background: "var(--inset)" }}
-        >
-          <LoadingOverlay label="Loading artwork" />
-        </div>
+      <div className="relative w-full lg:w-1/2 h-[280px] sm:h-[320px] lg:h-[400px] shrink-0 rounded-2xl overflow-hidden" style={{ background: "var(--inset)" }}>
+        <LoadingOverlay label="Loading artwork" />
       </div>
+
       {/* Info card zone */}
-      <div className="lg:col-span-5 flex flex-col justify-center">
-        <div
-          className="rounded-xl p-4 space-y-4"
-          style={{
-            border: "1px solid var(--line)",
-            background: "var(--surface)",
-            boxShadow: "var(--shadow-card)",
-          }}
-        >
-          <Shimmer className="h-5 w-3/4" />
-          <Shimmer className="h-3 w-1/2" />
-          <div className="space-y-2 pt-1">
-            <Shimmer className="h-3 w-full" />
-            <Shimmer className="h-3 w-full" />
+      <div className="flex flex-col w-full lg:w-1/2 overflow-y-auto py-2 justify-center">
+        <div className="space-y-4">
+          <div className="flex justify-between items-start gap-4">
+            <div className="space-y-2 flex-1">
+              <Shimmer className="h-6 w-3/4" />
+              <Shimmer className="h-4 w-1/2" />
+            </div>
+            <Shimmer className="h-6 w-16 rounded-full shrink-0" />
           </div>
-          <Shimmer className="h-px w-full rounded-none" />
-          <div className="space-y-1.5">
+          
+          <div className="space-y-2 pt-2">
+            <Shimmer className="h-4 w-full" />
+            <Shimmer className="h-4 w-full" />
+          </div>
+
+          <Shimmer className="h-px w-full rounded-none my-2" />
+
+          <div className="space-y-2">
             <Shimmer className="h-3 w-full" />
             <Shimmer className="h-3 w-5/6" />
             <Shimmer className="h-3 w-4/6" />
