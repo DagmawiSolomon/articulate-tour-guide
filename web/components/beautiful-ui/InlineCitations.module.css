@@ -1,0 +1,139 @@
+/* InlineCitations — BUI token-aligned stylesheet
+   All colors use CSS custom properties from globals.css / BUI tokens
+   so they stay in sync with the Articulate design system.               */
+
+/* ── Prose body ───────────────────────────────────────── */
+.citeProse {
+  max-width: 100%;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink);           /* #1f1e1b */
+  overflow-wrap: anywhere;
+}
+.citeProse p {
+  margin: 0;
+}
+
+/* ── Superscript citation chip ────────────────────────── */
+.citeMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 4px;
+  background: var(--field);    /* #f4f5f7 */
+  color: var(--ink-3);         /* #92918b */
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: 5.5px;
+  margin: 0 2px;
+}
+a.citeMark {
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+}
+a.citeMark:hover {
+  color: var(--ink);
+  background: var(--hover-2);  /* #eae7e1 */
+}
+
+/* ── Tooltip wrapper ──────────────────────────────────── */
+.citeTip {
+  position: relative;
+  display: inline;
+}
+.citeTipBox {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%) translateY(1px);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(29, 29, 29, 0.6);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  padding: 4px 5px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  filter: blur(2px);
+  transition: opacity 0.15s ease, transform 0.15s ease, filter 0.15s ease;
+  z-index: 1000;
+}
+.citeTip:hover .citeTipBox,
+.citeTip:focus-within .citeTipBox {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── Footer reference list ────────────────────────────── */
+.citeFooter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);  /* #e2e0d8 */
+}
+.citeRef {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ink-3);         /* #92918b */
+  min-width: 0;
+  text-decoration: none;
+  cursor: pointer;
+}
+.citeRef .citeMark {
+  margin: 0;
+}
+.citeRefLabel {
+  color: var(--ink-2);         /* #72706b */
+  font-weight: 450;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.citeRef:hover .citeRefLabel {
+  color: var(--ink);
+}
+.citeSep {
+  color: var(--ink-3);
+  flex: none;
+}
+.citeRefHost {
+  color: var(--ink-3);
+  flex: none;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.citeArrow {
+  display: inline-flex;
+  flex: none;
+  margin-left: -2px;
+  color: var(--ink-3);
+  opacity: 0;
+  transform: rotate(45deg) translate(0, 2px);
+  transition: opacity 0.16s, transform 0.22s;
+  pointer-events: none;
+}
+.citeRef:hover .citeArrow {
+  opacity: 1;
+  transform: rotate(45deg) translate(0, 0);
+}
+.citeRef:hover .citeRefHost {
+  color: var(--ink);
+}
