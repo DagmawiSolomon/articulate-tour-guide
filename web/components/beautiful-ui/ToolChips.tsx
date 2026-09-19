@@ -1,20 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  Compass01Icon,
-  Search01Icon,
-  SparklesIcon,
-  ArrowRight01Icon,
-  ArrowDown01Icon,
-} from "@hugeicons/core-free-icons";
 
 /* ─────────────────────────────────────────────────────────
- * TOOL CHIPS — Visual Stage Tool Invocations
+ * TOOL CHIPS — BUI #05 Visual Stage Tool Invocations
  *
- * In chat mode, visitors can clearly see the artifact tool call
- * the agent made, and click it to open/display that artifact.
+ * Compact expandable section showing "N tool calls"
+ * with individual chip rows per tool call. Visitors
+ * can click "View Artifact" to open the corresponding
+ * artifact panel in the stage.
  * ───────────────────────────────────────────────────────── */
 
 export type ToolStep = {
@@ -39,11 +33,79 @@ const DEFAULT_STEPS: ToolStep[] = [
 
 interface ToolChipsProps {
   steps?: ToolStep[];
-  labels?: {
-    header?: string;
-  };
+  labels?: { header?: string };
   onSelectArtifact?: (type: string, params?: Record<string, any>) => void;
   className?: string;
+}
+
+// BUI icon — map pin
+function MapIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function ZoomIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <path d="M21 21l-4.35-4.35" />
+    </svg>
+  );
+}
+
+function ArchiveIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="21 8 21 21 3 21 3 8" />
+      <rect x="1" y="3" width="22" height="5" />
+      <line x1="10" y1="12" x2="14" y2="12" />
+    </svg>
+  );
+}
+
+function CompareIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M12 3v18" />
+    </svg>
+  );
+}
+
+function ChevronDown({ open }: { open: boolean }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+      className="transition-transform duration-200"
+      style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+function getStepIcon(type?: string) {
+  switch (type) {
+    case "map":    return <MapIcon />;
+    case "zoom":   return <ZoomIcon />;
+    case "archive": return <ArchiveIcon />;
+    default:       return <CompareIcon />;
+  }
 }
 
 export default function ToolChips({
@@ -53,98 +115,112 @@ export default function ToolChips({
   className = "",
 }: ToolChipsProps) {
   const [open, setOpen] = React.useState(true);
-
-  const getIcon = (type?: string) => {
-    switch (type) {
-      case "map":
-        return <HugeiconsIcon icon={Compass01Icon} size={14} />;
-      case "zoom":
-        return <HugeiconsIcon icon={Search01Icon} size={14} />;
-      default:
-        return <HugeiconsIcon icon={SparklesIcon} size={14} />;
-    }
-  };
-
-  const headerLabel = labels?.header ?? `Agent called visual artifact`;
+  const toolCount = steps.length;
+  const headerLabel =
+    labels?.header ?? `${toolCount} tool call${toolCount !== 1 ? "s" : ""}`;
 
   return (
-    <div className={`w-full max-w-full sm:max-w-md py-1.5 ${className}`}>
-      {/* Tool Call Header Toggle */}
-      <div className="flex items-center justify-between mb-1 px-1">
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen((prev) => !prev)}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-        >
-          <span
-            className="transition-transform duration-200 inline-flex items-center"
-            style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}
-          >
-            <HugeiconsIcon icon={ArrowDown01Icon} size={12} />
-          </span>
-          <span className="font-mono text-[11px] font-medium tracking-tight text-muted-foreground">
-            {headerLabel}
-          </span>
-        </button>
+    <div className={`w-full max-w-full ${className}`}>
+      {/* BUI-exact header toggle: chevron · "N tool calls, M messages" */}
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="-mx-1.5 flex w-fit items-center gap-1.5 rounded-control px-1.5 py-1 text-[12.5px] transition-colors duration-100 hover:bg-hover-2"
+        style={{ color: "var(--ink-2)" }}
+      >
+        <ChevronDown open={open} />
+        <span className="tabular-nums">{headerLabel}</span>
+      </button>
 
-        <span className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground/80 bg-muted px-1.5 py-0.5 rounded">
-          Tool Call
-        </span>
-      </div>
-
-      {/* Tool Calls List */}
+      {/* BUI-exact expandable chip list */}
       <div
         className="grid transition-[grid-template-rows,opacity] duration-300"
         style={{
           gridTemplateRows: open ? "1fr" : "0fr",
           opacity: open ? 1 : 0,
+          transitionTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
         }}
       >
-        <div className="overflow-hidden">
-          <div className="flex flex-col gap-1.5">
+        <div className="-mx-1 overflow-hidden px-1.5 pb-1">
+          <div className="mt-1.5 flex flex-col gap-1">
             {steps.map((step) => {
-              const target = step.artifactType || (
-                step.chip.includes("map") ? "map" :
-                step.chip.includes("hotspot") ? "hotspots" :
-                step.chip.includes("comparison") ? "comparison" :
-                step.chip.includes("timeline") ? "timeline" : "info"
-              );
+              const target =
+                step.artifactType ??
+                (step.chip.includes("map")
+                  ? "map"
+                  : step.chip.includes("hotspot")
+                  ? "hotspots"
+                  : step.chip.includes("comparison")
+                  ? "comparison"
+                  : step.chip.includes("timeline")
+                  ? "timeline"
+                  : "info");
 
               return (
                 <div
                   key={step.chip + step.label}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl bg-card border border-border/80 p-2.5 shadow-xs hover:border-border transition-colors"
+                  className="flex items-center gap-2.5 rounded-control px-2.5 py-2 transition-colors duration-100"
+                  style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="flex size-7 items-center justify-center rounded-lg bg-muted text-foreground shrink-0 shadow-2xs">
-                      {getIcon(step.icon)}
-                    </span>
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-foreground text-xs truncate">
-                          {step.label}
-                        </span>
-                        <span className="font-mono text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.2 rounded border border-border/40">
-                          {step.chip}
-                        </span>
-                      </div>
-                      {step.detail && (
-                        <span className="text-[11px] text-muted-foreground truncate">
-                          {step.detail}
-                        </span>
-                      )}
+                  {/* Icon */}
+                  <span
+                    className="flex size-6 shrink-0 items-center justify-center rounded-md"
+                    style={{
+                      background: "var(--inset)",
+                      border: "1px solid var(--line)",
+                      color: "var(--ink)",
+                    }}
+                  >
+                    {getStepIcon(step.icon)}
+                  </span>
+
+                  {/* Label + chip */}
+                  <div className="min-w-0 flex-1 flex flex-col">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="truncate text-[13px] font-semibold"
+                        style={{ color: "var(--ink)" }}
+                      >
+                        {step.label}
+                      </span>
+                      <span
+                        className="font-mono text-[10px] px-1.5 py-0.5 rounded"
+                        style={{
+                          color: "var(--ink-2)",
+                          background: "var(--field)",
+                          border: "1px solid var(--line-strong)",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {step.chip}
+                      </span>
                     </div>
+                    {step.detail && (
+                      <span
+                        className="text-[12px] truncate pt-0.5"
+                        style={{ color: "var(--ink-2)" }}
+                      >
+                        {step.detail}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Open Artifact Button */}
+                  {/* View Artifact button — BUI-style rounded-full pill */}
                   <button
                     type="button"
                     onClick={() => onSelectArtifact?.(target, step.params)}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-muted hover:bg-muted/80 border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:text-primary transition-colors cursor-pointer shrink-0 self-end sm:self-center shadow-2xs"
+                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-medium transition-colors duration-100 shrink-0 cursor-pointer hover:opacity-80"
+                    style={{
+                      background: "var(--field)",
+                      color: "var(--ink)",
+                      border: "1px solid var(--line-strong)",
+                    }}
                   >
-                    <span>View Artifact</span>
-                    <HugeiconsIcon icon={ArrowRight01Icon} size={12} className="text-muted-foreground" />
+                    <span>View</span>
+                    <span style={{ color: "var(--ink-3)" }}>
+                      <ArrowRightIcon />
+                    </span>
                   </button>
                 </div>
               );
