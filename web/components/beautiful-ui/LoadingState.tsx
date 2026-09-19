@@ -45,12 +45,14 @@ export interface LoadingStateProps {
   label?: string;
   active?: boolean;
   className?: string;
+  showTimer?: boolean;
 }
 
 export default function LoadingState({
   label = "Loading",
   active = true,
   className = "",
+  showTimer = true,
 }: LoadingStateProps) {
   const elapsed = useElapsedTime(active);
 
@@ -87,9 +89,11 @@ export default function LoadingState({
       </span>
 
       {/* Elapsed timer */}
-      <span className="font-mono text-[12px] text-ink-3 tabular-nums">
-        {elapsed.toFixed(1)}s
-      </span>
+      {showTimer && (
+        <span className="font-mono text-[12px] text-ink-3 tabular-nums">
+          {elapsed.toFixed(1)}s
+        </span>
+      )}
     </div>
   );
 }
