@@ -38,3 +38,33 @@ Follow the **Conventional Commits** specification:
   - Wrap lines at 72 characters.
 - **Footers**:
   - Reference relevant issues or breaking changes (`BREAKING CHANGE: ...` or `Closes #123`).
+
+---
+
+# UI Maintenance Rules
+
+## Skeleton Sync — Keep Skeletons in Lockstep with Real Artifacts
+
+`web/components/artifacts/artifact-skeleton.tsx` contains five layout-matched
+skeleton loading states (one per artifact type). Each skeleton's shimmer blocks
+are hand-tuned to mirror the grid, flex geometry, and proportions of its live
+counterpart.
+
+**Rule:** Any time you change the layout or structure of an artifact component,
+you MUST update the corresponding skeleton variant to match. Failing to do so
+will cause layout shift when the real content loads in.
+
+Artifacts and their skeletons:
+
+| Artifact file | Skeleton function |
+|---|---|
+| `artwork-info-card.tsx` | `InfoSkeleton` in `artifact-skeleton.tsx` |
+| `gallery-map-view.tsx` | `MapSkeleton` in `artifact-skeleton.tsx` |
+| `comparison-view.tsx` | `ComparisonSkeleton` in `artifact-skeleton.tsx` |
+| `timeline-view.tsx` | `TimelineSkeleton` in `artifact-skeleton.tsx` |
+| `detail-hotspots-view.tsx` | `HotspotsSkeleton` in `artifact-skeleton.tsx` |
+| `chat-history-view.tsx` | `ChatSkeleton` in `artifact-skeleton.tsx` |
+
+**How to test:** Start the tour, then click the **"skeleton"** dev toggle button
+in the footer. Switch tabs to see each skeleton. Compare side-by-side with the
+real artifact to confirm geometry matches.
