@@ -1,21 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  SparklesIcon,
-  ArrowDown01Icon,
-  Tick02Icon,
-  Loading03Icon,
-  Search01Icon,
-} from "@hugeicons/core-free-icons";
 
 /* ─────────────────────────────────────────────────────────
- * THINKING STATE — Expandable voice agent trace
+ * THINKING STATE — BUI #02 expandable voice agent trace
  *
- * Provides real-time visibility into the docent's reasoning
- * and historical archive queries with responsive typography
- * and Hugeicons.
+ * Exact implementation of the BeautifulUI Thinking primitive:
+ * • Sparkle icon with shimmer label while working
+ * • Animated vertical timeline connector line
+ * • Step rows with spinning / tick icons
+ * • Smooth grid-template-rows expand/collapse
  * ───────────────────────────────────────────────────────── */
 
 const STAGES = [600, 800, 1400, 2000, 1200];
@@ -39,7 +33,7 @@ export type ThinkingRow = {
 
 const VARIANTS: Record<
   string,
-  { active: string; done: string; rows: ThinkingRow[]; query?: string }
+  { active: string; done: string; rows: ThinkingRow[] }
 > = {
   Steps: {
     active: "Consulting Museum Archives…",
@@ -60,6 +54,48 @@ const VARIANTS: Record<
     ],
   },
 };
+
+// Tick check icon
+function TickIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+}
+
+// Spinner icon
+function SpinnerIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+      style={{ animation: "spin 1.1s linear infinite" }}>
+      <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
+    </svg>
+  );
+}
+
+// Sparkle icon matching BUI
+function SparkleIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--ink-2)">
+      <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+    </svg>
+  );
+}
+
+// Chevron
+function ChevronDown({ open }: { open: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="var(--ink-3)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+      className="transition-transform duration-300"
+      style={{ transform: open ? "rotate(180deg)" : "rotate(0)" }}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
 
 interface ThinkingStateProps {
   variant?: "Steps" | "Reasoning";
@@ -89,6 +125,7 @@ export default function ThinkingState({
     active: active ?? base.active,
     done: done ?? base.done,
   };
+
   const autoExpanded = stage >= 1 && stage < 4;
   const expanded = manualExpanded ?? autoExpanded;
   const working = stage < 3;
@@ -110,30 +147,28 @@ export default function ThinkingState({
   return (
     <div
       key={variant}
-      className={`flex w-full max-w-full flex-col transition-all duration-300 ${className}`}
+      className={`flex w-full max-w-full flex-col ${className}`}
     >
-      {/* Header Bar */}
+      {/* BUI-exact header button: icon · shimmer label · chevron */}
       <button
         type="button"
         aria-expanded={expanded}
-        onClick={() => setManualExpanded((current) => !(current ?? autoExpanded))}
-        className="-mx-1 flex w-fit items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-muted/70 text-left"
+        onClick={() => setManualExpanded((cur) => !(cur ?? autoExpanded))}
+        className="-mx-1.5 flex w-fit items-center gap-2 rounded-control px-1.5 py-1 transition-colors duration-100 hover:bg-hover-2"
       >
         {icon ? (
-          <span className="flex shrink-0 text-muted-foreground">{icon}</span>
+          <span className="flex shrink-0" style={{ color: "var(--ink-2)" }}>{icon}</span>
         ) : (
-          <span className={`flex shrink-0 transition-colors ${working ? "text-accent-foreground" : "text-muted-foreground"}`}>
-            <HugeiconsIcon icon={SparklesIcon} size={15} />
-          </span>
+          <SparkleIcon />
         )}
 
         <span role="status" className="contents">
           {working ? (
             <span
-              className="bg-clip-text text-xs sm:text-[13px] font-medium whitespace-nowrap text-transparent"
+              className="bg-clip-text text-[13px] font-medium whitespace-nowrap text-transparent"
               style={{
                 backgroundImage:
-                  "linear-gradient(90deg, var(--color-ink-3) 35%, var(--color-ink) 50%, var(--color-ink-3) 65%)",
+                  "linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%)",
                 backgroundSize: "200% 100%",
                 animation: "shimmer-text 1.4s linear infinite",
               }}
@@ -141,23 +176,24 @@ export default function ThinkingState({
               {v.active}
             </span>
           ) : (
-            <span className="text-xs sm:text-[13px] font-medium whitespace-nowrap text-muted-foreground animate-in fade-in duration-300">
+            <span
+              className="text-[13px] font-medium whitespace-nowrap"
+              style={{
+                color: "var(--ink-3)",
+                animation: "fade-in 200ms ease both",
+              }}
+            >
               {v.done}
             </span>
           )}
         </span>
 
-        <span
-          className="text-muted-foreground transition-transform duration-300 inline-flex items-center"
-          style={{ transform: expanded ? "rotate(180deg)" : "rotate(0)" }}
-        >
-          <HugeiconsIcon icon={ArrowDown01Icon} size={13} />
-        </span>
+        <ChevronDown open={expanded} />
       </button>
 
-      {/* Expandable Trace */}
+      {/* BUI-exact expandable trace: animated height + vertical timeline line */}
       <div
-        className="grid transition-[grid-template-rows,opacity] duration-300"
+        className="grid transition-[grid-template-rows,opacity] duration-400"
         style={{
           gridTemplateRows: expanded ? "1fr" : "0fr",
           opacity: expanded ? 1 : 0,
@@ -165,40 +201,51 @@ export default function ThinkingState({
         }}
       >
         <div className="overflow-hidden">
-          <div className="relative mt-1 ml-1.5 pl-3.5 border-l border-border/80">
+          <div className="relative mt-1 ml-[5px] pl-4">
+            {/* Animated vertical connector line */}
+            <span
+              aria-hidden="true"
+              className="absolute left-[3px] w-px"
+              style={{
+                top: -8,
+                height: expanded ? lineHeight + 8 : 0,
+                background: "var(--line)",
+                transition: "height 500ms cubic-bezier(0.23,1,0.32,1)",
+              }}
+            />
             <div ref={traceRef} className="flex flex-col gap-1 py-1">
               {v.rows.slice(0, visible).map((row, i) => {
                 const isStepDone = i < visible - 1 || !working;
                 return (
                   <div
                     key={row.primary}
-                    className="flex min-h-6 w-full items-center gap-2 rounded-md px-1 py-0.5 text-left text-xs"
+                    className="flex min-h-6 w-full items-center gap-2 rounded-md px-1 py-0.5 text-left"
                   >
                     {isStepDone ? (
-                      <span className="text-muted-foreground shrink-0 inline-flex items-center">
-                        <HugeiconsIcon icon={Tick02Icon} size={13} />
+                      <span className="shrink-0 inline-flex items-center" style={{ color: "var(--ink-3)" }}>
+                        <TickIcon />
                       </span>
                     ) : (
-                      <span className="text-foreground shrink-0 inline-flex items-center animate-spin">
-                        <HugeiconsIcon icon={Loading03Icon} size={13} />
+                      <span className="shrink-0 inline-flex items-center" style={{ color: "var(--ink)" }}>
+                        <SpinnerIcon />
                       </span>
                     )}
 
                     <span
-                      className={`min-w-0 flex-1 truncate text-xs ${
+                      className={`min-w-0 flex-1 text-[12.5px] ${
                         variant === "Reasoning"
-                          ? "whitespace-normal leading-relaxed text-muted-foreground"
-                          : "font-medium text-foreground"
+                          ? "whitespace-normal leading-relaxed"
+                          : "truncate font-medium"
                       }`}
+                      style={{ color: isStepDone ? "var(--ink-3)" : "var(--ink)" }}
                     >
                       {row.primary}
                     </span>
 
                     {row.secondary && (
                       <span
-                        className={`shrink-0 text-[10px] text-muted-foreground ${
-                          row.mono ? "font-mono" : ""
-                        }`}
+                        className={`shrink-0 text-[10px] ${row.mono ? "font-mono" : ""}`}
+                        style={{ color: "var(--ink-3)" }}
                       >
                         {row.secondary}
                       </span>
