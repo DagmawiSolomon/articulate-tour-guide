@@ -7,23 +7,37 @@ import { ComparisonView } from "./comparison-view";
 import { TimelineView } from "./timeline-view";
 import { DetailHotspotsView } from "./detail-hotspots-view";
 import { ArtifactSkeleton } from "./artifact-skeleton";
+import { ChatHistoryView, type ChatMessage } from "./chat-history-view";
+import { QuoteView } from "./quote-view";
 
-export type ArtifactType = "info" | "map" | "comparison" | "timeline" | "hotspots";
+export type ArtifactType = "info" | "map" | "comparison" | "timeline" | "hotspots" | "chat" | "quote";
+export type { ChatMessage };
 
 interface ArtifactStageProps {
   artifactType: ArtifactType;
   mapRouteId?: "restrooms" | "gauguin" | "elevator";
   hotspotId?: "cypress" | "star" | "steeple";
+  letterId?: "letter-782" | "letter-cypress" | "letter-stars";
   /** When true renders a layout-matched skeleton in place of the real artifact.
    *  Flip to true on tool.call, back to false on tool.result. */
   isLoading?: boolean;
+  /** Chat messages to display in the chat artifact. */
+  chatMessages?: ChatMessage[];
+  /** When true shows the thinking indicator in chat. */
+  isChatThinking?: boolean;
+  /** Callback to switch or open an artifact */
+  onSelectArtifact?: (type: ArtifactType, params?: Record<string, any>) => void;
 }
 
 export function ArtifactStage({
   artifactType,
   mapRouteId = "restrooms",
   hotspotId = "cypress",
+  letterId = "letter-782",
   isLoading = false,
+  chatMessages = [],
+  isChatThinking = false,
+  onSelectArtifact,
 }: ArtifactStageProps) {
   return (
     <div className="w-full h-full overflow-hidden">
@@ -42,6 +56,14 @@ export function ArtifactStage({
             {artifactType === "comparison" && <ComparisonView />}
             {artifactType === "timeline" && <TimelineView />}
             {artifactType === "hotspots" && <DetailHotspotsView activeHotspotId={hotspotId} />}
+            {artifactType === "quote" && <QuoteView activeLetterId={letterId} />}
+            {artifactType === "chat" && (
+              <ChatHistoryView
+                messages={chatMessages}
+                isThinking={isChatThinking}
+                onSelectArtifact={onSelectArtifact as any}
+              />
+            )}
           </>
         )}
       </div>
