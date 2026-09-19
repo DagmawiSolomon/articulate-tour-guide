@@ -145,41 +145,83 @@ function ComparisonSkeleton() {
 /* ── Timeline ─────────────────────────────────────────── */
 function TimelineSkeleton() {
   return (
-    <div className="w-full h-full flex flex-col justify-between gap-6">
-      <div className="space-y-2">
-        <Shimmer className="h-2.5 w-28" />
-        <Shimmer className="h-6 w-3/4" />
-        <Shimmer className="h-3 w-full" />
-        <Shimmer className="h-3 w-5/6" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
-        {[0, 1, 2, 3, 4].map((i) => (
+    <div className="w-full h-full flex flex-col justify-center gap-3 overflow-hidden select-none">
+      {/* Horizontal Alternating Timeline Track */}
+      <div className="relative w-full flex-1 min-h-[300px] overflow-hidden py-2">
+        <div className="relative h-full min-w-[1080px] flex items-center justify-between px-10">
+          {/* Continuous Center Axis Line */}
           <div
-            key={i}
-            className="rounded-lg p-3 flex flex-col justify-between min-h-[120px]"
-            style={{ border: "1px solid var(--line)", background: "var(--surface)" }}
-          >
-            <div className="space-y-1.5">
-              <Shimmer className="h-3 w-10" />
-              <Shimmer className="h-3 w-3/4" />
-            </div>
-            <div className="space-y-1 mt-2">
-              <Shimmer className="h-2.5 w-full" />
-              <Shimmer className="h-2.5 w-4/5" />
-            </div>
-          </div>
-        ))}
+            className="absolute left-10 right-10 top-1/2 -translate-y-1/2 h-[2px] bg-[#c85a32]/25 pointer-events-none z-0"
+            aria-hidden="true"
+          />
+
+          {/* 5 Milestone Skeletons */}
+          {[0, 1, 2, 3, 4].map((i) => {
+            const isTop = i % 2 === 0;
+            return (
+              <div
+                key={i}
+                className="relative z-10 w-[190px] h-full flex flex-col items-center justify-center"
+              >
+                {/* TOP HALF */}
+                <div className="h-[135px] w-full flex flex-col justify-end items-center pb-2">
+                  {isTop ? (
+                    <div className="flex flex-col items-center">
+                      <Shimmer className="w-20 h-20 rounded-full" />
+                      <div className="flex flex-col items-center gap-1 mt-2">
+                        <Shimmer className="h-3 w-10" />
+                        <Shimmer className="h-3 w-20" />
+                        <Shimmer className="h-2.5 w-24" />
+                      </div>
+                      <div className="w-[1.5px] h-3.5 border-l-2 border-dashed border-[#c85a32]/35 mt-1" />
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* CENTER AXIS NODE */}
+                <div className="h-[28px] w-full flex items-center justify-center relative">
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-[#c85a32]/50 bg-card flex items-center justify-center">
+                    {i === 3 && <div className="w-1 h-1 rounded-full bg-[#c85a32]" />}
+                  </div>
+                </div>
+
+                {/* BOTTOM HALF */}
+                <div className="h-[135px] w-full flex flex-col justify-start items-center pt-2">
+                  {!isTop ? (
+                    <div className="flex flex-col items-center">
+                      <div className="w-[1.5px] h-3.5 border-l-2 border-dashed border-[#c85a32]/35 mb-1" />
+                      <div className="flex flex-col items-center gap-1 mb-2">
+                        <Shimmer className="h-3 w-10" />
+                        <Shimmer className="h-3 w-20" />
+                        <Shimmer className="h-2.5 w-24" />
+                      </div>
+                      <Shimmer className="w-20 h-20 rounded-full mt-1" />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Selected Era Curatorial Detail Panel */}
       <div
-        className="rounded-xl p-4 space-y-3"
-        style={{ border: "1px solid var(--line)", background: "var(--surface)", boxShadow: "var(--shadow-card)" }}
+        className="rounded-xl p-3 space-y-2 shrink-0"
+        style={{
+          border: "1px solid var(--line)",
+          background: "var(--surface)",
+          boxShadow: "var(--shadow-card)",
+        }}
       >
-        <Shimmer className="h-3 w-32" />
-        <Shimmer className="h-4 w-2/3" />
-        <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <Shimmer className="h-3 w-40" />
+          <Shimmer className="h-4 w-32 rounded-full" />
+        </div>
+        <Shimmer className="h-3.5 w-48" />
+        <div className="space-y-1">
           <Shimmer className="h-3 w-full" />
-          <Shimmer className="h-3 w-5/6" />
-          <Shimmer className="h-3 w-4/6" />
+          <Shimmer className="h-3 w-4/5" />
         </div>
       </div>
     </div>
