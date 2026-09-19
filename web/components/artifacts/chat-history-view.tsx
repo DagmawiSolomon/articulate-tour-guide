@@ -47,6 +47,15 @@ export type ChatMessage =
       artifactType?: ArtifactTarget;
       params?: Record<string, any>;
       detail?: string;
+    }
+  | {
+      id: string;
+      role: "reasoning";
+      variant?: string;
+      active?: string;
+      done?: string;
+      rows?: { primary: string; secondary?: string; mono?: boolean }[];
+      timestamp: Date;
     };
 
 interface ChatHistoryViewProps {
@@ -96,36 +105,38 @@ function formatTime(date: Date) {
 }
 
 // Inline artifact chip (BUI streaming text chip style, used in agent messages)
+import { getArtifactConfig } from "@/lib/artifact-config";
+
 function ArtifactChip({
   label,
+  type,
   onClick,
 }: {
   label: string;
+  type: string;
   onClick: () => void;
 }) {
+  const config = getArtifactConfig(type);
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className="mx-0.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-medium align-baseline cursor-pointer transition-colors duration-100"
+      className="mx-0.5 inline-flex items-center gap-1.5 rounded-md pr-2 pl-0.5 py-0.5 text-[11.5px] font-medium align-baseline cursor-pointer transition-colors duration-100 hover:bg-hover-2"
       style={{
-        background: "var(--field)",
-        color: "var(--ink-2)",
-        border: "1px solid var(--line)",
+        background: "var(--surface)",
+        color: "var(--ink)",
+        border: "1px solid var(--line-strong)",
       }}
     >
-      {/* Sparkle */}
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"
-        style={{ color: "var(--ink-2)", flexShrink: 0 }}>
-        <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
-      </svg>
+      {/* Nested Icon Box */}
+      <span
+        className="flex shrink-0 items-center justify-center rounded-sm"
+        style={{ width: 18, height: 18, background: config.bg, border: `1px solid ${config.border}` }}
+      >
+        {React.cloneElement(config.icon as React.ReactElement, { style: { color: config.color } })}
+      </span>
       <span>{label}</span>
-      {/* Arrow */}
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-        style={{ color: "var(--ink-3)", flexShrink: 0 }}>
-        <path d="M5 12h14M13 6l6 6-6 6" />
-      </svg>
     </button>
   );
 }
@@ -173,7 +184,7 @@ function AgentSection({
           "opacity 400ms, filter 400ms, transform 400ms cubic-bezier(0.23, 1, 0.32, 1)",
       }}
     >
-      {/* Agent message header: docent identity and time/topic inline */}
+      {/* Agent message header: docent identity and time inline */}
       <div className="flex items-center gap-1.5 text-[12px] leading-none px-1 pb-1">
         <span className="font-semibold" style={{ color: "var(--ink)" }}>
           {speakerName || "Mr. Triangle"}
@@ -181,18 +192,6 @@ function AgentSection({
         <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>
           {time}
         </span>
-        {topic && (
-          <span
-            className="ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-            style={{
-              background: "var(--field)",
-              color: "var(--ink-2)",
-              border: "1px solid var(--line)",
-            }}
-          >
-            {topic}
-          </span>
-        )}
       </div>
 
       {/* Body: inline citations or artifact tokens or plain prose */}
@@ -203,6 +202,7 @@ function AgentSection({
               <ArtifactChip
                 key={i}
                 label={t.artifactTarget.label}
+                type={t.artifactTarget.type}
                 onClick={() =>
                   onSelectArtifact?.(t.artifactTarget!.type, t.artifactTarget!.params)
                 }
@@ -239,6 +239,24 @@ export function ChatHistoryView({
     }
   }, [messages, isThinking]);
 
+  const groupedMessages = React.useMemo(() => {
+    const groups: (ChatMessage | { type: "tool_group"; id: string; tools: any[] })[] = [];
+    for (let i = 0; i < activeMessages.length; i++) {
+      const msg = activeMessages[i];
+      if (msg.role === "tool") {
+        const tools = [msg];
+        while (i + 1 < activeMessages.length && activeMessages[i + 1].role === "tool") {
+          tools.push(activeMessages[i + 1]);
+          i++;
+        }
+        groups.push({ type: "tool_group", id: tools[0].id, tools });
+      } else {
+        groups.push(msg);
+      }
+    }
+    return groups;
+  }, [activeMessages]);
+
   return (
     /* BUI Chat container: bg-canvas, rounded-[14px], shadow-card */
     <div
@@ -251,7 +269,42 @@ export function ChatHistoryView({
         className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pt-3 pb-2"
         style={{ scrollbarWidth: "none" }}
       >
-        {activeMessages.map((msg) => {
+        {groupedMessages.map((item) => {
+          // ── Tool call group ──────────────────────────────────────────────
+          if ("type" in item && item.type === "tool_group") {
+            const steps = item.tools.map((m) => ({
+              icon: m.toolName.includes("map")
+                ? "map"
+                : m.toolName.includes("hotspot")
+                ? "zoom"
+                : m.toolName.includes("timeline")
+                ? "archive"
+                : "compare",
+              label: m.label,
+              chip: m.toolName,
+              artifactType: m.artifactType,
+              params: m.params,
+              detail: m.detail ?? (m.artifactType === "hotspots"
+                  ? "Detail inspection focused on canvas"
+                  : m.artifactType === "map"
+                  ? "Wayfinding route plotted to Room 4"
+                  : "Visual stage updated"),
+            }));
+            const isResolving = item.tools.some((m) => m.resolving);
+            return (
+              <div key={item.id} className="w-full py-0.5">
+                <ToolChips
+                  labels={{ header: `${item.tools.length} Artifact Action${item.tools.length === 1 ? '' : 's'}` }}
+                  steps={steps}
+                  isResolving={isResolving}
+                  onSelectArtifact={onSelectArtifact}
+                />
+              </div>
+            );
+          }
+
+          const msg = item as ChatMessage;
+
           // ── Visitor bubble ──────────────────────────────────────────────
           if (msg.role === "visitor") {
             const timeString = msg.timestamp
@@ -275,18 +328,34 @@ export function ChatHistoryView({
                     animation: "fade-up 250ms cubic-bezier(0.23,1,0.32,1) both",
                   }}
                 >
-                  {msg.text}
-                  {msg.isPartial && (
+                  {msg.isPartial ? (
                     <span
-                      className="inline-flex gap-0.5 ml-1.5 translate-y-[1px]"
+                      className="inline-flex gap-0.5 translate-y-[1px] px-1 py-1"
                       aria-hidden="true"
                     >
                       <span className="size-1 rounded-full bg-ink-3 animate-bounce [animation-delay:-0.3s]" />
                       <span className="size-1 rounded-full bg-ink-3 animate-bounce [animation-delay:-0.15s]" />
                       <span className="size-1 rounded-full bg-ink-3 animate-bounce" />
                     </span>
+                  ) : (
+                    msg.text
                   )}
                 </div>
+              </div>
+            );
+          }
+
+          // ── Reasoning trace (ThinkingState) ─────────────────────────────
+          if (msg.role === "reasoning") {
+            return (
+              <div key={msg.id} className="w-full py-1">
+                <ThinkingState
+                  variant={msg.variant as any}
+                  active={msg.active}
+                  done={msg.done}
+                  rows={msg.rows}
+                  // We can use resolving to simulate whether it's still working
+                />
               </div>
             );
           }
@@ -313,40 +382,6 @@ export function ChatHistoryView({
                 artifactTokens={(msg as any).artifactTokens}
                 onSelectArtifact={onSelectArtifact}
               />
-            );
-          }
-
-          // ── Tool call chip ──────────────────────────────────────────────
-          if (msg.role === "tool") {
-            const step: ToolStep = {
-              icon: msg.toolName.includes("map")
-                ? "map"
-                : msg.toolName.includes("hotspot")
-                ? "zoom"
-                : msg.toolName.includes("timeline")
-                ? "archive"
-                : "compare",
-              label: msg.label,
-              chip: msg.toolName,
-              artifactType: msg.artifactType,
-              params: msg.params,
-              detail:
-                msg.detail ??
-                (msg.artifactType === "hotspots"
-                  ? "Detail inspection focused on canvas"
-                  : msg.artifactType === "map"
-                  ? "Wayfinding route plotted to Room 4"
-                  : "Visual stage updated"),
-            };
-
-            return (
-              <div key={msg.id} className="w-full py-0.5">
-                <ToolChips
-                  labels={{ header: `${msg.toolName}` }}
-                  steps={[step]}
-                  onSelectArtifact={onSelectArtifact}
-                />
-              </div>
             );
           }
 
