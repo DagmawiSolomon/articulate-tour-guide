@@ -21,12 +21,19 @@ export function ArtifactStage({
   hotspotId = "cypress",
 }: ArtifactStageProps) {
   return (
-    <div className="w-full h-full">
-      {artifactType === "info" && <ArtworkInfoCard />}
-      {artifactType === "map" && <GalleryMapView activeRouteId={mapRouteId} />}
-      {artifactType === "comparison" && <ComparisonView />}
-      {artifactType === "timeline" && <TimelineView />}
-      {artifactType === "hotspots" && <DetailHotspotsView activeHotspotId={hotspotId} />}
+    <div className="w-full h-full overflow-hidden">
+      {/*
+        key={artifactType} forces React to unmount + remount this div every
+        time the artifact changes, which restarts the CSS animation on mount.
+        No JS animation library needed — pure CSS @keyframes artifactIn.
+      */}
+      <div key={artifactType} className="artifact-animate-in w-full h-full">
+        {artifactType === "info" && <ArtworkInfoCard />}
+        {artifactType === "map" && <GalleryMapView activeRouteId={mapRouteId} />}
+        {artifactType === "comparison" && <ComparisonView />}
+        {artifactType === "timeline" && <TimelineView />}
+        {artifactType === "hotspots" && <DetailHotspotsView activeHotspotId={hotspotId} />}
+      </div>
     </div>
   );
 }
