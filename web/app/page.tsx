@@ -24,13 +24,6 @@ import { ArticulateAvatar } from "@/components/avatar/articulate-avatar";
 import {
   type ExpressionId,
 } from "@/components/avatar/avatar-expressions";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from "@/components/ui/card";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -199,7 +192,7 @@ export default function Home() {
     playCallStart();
     setIsTourActive(true);
     setIsExpanded(true);
-    setActiveArtifact("info");
+    setActiveArtifact("chat");
     setIsPaused(false);
     setAgentStatus("listening");
     setActiveExpressionId("listening");
@@ -231,10 +224,30 @@ export default function Home() {
     // t=5.5s  Agent streams response with Beautiful UI StreamingText
     after(5500, () => {
       setIsChatThinking(false);
-      const fullText = "Of course! You're looking at The Starry Night — painted by Vincent van Gogh in June 1889 from his room at the Saint-Paul-de-Mausole asylum in Saint-Rémy-de-Provence.";
+      const fullText = "Of course! You're looking at The Starry Night[1] — painted by Vincent van Gogh in June 1889 from his room at the Saint-Paul-de-Mausole asylum in Saint-Rémy-de-Provence[2].";
       setChatMessages((prev) => [
         ...prev,
-        { id: uid(), role: "agent", text: fullText, timestamp: now() },
+        {
+          id: uid(),
+          role: "agent",
+          text: fullText,
+          timestamp: now(),
+          speakerName: "Mr. Triangle",
+          citations: [
+            {
+              n: 1,
+              label: "Van Gogh Museum Letters: Letter 782 to Theo",
+              host: "vangoghletters.org",
+              url: "https://vangoghletters.org/vg/letters/let782/letter.html",
+            },
+            {
+              n: 2,
+              label: "MoMA Collection: The Starry Night",
+              host: "moma.org",
+              url: "https://www.moma.org/collection/works/79802",
+            },
+          ],
+        },
       ]);
     });
     // t=17s   Visitor asks about the cypresses
@@ -257,7 +270,7 @@ export default function Home() {
           id: "tool-1",
           role: "tool",
           toolName: "show_hotspots",
-          label: "Zooming to: Cypress Flame",
+          label: "Cypress Flame",
           artifactType: "hotspots",
           params: { hotspotId: "cypress" },
           detail: "High-resolution inspection focused on foreground cypresses",
@@ -275,6 +288,8 @@ export default function Home() {
           role: "agent",
           text: fullText,
           timestamp: now(),
+          speakerName: "Mr. Triangle",
+          topic: "Symbolic Analysis",
           artifactTokens: [
             { text: "Those" }, { text: "are" },
             {
@@ -304,7 +319,7 @@ export default function Home() {
           id: "tool-2",
           role: "tool",
           toolName: "highlight_map_location",
-          label: "Gallery 37: 19th Century Post-Impressionism",
+          label: "Musée d'Orsay Level 5",
           artifactType: "map",
           params: { routeId: "restrooms" },
           detail: "Position verified on Museum Level 2 Floorplan",
@@ -521,7 +536,7 @@ export default function Home() {
   const sideDockMask = `${sideDockPath} L -4 204 L -4 0 Z`;
 
   return (
-    <div className="h-dvh min-h-[480px] w-full bg-background flex overflow-hidden select-none relative">
+    <div className="h-dvh min-h-[480px] w-full bg-background flex overflow-hidden relative">
       <div className="flex-1 min-w-0 h-full grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden relative">
         <Header showSettings={isTourActive} />
         <main
@@ -532,20 +547,126 @@ export default function Home() {
           }
         >
           {!isTourActive ? (
-            <div className="w-full h-full flex items-center justify-center p-4">
-              <Card className="w-full max-w-sm">
-                <CardHeader>
-                  <CardTitle>Start tour</CardTitle>
-                  <CardDescription>
-                    Begin your voice-guided journey with Mr. Triangle, your AI docent for this exhibition.
-                  </CardDescription>
-                </CardHeader>
-                <CardFooter>
-                  <Button className="w-full cursor-pointer" onClick={handleStartTour}>
+            /* ── BUI Agent Screen-inspired landing hero ─────────────────── */
+            <div className="w-full h-full flex items-center justify-center p-6">
+              <div
+                className="relative w-full max-w-[420px] overflow-hidden rounded-[20px]"
+                style={{
+                  background: "var(--surface)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.06), 0 0 0 1px var(--line)",
+                }}
+              >
+                {/* BUI pixel-grid decorative header band */}
+                <div
+                  className="relative overflow-hidden px-7 pt-8 pb-6"
+                  style={{ background: "var(--canvas)" }}
+                >
+                  {/* Subtle dot-grid texture */}
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      backgroundImage:
+                        "radial-gradient(circle, var(--line) 1px, transparent 1px)",
+                      backgroundSize: "18px 18px",
+                      opacity: 0.45,
+                    }}
+                  />
+                  {/* Shimmer gradient overlay */}
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background:
+                        "radial-gradient(ellipse at 50% 0%, var(--canvas) 0%, transparent 70%)",
+                    }}
+                  />
+
+                  {/* Logo */}
+                  <div className="relative z-10 mb-5">
+                    <span
+                      className="font-medium select-none leading-none"
+                      style={{
+                        fontFamily: "'Afacad Flux', sans-serif",
+                        fontSize: "15pt",
+                        letterSpacing: "-0.03em",
+                        color: "var(--ink)",
+                      }}
+                    >
+                      articulate.
+                    </span>
+                  </div>
+
+                  {/* BUI-style shimmer heading */}
+                  <h1
+                    className="relative z-10 text-[22px] font-semibold leading-snug tracking-[-0.025em]"
+                    style={{ color: "var(--ink)" }}
+                  >
+                    Your AI museum guide
+                    <br />
+                    <span style={{ color: "var(--ink-3)" }}>is ready to begin.</span>
+                  </h1>
+
+                  <p
+                    className="relative z-10 mt-2 text-[13px] leading-relaxed"
+                    style={{ color: "var(--ink-2)" }}
+                  >
+                    Ask questions about any artwork. Mr. Triangle will explain,
+                    navigate, and guide you through the exhibition.
+                  </p>
+
+                  {/* BUI feature chips */}
+                  <div className="relative z-10 mt-4 flex flex-wrap gap-1.5">
+                    {[
+                      "Voice-guided",
+                      "Real-time transcription",
+                      "Interactive artifacts",
+                    ].map((chip) => (
+                      <span
+                        key={chip}
+                        className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11.5px] font-medium"
+                        style={{
+                          background: "var(--field)",
+                          color: "var(--ink-2)",
+                          border: "1px solid var(--line)",
+                        }}
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Card footer with CTA */}
+                <div
+                  className="px-7 py-5 flex items-center justify-between gap-3"
+                  style={{ borderTop: "1px solid var(--line)" }}
+                >
+                  <p
+                    className="text-[11.5px] leading-relaxed"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    Microphone access required for voice interaction.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={handleStartTour}
+                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-4 h-9 text-[13px] font-medium cursor-pointer transition-all active:scale-[0.96]"
+                    style={{
+                      background: "var(--ink)",
+                      color: "#fff",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
+                    }}
+                  >
                     Start tour
-                  </Button>
-                </CardFooter>
-              </Card>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14M13 6l6 6-6 6" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             /* Active Tour Stage */
