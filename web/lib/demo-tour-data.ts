@@ -216,3 +216,54 @@ export const DETAIL_HOTSPOTS: DetailHotspot[] = [
       "Churches in Provence lack tall Gothic steeples; Van Gogh painted this spire from nostalgic memories of his father's Dutch Reformed parish.",
   },
 ];
+
+export interface VanGoghLetter {
+  id: "letter-782" | "letter-cypress" | "letter-stars";
+  recipient: string;
+  date: string;
+  location: string;
+  excerpt: string;
+  context: string;
+  letterRef: string;
+  archiveUrl: string;
+}
+
+export const VANGOGH_LETTERS: Record<string, VanGoghLetter> = {
+  "letter-782": {
+    id: "letter-782",
+    recipient: "Theo van Gogh",
+    date: "c. 2 June 1889",
+    location: "Saint-Rémy-de-Provence",
+    excerpt:
+      "\"This morning I saw the countryside from my window a long time before sunrise, with nothing but the morning star, which looked very big.\"",
+    context:
+      "Written from his barred window at Saint-Paul-de-Mausole asylum, describing the actual pre-dawn observation that inspired the luminous morning star (Venus) in The Starry Night.",
+    letterRef: "Letter 782 (Van Gogh Museum Archive)",
+    archiveUrl: "https://vangoghletters.org/vg/letters/let782/letter.html",
+  },
+  "letter-cypress": {
+    id: "letter-cypress",
+    recipient: "Theo van Gogh",
+    date: "25 June 1889",
+    location: "Saint-Rémy-de-Provence",
+    excerpt:
+      "\"The cypresses are always occupying my thoughts. I should like to make something of them like the canvases of the sunflowers, because it astonishes me that no one has yet done them as I see them.\"",
+    context:
+      "Written during the same month he completed The Starry Night, revealing his fascination with cypresses as monumental obelisks connecting earth and cosmic sky.",
+    letterRef: "Letter 783 (Van Gogh Museum Archive)",
+    archiveUrl: "https://vangoghletters.org/vg/letters/let783/letter.html",
+  },
+  "letter-stars": {
+    id: "letter-stars",
+    recipient: "Émile Bernard",
+    date: "c. 19 June 1888",
+    location: "Arles",
+    excerpt:
+      "\"Looking at the stars always makes me dream, as simply as I dream over the black dots of a map representing towns and villages. Why, I ask myself, should the shining dots of the sky not be as accessible to us as the black dots on the map of France?\"",
+    context:
+      "Written a year earlier to fellow artist Émile Bernard, revealing Vincent's enduring spiritual obsession with the starry sky as a celestial destination.",
+    letterRef: "Letter 628 (Van Gogh Museum Archive)",
+    archiveUrl: "https://vangoghletters.org/vg/letters/let628/letter.html",
+  },
+};
+
