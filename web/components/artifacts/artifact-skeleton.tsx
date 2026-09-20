@@ -86,40 +86,38 @@ function InfoSkeleton() {
 /* ── Map ──────────────────────────────────────────────── */
 function MapSkeleton() {
   return (
-    <div className="w-full h-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-      <div className="lg:col-span-7 h-full flex flex-col items-center justify-center">
-        <div
-          className="relative w-full h-[340px] sm:h-[380px] lg:h-full max-h-[480px] 2xl:max-h-[540px] rounded-xl overflow-hidden flex flex-col items-center justify-center gap-4 p-4"
-          style={{ border: "1px solid var(--line)", background: "var(--surface)", boxShadow: "var(--shadow-card)" }}
-        >
-          <Shimmer className="w-full h-3/4 rounded-lg" />
-          <Shimmer className="h-5 w-1/2 rounded-full" />
-        </div>
+    <div
+      className="w-full h-full relative select-none rounded-2xl overflow-hidden flex flex-col justify-between p-4 sm:p-6"
+      style={{ background: "#f8f7f2" }}
+    >
+      {/* Subtle architectural massing shimmers */}
+      <div className="w-full flex justify-between items-start pt-2 px-4">
+        <Shimmer className="h-6 w-36 rounded-md opacity-40" />
+        <Shimmer className="h-10 w-44 rounded-lg opacity-30" />
       </div>
-      <div className="lg:col-span-5 flex flex-col justify-center">
+
+      <div className="w-full flex justify-around items-center py-8">
+        <Shimmer className="h-32 w-52 rounded-xl opacity-25" />
+        <div className="flex flex-col items-center gap-2">
+          <Shimmer className="size-4 rounded-full opacity-60" />
+          <Shimmer className="h-1 w-28 rounded-full opacity-40" />
+        </div>
+        <Shimmer className="h-40 w-64 rounded-xl opacity-25" />
+      </div>
+
+      <div className="w-full flex justify-between items-end pb-2 px-4">
+        <Shimmer className="h-5 w-40 rounded-md opacity-40" />
+
+        {/* Bottom-right controls shimmer matching MapControls */}
         <div
-          className="rounded-xl p-4 space-y-4"
-          style={{ border: "1px solid var(--line)", background: "var(--surface)", boxShadow: "var(--shadow-card)" }}
+          className="flex flex-col items-center gap-1.5 p-1 rounded-lg mr-1 mb-1"
+          style={{ border: "1px solid var(--line)", background: "var(--surface-raised)" }}
         >
-          <Shimmer className="h-4 w-20 rounded-full" />
-          <Shimmer className="h-5 w-2/3" />
-          <div className="space-y-1.5">
-            <Shimmer className="h-3 w-full" />
-            <Shimmer className="h-3 w-4/5" />
-          </div>
-          {/* Quick route switcher pills */}
-          <div className="flex gap-2 pt-1">
-            <Shimmer className="h-6 w-18 rounded-md" />
-            <Shimmer className="h-6 w-28 rounded-md" />
-            <Shimmer className="h-6 w-24 rounded-md" />
-          </div>
-          <Shimmer className="h-px w-full rounded-none" />
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-2.5">
-              <Shimmer className="size-4 rounded-full shrink-0" />
-              <Shimmer className="h-3 flex-1" />
-            </div>
-          ))}
+          <Shimmer className="size-7 rounded-md" />
+          <Shimmer className="size-7 rounded-md" />
+          <div className="w-4 h-px opacity-30 my-0.5" style={{ background: "var(--line)" }} />
+          <Shimmer className="size-7 rounded-md" />
+          <Shimmer className="size-7 rounded-md" />
         </div>
       </div>
     </div>

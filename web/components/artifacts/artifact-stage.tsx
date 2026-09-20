@@ -15,7 +15,7 @@ export type { ChatMessage };
 
 interface ArtifactStageProps {
   artifactType: ArtifactType;
-  mapRouteId?: "restrooms" | "gauguin" | "elevator";
+  mapRouteId?: "restrooms" | "gauguin" | "elevator" | "garden" | "store" | string;
   hotspotId?: "cypress" | "star" | "steeple" | "vortex" | "moon" | string;
   letterId?: "letter-782" | "letter-cypress" | "letter-stars";
   /** When true renders a layout-matched skeleton in place of the real artifact.

@@ -66,7 +66,7 @@ export default function Home() {
   const [agentStatus, setAgentStatus] = React.useState<AgentStatus>("listening");
   const [isMuted, setIsMuted] = React.useState(true);
   const [activeArtifact, setActiveArtifact] = React.useState<ArtifactType>("info");
-  const [activeMapRoute, setActiveMapRoute] = React.useState<"restrooms" | "gauguin" | "elevator">("restrooms");
+  const [activeMapRoute, setActiveMapRoute] = React.useState<"restrooms" | "gauguin" | "elevator" | "garden" | "store" | string>("restrooms");
   const [activeHotspotId, setActiveHotspotId] = React.useState<"cypress" | "star" | "steeple" | "vortex" | "moon" | undefined>(undefined);
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
   // Will be wired to real events once voice is connected.
@@ -734,7 +734,13 @@ export default function Home() {
                   </button>
 
                   {/* Artifact Stage - clean canvas utilizing the entire newly formed card as working area */}
-                  <div className="w-full h-full pt-14 pb-16 px-3 md:p-5 md:pb-16 md:pr-14 overflow-hidden">
+                  <div
+                    className={`w-full h-full overflow-hidden ${
+                      activeArtifact === "map"
+                        ? "p-0 rounded-2xl"
+                        : "pt-14 pb-16 px-3 md:p-5 md:pb-16 md:pr-14"
+                    }`}
+                  >
                     <ArtifactStage
                       artifactType={activeArtifact}
                       mapRouteId={activeMapRoute}
@@ -868,7 +874,10 @@ export default function Home() {
                     size="sm"
                     variant={activeMapRoute === "restrooms" ? "secondary" : "ghost"}
                     className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
-                    onClick={() => setActiveMapRoute("restrooms")}
+                    onClick={() => {
+                      playTactileTap();
+                      setActiveMapRoute("restrooms");
+                    }}
                   >
                     Restrooms
                   </Button>
@@ -876,17 +885,45 @@ export default function Home() {
                     size="sm"
                     variant={activeMapRoute === "gauguin" ? "secondary" : "ghost"}
                     className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
-                    onClick={() => setActiveMapRoute("gauguin")}
+                    onClick={() => {
+                      playTactileTap();
+                      setActiveMapRoute("gauguin");
+                    }}
                   >
-                    Gallery 37
+                    1 West
                   </Button>
                   <Button
                     size="sm"
                     variant={activeMapRoute === "elevator" ? "secondary" : "ghost"}
                     className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
-                    onClick={() => setActiveMapRoute("elevator")}
+                    onClick={() => {
+                      playTactileTap();
+                      setActiveMapRoute("elevator");
+                    }}
                   >
                     Elevator
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={activeMapRoute === "garden" ? "secondary" : "ghost"}
+                    className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
+                    onClick={() => {
+                      playTactileTap();
+                      setActiveMapRoute("garden");
+                    }}
+                  >
+                    Garden
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={activeMapRoute === "store" ? "secondary" : "ghost"}
+                    className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
+                    onClick={() => {
+                      playTactileTap();
+                      setActiveMapRoute("store");
+                    }}
+                  >
+                    Store
                   </Button>
                 </div>
               )}
