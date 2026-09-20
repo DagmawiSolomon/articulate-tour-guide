@@ -16,7 +16,7 @@ export type { ChatMessage };
 interface ArtifactStageProps {
   artifactType: ArtifactType;
   mapRouteId?: "restrooms" | "gauguin" | "elevator";
-  hotspotId?: "cypress" | "star" | "steeple";
+  hotspotId?: "cypress" | "star" | "steeple" | "vortex" | "moon" | string;
   letterId?: "letter-782" | "letter-cypress" | "letter-stars";
   /** When true renders a layout-matched skeleton in place of the real artifact.
    *  Flip to true on tool.call, back to false on tool.result. */
@@ -32,7 +32,7 @@ interface ArtifactStageProps {
 export function ArtifactStage({
   artifactType,
   mapRouteId = "restrooms",
-  hotspotId = "cypress",
+  hotspotId,
   letterId = "letter-782",
   isLoading = false,
   chatMessages = [],
