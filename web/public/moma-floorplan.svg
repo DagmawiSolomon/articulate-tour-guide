@@ -1,0 +1,156 @@
+<svg width="1840" height="900" viewBox="0 0 920 450" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Architectural Diagonal Hatch Pattern for service & private spaces -->
+    <pattern id="arch-hatch" width="8" height="8" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="8" stroke="#d0ccc2" stroke-width="1" />
+    </pattern>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="920" height="450" fill="#f8f7f2" />
+
+  <!-- ── Street Entrance / Exit Labels ───────────────────────── -->
+  <!-- 54 Street Exit (Top) -->
+  <text x="380" y="24" text-anchor="middle" fill="#1f1e1b" font-family="system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="700" letter-spacing="-0.2">
+    54 Street Exit
+  </text>
+  <path d="M 380 40 L 380 28 M 377 31 L 380 28 L 383 31" stroke="#1f1e1b" stroke-width="1.8" stroke-linecap="round" />
+
+  <!-- 53 Street Entrance/Exit (Bottom) -->
+  <text x="380" y="442" text-anchor="middle" fill="#1f1e1b" font-family="system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="700" letter-spacing="-0.2">
+    53 Street Entrance/Exit
+  </text>
+  <path d="M 374 416 L 374 427 M 371 424 L 374 427 L 377 424" stroke="#1f1e1b" stroke-width="1.8" stroke-linecap="round" />
+  <path d="M 386 427 L 386 416 M 383 419 L 386 416 L 389 419" stroke="#1f1e1b" stroke-width="1.8" stroke-linecap="round" />
+
+  <!-- ── Left Wing (1 West & Store) ─────────────────────────── -->
+  <!-- Outer Left Wing Shell -->
+  <rect x="30" y="45" width="260" height="355" fill="#eeede7" stroke="#cfcac0" stroke-width="1.2" />
+
+  <!-- Top-Right Notch of Left Wing (Accessible Restroom & Coat Room) -->
+  <rect x="250" y="45" width="40" height="60" fill="#ffffff" stroke="#cfcac0" stroke-width="1" />
+  <text x="270" y="82" text-anchor="middle" fill="#1f1e1b" font-family="system-ui, sans-serif" font-size="14">♿</text>
+
+  <!-- Coat check hatched alcove -->
+  <rect x="250" y="105" width="40" height="90" fill="url(#arch-hatch)" stroke="#cfcac0" stroke-width="1" />
+  <path d="M 270 145 L 260 160 L 280 160 Z M 270 145 C 270 140 273 140 273 137 C 273 135 270 135 270 137" fill="none" stroke="#1f1e1b" stroke-width="1.2" stroke-linecap="round" />
+
+  <!-- 1 West (Yellow Feature Gallery) -->
+  <rect x="135" y="190" width="52" height="210" fill="#ffe500" stroke="#d4be00" stroke-width="1" />
+  <text x="161" y="215" text-anchor="middle" fill="#1f1e1b" font-family="system-ui, sans-serif" font-size="12" font-weight="700">
+    1 West
+  </text>
+
+  <!-- Bench / Sofa Icon -->
+  <g transform="translate(245, 255)">
+    <rect x="0" y="0" width="18" height="6" rx="2" fill="#1f1e1b" />
+    <rect x="0" y="8" width="18" height="6" rx="2" fill="#1f1e1b" />
+  </g>
+
+  <!-- West Core (Elevators & Museum Store) -->
+  <g transform="translate(187, 305)">
+    <rect x="0" y="0" width="103" height="95" fill="#ffffff" stroke="#cfcac0" stroke-width="1" />
+    <text x="5" y="16" fill="#0099d8" font-family="system-ui, sans-serif" font-size="10" font-weight="700">West</text>
+    <rect x="5" y="22" width="16" height="20" rx="3" fill="#0099d8" />
+    <text x="13" y="36" text-anchor="middle" fill="#ffffff" font-family="system-ui, sans-serif" font-size="10" font-weight="700">🛗</text>
+
+    <text x="44" y="48" fill="#1f1e1b" font-family="system-ui, sans-serif" font-size="11" font-weight="700">Museum</text>
+    <text x="44" y="60" fill="#1f1e1b" font-family="system-ui, sans-serif" font-size="11" font-weight="700">Store</text>
+
+    <path d="M 18 85 L 26 85 L 26 77 L 34 77 L 34 69 L 42 69" stroke="#0099d8" stroke-width="2.5" fill="none" stroke-linecap="round" />
+    <rect x="74" y="68" width="16" height="20" rx="3" fill="#0099d8" />
+    <text x="82" y="82" text-anchor="middle" fill="#ffffff" font-family="system-ui, sans-serif" font-size="10" font-weight="700">🛗</text>
+  </g>
+
+  <!-- Artist Commission Badge [A] (Near West) -->
+  <rect x="340" y="125" width="16" height="16" fill="#1f1e1b" />
+  <text x="348" y="137" text-anchor="middle" fill="#ffffff" font-family="system-ui, sans-serif" font-size="10" font-weight="700">A</text>
+
+  <rect x="340" y="345" width="16" height="16" fill="#1f1e1b" />
+  <text x="348" y="357" text-anchor="middle" fill="#ffffff" font-family="system-ui, sans-serif" font-size="10" font-weight="700">A</text>
+
+  <!-- ── Central Concourse & Core ────────────────────────────── -->
+  <!-- North Core: Elevators (to Floors 2–6) -->
+  <g transform="translate(385, 45)">
+    <rect x="0" y="0" width="70" height="65" fill="#ffffff" stroke="#cfcac0" stroke-width="1" />
+    <rect x="18" y="10" width="20" height="24" rx="3" fill="#0099d8" />
+    <text x="28" y="26" text-anchor="middle" fill="#ffffff" font-family="system-ui, sans-serif" font-size="11" font-weight="700">🛗</text>
+    <text x="38" y="50" text-anchor="middle" fill="#0099d8" font-family="system-ui, sans-serif" font-size="10" font-weight="700">North</text>
+  </g>
+
+  <!-- Member Desk -->
+  <g transform="translate(360, 200)">
+    <text x="32" y="15" text-anchor="middle" fill="#5b3b8c" font-family="system-ui, sans-serif" font-size="12">★</text>
+    <text x="32" y="30" text-anchor="middle" fill="#5b3b8c" font-family="system-ui, sans-serif" font-size="10.5" font-weight="700">Member</text>
+    <text x="32" y="42" text-anchor="middle" fill="#5b3b8c" font-family="system-ui, sans-serif" font-size="10.5" font-weight="700">Desk</text>
+  </g>
+
+  <!-- South Core: Elevators & Stairs -->
+  <g transform="translate(415, 195)">
+    <rect x="0" y="0" width="95" height="60" fill="#eeede7" stroke="#cfcac0" stroke-width="1" />
+    <rect x="8" y="14" width="18" height="22" rx="3" fill="#0099d8" />
+    <text x="17" y="29" text-anchor="middle" fill="#ffffff" font-family="system-ui, sans-serif" font-size="10" font-weight="700">🛗</text>
+    <text x="44" y="28" fill="#0099d8" font-family="system-ui, sans-serif" font-size="10" font-weight="700">South</text>
+    <path d="M 12 52 L 20 52 L 20 44 L 28 44 L 28 36" stroke="#0099d8" stroke-width="2.5" fill="none" stroke-linecap="round" />
+  </g>
+
+  <!-- Access to Film Center label & stairs -->
+  <g transform="translate(525, 235)">
+    <text x="0" y="10" fill="#0099d8" font-family="system-ui, sans-serif" font-size="7.5" font-weight="700">Access</text>
+    <text x="0" y="18" fill="#0099d8" font-family="system-ui, sans-serif" font-size="7.5" font-weight="700">to Film Center</text>
+    <text x="0" y="26" fill="#0099d8" font-family="system-ui, sans-serif" font-size="7.5" font-weight="700">(T1, T2)</text>
+    <path d="M 30 20 C 35 15, 42 12, 48 10" stroke="#0099d8" stroke-width="3.5" fill="none" stroke-linecap="round" />
+  </g>
+
+  <!-- Commission Badge [B] -->
+  <rect x="555" y="300" width="16" height="16" fill="#1f1e1b" />
+  <text x="563" y="312" text-anchor="middle" fill="#ffffff" font-family="system-ui, sans-serif" font-size="10" font-weight="700">B</text>
+
+  <!-- Restrooms & Member Checkroom -->
+  <g transform="translate(415, 275)">
+    <rect x="70" y="0" width="40" height="60" fill="#ffffff" stroke="#cfcac0" stroke-width="1" />
+    <text x="90" y="32" text-anchor="middle" fill="#1f1e1b" font-family="system-ui, sans-serif" font-size="13" font-weight="700">🚻</text>
+    <text x="90" y="48" text-anchor="middle" fill="#1f1e1b" font-family="system-ui, sans-serif" font-size="8" font-weight="700">AG</text>
+
+    <rect x="0" y="60" width="105" height="65" fill="#eeede7" stroke="#cfcac0" stroke-width="1" />
+    <text x="40" y="92" fill="#8c887d" font-family="system-ui, sans-serif" font-size="9" font-weight="500">Member</text>
+    <text x="40" y="103" fill="#8c887d" font-family="system-ui, sans-serif" font-size="9" font-weight="500">Checkroom</text>
+    <path d="M 90 95 L 82 105 L 98 105 Z" fill="none" stroke="#8c887d" stroke-width="1.2" />
+    <text x="100" y="98" fill="#8c887d" font-family="system-ui, sans-serif" font-size="7">2*</text>
+    <path d="M 120 105 L 127 105 L 127 98 L 134 98 L 134 91" stroke="#0099d8" stroke-width="2.5" fill="none" stroke-linecap="round" />
+  </g>
+
+  <!-- ── Right Wing (Sculpture Garden & Film Center) ──────────── -->
+  <g transform="translate(470, 45)">
+    <rect x="0" y="0" width="315" height="155" fill="#ffe500" stroke="#d4be00" stroke-width="1.2" />
+    <text x="25" y="28" fill="#1f1e1b" font-family="system-ui, sans-serif" font-size="12.5" font-weight="700">Sculpture Garden</text>
+    <text x="25" y="42" fill="#1f1e1b" opacity="0.9" font-family="system-ui, sans-serif" font-size="8" font-weight="500">The Abby Aldrich Rockefeller Sculpture Garden</text>
+
+    <text x="75" y="115" fill="#1f1e1b" font-family="system-ui, sans-serif" font-size="11.5" font-weight="700">Film Center</text>
+    <text x="75" y="127" fill="#1f1e1b" opacity="0.9" font-family="system-ui, sans-serif" font-size="7.5" font-weight="500">The Debra and Leon Black Family Film Center</text>
+  </g>
+
+  <!-- Hatched Areas: The Modern, Member Reception, Art Lab -->
+  <g transform="translate(575, 200)">
+    <rect x="0" y="0" width="150" height="195" fill="url(#arch-hatch)" stroke="#cfcac0" stroke-width="1" />
+    <text x="45" y="55" text-anchor="middle" fill="#8c887d" font-family="system-ui, sans-serif" font-size="11" font-weight="600">The Modern</text>
+    <text x="45" y="76" text-anchor="middle" fill="#8c887d" font-family="system-ui, sans-serif" font-size="13">🍴</text>
+    <text x="75" y="145" text-anchor="middle" fill="#8c887d" font-family="system-ui, sans-serif" font-size="10" font-weight="600">Member</text>
+    <text x="75" y="157" text-anchor="middle" fill="#8c887d" font-family="system-ui, sans-serif" font-size="10" font-weight="600">Reception</text>
+  </g>
+
+  <g transform="translate(725, 200)">
+    <rect x="0" y="0" width="60" height="95" fill="#ffffff" stroke="#cfcac0" stroke-width="1" />
+    <text x="5" y="20" fill="#8c887d" font-family="system-ui, sans-serif" font-size="10.5" font-weight="700">Art Lab</text>
+    <text x="5" y="31" fill="#8c887d" font-family="system-ui, sans-serif" font-size="6.5">The Samuel and</text>
+    <text x="5" y="39" fill="#8c887d" font-family="system-ui, sans-serif" font-size="6.5">Ronnie Heyman</text>
+    <text x="5" y="47" fill="#8c887d" font-family="system-ui, sans-serif" font-size="6.5">Family Art Lab</text>
+  </g>
+
+  <g transform="translate(785, 80)">
+    <rect x="0" y="0" width="85" height="155" fill="url(#arch-hatch)" stroke="#cfcac0" stroke-width="1" />
+    <text x="42" y="115" text-anchor="middle" fill="#8c887d" font-family="system-ui, sans-serif" font-size="10" font-weight="700">East</text>
+    <rect x="62" y="125" width="14" height="14" fill="#1f1e1b" />
+    <text x="69" y="136" text-anchor="middle" fill="#ffffff" font-family="system-ui, sans-serif" font-size="9" font-weight="700">C</text>
+  </g>
+</svg>
