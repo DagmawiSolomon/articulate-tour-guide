@@ -3,14 +3,12 @@
 import * as React from "react";
 import Image from "next/image";
 import { TIMELINE_MILESTONES, TimelineMilestone } from "@/lib/demo-tour-data";
+import { playTactileTap } from "@/lib/sounds";
 
 export function TimelineView() {
   const [selectedId, setSelectedId] = React.useState<string>("saint-remy");
+  const [hoveredId, setHoveredId] = React.useState<string | null>(null);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-
-  const selectedMilestone: TimelineMilestone =
-    TIMELINE_MILESTONES.find((m) => m.id === selectedId) ||
-    TIMELINE_MILESTONES[3];
 
   const isDragging = React.useRef(false);
   const startX = React.useRef(0);
@@ -40,9 +38,14 @@ export function TimelineView() {
     scrollContainerRef.current.scrollLeft = scrollLeftStart.current - walk;
   };
 
+  const handleSelectMilestone = (id: string) => {
+    playTactileTap();
+    setSelectedId(id);
+  };
+
   return (
-    <div className="w-full h-full flex flex-col justify-center gap-3 overflow-hidden select-none">
-      {/* Horizontal Alternating Timeline Track */}
+    <div className="relative w-full h-full overflow-hidden select-none flex items-center justify-center">
+      {/* Horizontal Alternating Timeline Track — Perfectly Centered Vertically */}
       <div
         ref={scrollContainerRef}
         onWheel={handleWheel}
@@ -50,44 +53,51 @@ export function TimelineView() {
         onMouseLeave={handleMouseLeaveOrUp}
         onMouseUp={handleMouseLeaveOrUp}
         onMouseMove={handleMouseMove}
-        className="relative w-full flex-1 min-h-[300px] overflow-x-auto overflow-y-hidden scroll-smooth py-2 cursor-grab active:cursor-grabbing [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="w-full h-full overflow-x-auto overflow-y-hidden scroll-smooth flex items-center py-2 cursor-grab active:cursor-grabbing [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
-        <div className="relative h-full min-w-[1080px] flex items-center justify-between px-10">
-          {/* Continuous Center Axis Line */}
+        <div className="relative w-full min-w-[1100px] flex items-center justify-between px-12">
+          {/* Continuous Center Axis Line — mathematically at 50% vertical center */}
           <div
-            className="absolute left-10 right-10 top-1/2 -translate-y-1/2 h-[2px] bg-[#c85a32]/35 dark:bg-[#c85a32]/50 pointer-events-none z-0"
+            className="absolute left-12 right-12 top-1/2 -translate-y-1/2 h-[1.5px] bg-border pointer-events-none z-0"
             aria-hidden="true"
           />
 
           {/* Timeline Milestones */}
           {TIMELINE_MILESTONES.map((milestone, index) => {
             const isSelected = milestone.id === selectedId;
+            const isHovered = milestone.id === hoveredId;
             const isTop = index % 2 === 0;
 
             return (
               <div
                 key={milestone.id}
-                onClick={() => setSelectedId(milestone.id)}
-                className="relative z-10 w-[190px] h-full flex flex-col items-center justify-center cursor-pointer group"
+                onClick={() => handleSelectMilestone(milestone.id)}
+                onMouseEnter={() => setHoveredId(milestone.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                className="relative z-10 w-[200px] flex flex-col items-center justify-center cursor-pointer group"
               >
-                {/* TOP HALF */}
-                <div className="h-[135px] w-full flex flex-col justify-end items-center pb-2">
+                {/* TOP HALF — Symmetrical 148px height */}
+                <div className="h-[148px] w-full flex flex-col justify-end items-center pb-2 relative">
                   {isTop ? (
                     <div className="flex flex-col items-center transition-transform duration-300 group-hover:-translate-y-1">
-                      {/* Circular Artwork Vignette with Offset Accent Disc */}
+                      {/* Circular Artwork Vignette with Offset Disc */}
                       <div className="relative">
                         <div
                           className={`absolute -top-1 -right-1 w-full h-full rounded-full transition-all duration-300 -z-10 ${
                             isSelected
-                              ? "bg-[#c85a32]/35 scale-105"
-                              : "bg-[#c85a32]/15 group-hover:bg-[#c85a32]/25"
+                              ? "bg-muted-foreground/15 scale-105"
+                              : isHovered
+                              ? "bg-muted scale-105"
+                              : "bg-soft"
                           }`}
                         />
                         <div
                           className={`relative w-20 h-20 rounded-full overflow-hidden border-2 bg-muted/30 transition-all duration-300 shadow-xs ${
                             isSelected
-                              ? "border-[#c85a32] ring-2 ring-[#c85a32]/20"
-                              : "border-border/80 group-hover:border-foreground/40"
+                              ? "border-foreground"
+                              : isHovered
+                              ? "border-foreground/60"
+                              : "border-border/80"
                           }`}
                         >
                           {milestone.imageSrc && (
@@ -102,74 +112,88 @@ export function TimelineView() {
                         </div>
                       </div>
 
-                      {/* Year & Title info */}
+                      {/* Year & Location info */}
                       <div className="text-center mt-2 px-1">
-                        <div className="font-mono text-xs font-bold text-[#c85a32] dark:text-[#e06d48] leading-none">
+                        <div
+                          className={`font-mono text-xs font-bold leading-none transition-colors duration-200 ${
+                            isSelected || isHovered
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                          }`}
+                        >
                           {milestone.year}
                         </div>
                         <div className="text-xs font-semibold text-foreground line-clamp-1 mt-0.5">
                           {milestone.location}
                         </div>
                         <div className="text-[10px] text-muted-foreground line-clamp-1">
-                          {milestone.title}
+                          {milestone.artworkTitle || milestone.title}
                         </div>
                       </div>
 
                       {/* Dashed Stem Connector to Axis Line */}
-                      <div className="w-[1.5px] h-3.5 border-l-2 border-dashed border-[#c85a32]/50 mt-1" />
+                      <div className="w-[1.5px] h-3.5 border-l-2 border-dashed border-border mt-1" />
                     </div>
                   ) : null}
                 </div>
 
-                {/* CENTER AXIS NODE */}
+                {/* CENTER AXIS NODE: Solid circle, enlarges on select, no glow */}
                 <div className="h-[28px] w-full flex items-center justify-center relative">
                   <div
-                    className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                    className={`rounded-full transition-all duration-200 ${
                       isSelected
-                        ? "border-[#c85a32] bg-[#c85a32] ring-4 ring-[#c85a32]/25 scale-125"
-                        : "border-[#c85a32] bg-card group-hover:scale-115 group-hover:border-[#c85a32]"
+                        ? "w-4 h-4 bg-foreground"
+                        : isHovered
+                        ? "w-3.5 h-3.5 bg-foreground/80"
+                        : "w-2.5 h-2.5 bg-border group-hover:scale-125"
                     }`}
-                  >
-                    {isSelected && (
-                      <div className="w-1 h-1 rounded-full bg-white" />
-                    )}
-                  </div>
+                  />
                 </div>
 
-                {/* BOTTOM HALF */}
-                <div className="h-[135px] w-full flex flex-col justify-start items-center pt-2">
+                {/* BOTTOM HALF — Symmetrical 148px height */}
+                <div className="h-[148px] w-full flex flex-col justify-start items-center pt-2 relative">
                   {!isTop ? (
                     <div className="flex flex-col items-center transition-transform duration-300 group-hover:translate-y-1">
                       {/* Dashed Stem Connector from Axis Line */}
-                      <div className="w-[1.5px] h-3.5 border-l-2 border-dashed border-[#c85a32]/50 mb-1" />
+                      <div className="w-[1.5px] h-3.5 border-l-2 border-dashed border-border mb-1" />
 
-                      {/* Year & Title info */}
+                      {/* Year & Location info */}
                       <div className="text-center mb-2 px-1">
-                        <div className="font-mono text-xs font-bold text-[#c85a32] dark:text-[#e06d48] leading-none">
+                        <div
+                          className={`font-mono text-xs font-bold leading-none transition-colors duration-200 ${
+                            isSelected || isHovered
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                          }`}
+                        >
                           {milestone.year}
                         </div>
                         <div className="text-xs font-semibold text-foreground line-clamp-1 mt-0.5">
                           {milestone.location}
                         </div>
                         <div className="text-[10px] text-muted-foreground line-clamp-1">
-                          {milestone.title}
+                          {milestone.artworkTitle || milestone.title}
                         </div>
                       </div>
 
-                      {/* Circular Artwork Vignette with Offset Accent Disc */}
+                      {/* Circular Artwork Vignette with Offset Disc */}
                       <div className="relative">
                         <div
                           className={`absolute -bottom-1 -right-1 w-full h-full rounded-full transition-all duration-300 -z-10 ${
                             isSelected
-                              ? "bg-[#c85a32]/35 scale-105"
-                              : "bg-[#c85a32]/15 group-hover:bg-[#c85a32]/25"
+                              ? "bg-muted-foreground/15 scale-105"
+                              : isHovered
+                              ? "bg-muted scale-105"
+                              : "bg-soft"
                           }`}
                         />
                         <div
                           className={`relative w-20 h-20 rounded-full overflow-hidden border-2 bg-muted/30 transition-all duration-300 shadow-xs ${
                             isSelected
-                              ? "border-[#c85a32] ring-2 ring-[#c85a32]/20"
-                              : "border-border/80 group-hover:border-foreground/40"
+                              ? "border-foreground"
+                              : isHovered
+                              ? "border-foreground/60"
+                              : "border-border/80"
                           }`}
                         >
                           {milestone.imageSrc && (
@@ -191,41 +215,6 @@ export function TimelineView() {
           })}
         </div>
       </div>
-
-      {/* Selected Era Curatorial Detail Panel */}
-      <div className="rounded-xl border border-border bg-card p-3 shadow-xs shrink-0 transition-all">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold text-[#c85a32] dark:text-[#e06d48]">
-              {selectedMilestone.year}
-            </span>
-            <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-xs font-medium text-foreground">
-              {selectedMilestone.location}
-            </span>
-            {selectedMilestone.artworkTitle && (
-              <>
-                <span className="text-xs text-muted-foreground">·</span>
-                <span className="text-xs italic text-muted-foreground">
-                  {selectedMilestone.artworkTitle}
-                </span>
-              </>
-            )}
-          </div>
-          {selectedMilestone.isCurrent && (
-            <span className="text-[10px] font-medium uppercase tracking-wider text-[#c85a32] dark:text-[#e06d48] bg-[#c85a32]/10 dark:bg-[#c85a32]/20 px-2 py-0.5 rounded-full border border-[#c85a32]/20">
-              Current Exhibition Focus
-            </span>
-          )}
-        </div>
-        <div className="text-xs font-semibold text-foreground mb-0.5">
-          {selectedMilestone.title}
-        </div>
-        <div className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-          {selectedMilestone.description}
-        </div>
-      </div>
     </div>
   );
 }
-
