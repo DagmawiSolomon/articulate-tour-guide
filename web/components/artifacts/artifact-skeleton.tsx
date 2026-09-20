@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { type ArtifactType } from "./artifact-stage";
-import LoadingState from "../beautiful-ui/LoadingState";
 
 /* ─────────────────────────────────────────────────────────
  * ARTIFACT SKELETON
@@ -104,14 +103,20 @@ function MapSkeleton() {
         >
           <Shimmer className="h-4 w-20 rounded-full" />
           <Shimmer className="h-5 w-2/3" />
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Shimmer className="h-3 w-full" />
             <Shimmer className="h-3 w-4/5" />
           </div>
+          {/* Quick route switcher pills */}
+          <div className="flex gap-2 pt-1">
+            <Shimmer className="h-6 w-18 rounded-md" />
+            <Shimmer className="h-6 w-28 rounded-md" />
+            <Shimmer className="h-6 w-24 rounded-md" />
+          </div>
           <Shimmer className="h-px w-full rounded-none" />
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-2">
-              <Shimmer className="size-5 rounded-full shrink-0" />
+            <div key={i} className="flex items-center gap-2.5">
+              <Shimmer className="size-4 rounded-full shrink-0" />
               <Shimmer className="h-3 flex-1" />
             </div>
           ))}
