@@ -3,79 +3,37 @@
 import * as React from "react";
 import type * as MapLibreGL from "maplibre-gl";
 import { MAP_ROUTES, MapRoute } from "@/lib/demo-tour-data";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
 import { Map, MapMarker, MapControls } from "@/components/ui/map";
 import { HugeIcon } from "@/components/ui/hugeicon";
-import { Compass01Icon } from "@hugeicons/core-free-icons";
+import { WomanIcon } from "@hugeicons/core-free-icons";
 
 interface GalleryMapViewProps {
-  activeRouteId?: "restrooms" | "gauguin" | "elevator";
+  activeRouteId?: "restrooms" | "gauguin" | "elevator" | "garden" | "store" | string;
 }
 
-const GALLERY_PINS = [
-  { id: "g34", label: "Gallery 34", artist: "Manet / Degas", coords: [-0.018, 0.0025] as [number, number] },
-  { id: "g35", label: "Gallery 35", artist: "Monet", coords: [-0.0098, 0.0025] as [number, number] },
-  { id: "g36", label: "Gallery 36", artist: "Van Gogh", coords: [-0.003, 0.003] as [number, number], current: true },
-  { id: "g37", label: "Gallery 37", artist: "Paul Gauguin", routeId: "gauguin" as const, coords: [0.0095, 0.0025] as [number, number] },
-  { id: "g38", label: "Gallery 38", artist: "Cézanne", coords: [0.018, 0.0025] as [number, number] },
-];
-
-export function GalleryMapView({ activeRouteId: initialRouteId = "restrooms" }: GalleryMapViewProps) {
-  const [selectedRouteId, setSelectedRouteId] = React.useState<"restrooms" | "gauguin" | "elevator" | null>(null);
-  const currentRouteId = selectedRouteId ?? initialRouteId;
-  const route: MapRoute = MAP_ROUTES[currentRouteId] || MAP_ROUTES.restrooms;
+export function GalleryMapView({ activeRouteId = "restrooms" }: GalleryMapViewProps) {
+  const route: MapRoute = MAP_ROUTES[activeRouteId] || MAP_ROUTES.restrooms;
 
   const mapInstanceRef = React.useRef<MapLibreGL.Map | null>(null);
   const [mapLoaded, setMapLoaded] = React.useState(false);
 
-  // Setup museum floorplan image overlay and GeoJSON route line
-  const handleMapReady = React.useCallback((map: MapLibreGL.Map) => {
-    mapInstanceRef.current = map;
 
-    // Add Museum Floorplan SVG as an image overlay source
-    if (!map.getSource("museum-floorplan")) {
-      map.addSource("museum-floorplan", {
-        type: "image",
-        url: "/museum-floorplan.svg",
-        coordinates: [
-          [-0.025, 0.020], // top-left
-          [0.025, 0.020],  // top-right
-          [0.025, -0.020], // bottom-right
-          [-0.025, -0.020], // bottom-left
-        ],
-      });
-
-      map.addLayer({
-        id: "museum-floorplan-layer",
-        type: "raster",
-        source: "museum-floorplan",
-        paint: {
-          "raster-opacity": 0.98,
-          "raster-fade-duration": 200,
-        },
-      });
-    }
-
-    // Add GeoJSON route line source
-    if (!map.getSource("route-source") && route.geoPath) {
+  // Helper to ensure route GeoJSON source and layers exist and are placed on top of raster
+  const ensureRouteLayers = React.useCallback((map: MapLibreGL.Map, initialCoords: [number, number][]) => {
+    if (!map.getSource("route-source")) {
       map.addSource("route-source", {
         type: "geojson",
         data: {
           type: "Feature",
           geometry: {
             type: "LineString",
-            coordinates: route.geoPath,
+            coordinates: initialCoords,
           },
           properties: {},
         },
       });
 
+      // Path underglow for crisp contrast over architectural features
       map.addLayer({
         id: "route-glow-layer",
         type: "line",
@@ -85,12 +43,13 @@ export function GalleryMapView({ activeRouteId: initialRouteId = "restrooms" }: 
           "line-cap": "round",
         },
         paint: {
-          "line-color": "#20b8cd",
-          "line-width": 7,
-          "line-opacity": 0.25,
+          "line-color": "#ffffff",
+          "line-width": 8,
+          "line-opacity": 0.95,
         },
       });
 
+      // Dashed architectural ink line
       map.addLayer({
         id: "route-line-layer",
         type: "line",
@@ -100,164 +59,186 @@ export function GalleryMapView({ activeRouteId: initialRouteId = "restrooms" }: 
           "line-cap": "round",
         },
         paint: {
-          "line-color": "#20b8cd",
-          "line-width": 3,
-          "line-dasharray": [2, 1.5],
+          "line-color": "#1f1e1b",
+          "line-width": 3.5,
+          "line-dasharray": [2.5, 1.8],
         },
       });
     }
 
-    setMapLoaded(true);
-  }, [route.geoPath]);
+    // Always bring route layers to the front over the raster floor plan
+    if (map.getLayer("route-glow-layer")) map.moveLayer("route-glow-layer");
+    if (map.getLayer("route-line-layer")) map.moveLayer("route-line-layer");
+  }, []);
 
-  // Update route polyline when selected route changes
-  React.useEffect(() => {
+  // Setup MoMA Floor 1 rasterized SVG overlay and GeoJSON wayfinding route
+  const handleMapReady = React.useCallback((map: MapLibreGL.Map) => {
+    mapInstanceRef.current = map;
+    if (typeof window !== "undefined") {
+      (window as any).__map = map;
+    }
+
+    // Load /moma-floorplan.svg, rasterize onto canvas for WebGL texture support
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1840;
+      canvas.height = 900;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, 1840, 900);
+      const dataUrl = canvas.toDataURL("image/png");
+
+      if (!map.getSource("moma-floorplan-img")) {
+        map.addSource("moma-floorplan-img", {
+          type: "image",
+          url: dataUrl,
+          coordinates: [
+            [-0.016, 0.0078],  // top-left
+            [0.016, 0.0078],   // top-right
+            [0.016, -0.0078],  // bottom-right
+            [-0.016, -0.0078], // bottom-left
+          ],
+        });
+
+        // Insert the raster floor plan UNDER the route layers
+        const firstRouteLayer = map.getLayer("route-glow-layer") ? "route-glow-layer" : undefined;
+
+        map.addLayer({
+          id: "moma-floorplan-raster",
+          type: "raster",
+          source: "moma-floorplan-img",
+          paint: {
+            "raster-opacity": 1,
+            "raster-fade-duration": 0,
+          },
+        }, firstRouteLayer);
+
+        // Guarantee route layers stay on top
+        if (map.getLayer("route-glow-layer")) map.moveLayer("route-glow-layer");
+        if (map.getLayer("route-line-layer")) map.moveLayer("route-line-layer");
+      }
+    };
+    img.src = "/moma-floorplan.svg";
+
+    if (route.geoPath) {
+      ensureRouteLayers(map, route.geoPath);
+    }
+
+    setMapLoaded(true);
+  }, [ensureRouteLayers, route.geoPath]);
+
+// Helper to calculate partial LineString coordinates along a polyline at a given distance
+function getSubPath(path: [number, number][], targetDist: number): [number, number][] {
+  if (path.length < 2) return path;
+  if (targetDist <= 0) {
+    const p0 = path[0];
+    const p1 = path[1];
+    return [p0, [p0[0] + (p1[0] - p0[0]) * 0.001, p0[1] + (p1[1] - p0[1]) * 0.001]];
+  }
+
+  const sub: [number, number][] = [path[0]];
+  let walked = 0;
+
+  for (let i = 0; i < path.length - 1; i++) {
+    const p1 = path[i];
+    const p2 = path[i + 1];
+    const len = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+
+    if (walked + len >= targetDist) {
+      const frac = len > 0 ? (targetDist - walked) / len : 0;
+      sub.push([
+        p1[0] + frac * (p2[0] - p1[0]),
+        p1[1] + frac * (p2[1] - p1[1]),
+      ]);
+      return sub;
+    } else {
+      sub.push(p2);
+      walked += len;
+    }
+  }
+
+  return path;
+}
+
+// Update route polyline, camera, and progressive line drawing animation
+React.useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !mapLoaded || !route.geoPath) return;
+    const path = route.geoPath;
+    if (!map || !mapLoaded || !path || path.length < 2) return;
+
+    ensureRouteLayers(map, path);
 
     const source = map.getSource("route-source") as MapLibreGL.GeoJSONSource | undefined;
-    if (source) {
+    if (!source) return;
+
+
+
+    // Precalculate corridor segment lengths
+    let totalLength = 0;
+    for (let i = 0; i < path.length - 1; i++) {
+      totalLength += Math.hypot(path[i + 1][0] - path[i][0], path[i + 1][1] - path[i][1]);
+    }
+
+    if (totalLength === 0) return;
+
+    // Phase 1: Progressive line reveal
+    let startTime: number | null = null;
+    let animFrameId: number;
+    const duration = 1200; // 1.2 seconds to draw
+
+    const animateLine = (now: number) => {
+      if (!startTime) startTime = now;
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // smooth easeOut cubic
+      const eased = 1 - Math.pow(1 - progress, 3); 
+      const subCoords = getSubPath(path, eased * totalLength);
+      
       source.setData({
         type: "Feature",
         geometry: {
           type: "LineString",
-          coordinates: route.geoPath,
+          coordinates: subCoords,
         },
         properties: {},
       });
-    }
 
-    // Subtle pan/fly toward destination
-    if (route.geoTarget) {
-      map.easeTo({
-        center: [
-          (route.geoTarget[0] + -0.003) / 2,
-          (route.geoTarget[1] + 0.003) / 2,
-        ],
-        duration: 600,
-      });
-    }
-  }, [currentRouteId, mapLoaded, route.geoPath, route.geoTarget]);
+      if (progress < 1) {
+        animFrameId = requestAnimationFrame(animateLine);
+      }
+    };
+
+    animFrameId = requestAnimationFrame(animateLine);
+
+    return () => {
+      cancelAnimationFrame(animFrameId);
+    };
+  }, [activeRouteId, ensureRouteLayers, mapLoaded, route.geoPath, route.geoTarget]);
 
   return (
-    <div className="w-full h-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-center overflow-y-auto pr-1">
-      {/* Interactive MapLibre / mapcn Vector Stage */}
-      <div className="lg:col-span-7 h-full flex flex-col items-center justify-center">
-        <div className="relative w-full h-[340px] sm:h-[380px] lg:h-full max-h-[480px] 2xl:max-h-[540px] rounded-xl overflow-hidden border border-border bg-[#090a0c] shadow-xs">
-          <Map
-            initialCenter={[-0.003, 0.001]}
-            initialZoom={14.8}
-            initialPitch={0}
-            onMapReady={handleMapReady}
-            className="w-full h-full"
-          >
-            {/* Museum Gallery Labels / Pins */}
-            {GALLERY_PINS.map((pin) => (
-              <MapMarker
-                key={pin.id}
-                longitude={pin.coords[0]}
-                latitude={pin.coords[1]}
-                onClick={() => {
-                  if (pin.routeId) setSelectedRouteId(pin.routeId);
-                }}
-              >
-                {pin.current ? (
-                  /* "You Are Here" Beacon at Gallery 36 */
-                  <div className="relative flex flex-col items-center group cursor-pointer -translate-y-1/2">
-                    <span className="relative flex size-5 items-center justify-center">
-                      <span className="animate-ping absolute inline-flex size-full rounded-full bg-cyan-400 opacity-60" />
-                      <span className="relative inline-flex rounded-full size-2.5 bg-cyan-400 ring-2 ring-background shadow-xs" />
-                    </span>
-                    <span className="mt-1 px-1.5 py-0.5 rounded-sm bg-card/90 border border-cyan-500/40 text-[9px] font-mono font-medium text-cyan-300 backdrop-blur-xs whitespace-nowrap shadow-xs pointer-events-none">
-                      You are here
-                    </span>
-                  </div>
-                ) : (
-                  /* Subtle interactive gallery marker */
-                  <div className="group relative flex flex-col items-center cursor-pointer -translate-y-1/2">
-                    <div className="size-2 rounded-full bg-muted-foreground/50 border border-background transition-transform group-hover:scale-125" />
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full mb-1 px-1.5 py-0.5 rounded-sm bg-card/95 border border-border text-[9px] text-foreground font-sans whitespace-nowrap shadow-md pointer-events-none">
-                      {pin.label} · {pin.artist}
-                    </div>
-                  </div>
-                )}
-              </MapMarker>
-            ))}
+    <div className="w-full h-full relative select-none rounded-2xl overflow-hidden">
+      <Map
+        initialCenter={[-0.0028, -0.0066]}
+        initialZoom={14.6}
+        initialPitch={0}
+        onMapReady={handleMapReady}
+        className="w-full h-full"
+      >
+        {/* User Location Indicator */}
+        <MapMarker longitude={-0.0028} latitude={-0.0066}>
+          <div className="size-3.5 rounded-full bg-blue-500 border-[2.5px] border-white shadow-sm" />
+        </MapMarker>
 
-            {/* Target Destination Marker */}
-            {route.geoTarget && (
-              <MapMarker longitude={route.geoTarget[0]} latitude={route.geoTarget[1]}>
-                <div className="relative flex flex-col items-center cursor-pointer -translate-y-1/2">
-                  <div className="size-5 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-[10px] ring-4 ring-foreground/20 shadow-md">
-                    ✓
-                  </div>
-                  <span className="mt-1 px-1.5 py-0.5 rounded-sm bg-card/90 border border-border text-[9px] font-sans font-medium text-foreground backdrop-blur-xs whitespace-nowrap shadow-xs">
-                    {route.label}
-                  </span>
-                </div>
-              </MapMarker>
-            )}
 
-            {/* Built-in Floating Navigation Controls (Hugeicons) */}
-            <MapControls />
-          </Map>
-        </div>
-      </div>
-
-      {/* Route & Guidance Details */}
-      <div className="lg:col-span-5 flex flex-col justify-center">
-        <Card className="border-border bg-card shadow-xs">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <span className="inline-flex items-center gap-1 text-[11px] font-mono text-cyan-400 uppercase tracking-wide">
-                <HugeIcon icon={Compass01Icon} size={12} strokeWidth={2} />
-                Live Wayfinding
-              </span>
-              <span className="text-[11px] font-mono text-muted-foreground">
-                {route.distance} ({route.walkingTime})
-              </span>
-            </div>
-
-            <CardTitle className="text-xl font-semibold tracking-tight text-foreground">
-              {route.targetRoom}
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Starting from Gallery 36 (The Starry Night)
-            </CardDescription>
-
-            {/* Quick destination route switcher pills for testing / demo */}
-            <div className="flex flex-wrap gap-1.5 pt-2">
-              {(["restrooms", "gauguin", "elevator"] as const).map((routeId) => (
-                <button
-                  key={routeId}
-                  type="button"
-                  onClick={() => setSelectedRouteId(routeId)}
-                  className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors cursor-pointer ${
-                    currentRouteId === routeId
-                      ? "bg-foreground text-background border-foreground font-semibold"
-                      : "bg-muted/40 text-muted-foreground border-border hover:text-foreground hover:bg-muted"
-                  }`}
-                >
-                  {MAP_ROUTES[routeId]?.label}
-                </button>
-              ))}
-            </div>
-          </CardHeader>
-
-          <CardContent className="space-y-3 text-sm">
-            <ol className="space-y-2 text-xs text-muted-foreground">
-              {route.steps.map((step, idx) => (
-                <li key={idx} className="flex items-start gap-2.5">
-                  <span className="shrink-0 size-4 rounded-full bg-muted border border-border flex items-center justify-center font-mono text-[10px] text-foreground font-medium mt-0.5">
-                    {idx + 1}
-                  </span>
-                  <span className="leading-snug">{step}</span>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
-      </div>
+        {/* Built-in Floating Navigation Controls from mapcn */}
+        <MapControls className="right-4 bottom-4 md:right-5 md:bottom-5" />
+      </Map>
     </div>
   );
 }
+
+
+
