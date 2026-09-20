@@ -268,8 +268,7 @@ function HotspotsSkeleton() {
 function ChatSkeleton() {
   return (
     <div
-      className="flex h-full w-full flex-col self-start overflow-hidden rounded-[14px]"
-      style={{ background: "var(--surface)", boxShadow: "var(--shadow-card)" }}
+      className="relative flex h-full w-full lg:max-w-3xl xl:max-w-4xl mx-auto flex-col overflow-hidden"
     >
       {/* Conversation thread — mirrors ChatHistoryView gap-3 px-3 pt-3 pb-2 */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-3 pt-3 pb-2">
