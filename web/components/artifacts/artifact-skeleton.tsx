@@ -155,13 +155,13 @@ function ComparisonSkeleton() {
 /* ── Timeline ─────────────────────────────────────────── */
 function TimelineSkeleton() {
   return (
-    <div className="w-full h-full flex flex-col justify-center gap-3 overflow-hidden select-none">
-      {/* Horizontal Alternating Timeline Track */}
-      <div className="relative w-full flex-1 min-h-[300px] overflow-hidden py-2">
-        <div className="relative h-full min-w-[1080px] flex items-center justify-between px-10">
+    <div className="relative w-full h-full overflow-hidden select-none flex items-center justify-center">
+      {/* Horizontal Alternating Timeline Track — Perfectly Centered Vertically */}
+      <div className="w-full h-full overflow-hidden flex items-center py-2">
+        <div className="relative w-full min-w-[1100px] flex items-center justify-between px-12">
           {/* Continuous Center Axis Line */}
           <div
-            className="absolute left-10 right-10 top-1/2 -translate-y-1/2 h-[2px] bg-[#c85a32]/25 pointer-events-none z-0"
+            className="absolute left-12 right-12 top-1/2 -translate-y-1/2 h-[1.5px] bg-border pointer-events-none z-0"
             aria-hidden="true"
           />
 
@@ -171,10 +171,10 @@ function TimelineSkeleton() {
             return (
               <div
                 key={i}
-                className="relative z-10 w-[190px] h-full flex flex-col items-center justify-center"
+                className="relative z-10 w-[200px] flex flex-col items-center justify-center"
               >
-                {/* TOP HALF */}
-                <div className="h-[135px] w-full flex flex-col justify-end items-center pb-2">
+                {/* TOP HALF — Symmetrical 148px */}
+                <div className="h-[148px] w-full flex flex-col justify-end items-center pb-2 relative">
                   {isTop ? (
                     <div className="flex flex-col items-center">
                       <Shimmer className="w-20 h-20 rounded-full" />
@@ -183,55 +183,37 @@ function TimelineSkeleton() {
                         <Shimmer className="h-3 w-20" />
                         <Shimmer className="h-2.5 w-24" />
                       </div>
-                      <div className="w-[1.5px] h-3.5 border-l-2 border-dashed border-[#c85a32]/35 mt-1" />
+                      <div className="w-[1.5px] h-3.5 border-l-2 border-dashed border-border mt-1" />
                     </div>
                   ) : null}
                 </div>
 
-                {/* CENTER AXIS NODE */}
+                {/* CENTER AXIS NODE: Solid circle matching TimelineView */}
                 <div className="h-[28px] w-full flex items-center justify-center relative">
-                  <div className="w-3.5 h-3.5 rounded-full border-2 border-[#c85a32]/50 bg-card flex items-center justify-center">
-                    {i === 3 && <div className="w-1 h-1 rounded-full bg-[#c85a32]" />}
-                  </div>
+                  <div
+                    className={`rounded-full ${
+                      i === 3 ? "w-4 h-4 bg-foreground" : "w-2.5 h-2.5 bg-border"
+                    }`}
+                  />
                 </div>
 
-                {/* BOTTOM HALF */}
-                <div className="h-[135px] w-full flex flex-col justify-start items-center pt-2">
+                {/* BOTTOM HALF — Symmetrical 148px */}
+                <div className="h-[148px] w-full flex flex-col justify-start items-center pt-2 relative">
                   {!isTop ? (
                     <div className="flex flex-col items-center">
-                      <div className="w-[1.5px] h-3.5 border-l-2 border-dashed border-[#c85a32]/35 mb-1" />
+                      <div className="w-[1.5px] h-3.5 border-l-2 border-dashed border-border mb-1" />
                       <div className="flex flex-col items-center gap-1 mb-2">
                         <Shimmer className="h-3 w-10" />
                         <Shimmer className="h-3 w-20" />
                         <Shimmer className="h-2.5 w-24" />
                       </div>
-                      <Shimmer className="w-20 h-20 rounded-full mt-1" />
+                      <Shimmer className="w-20 h-20 rounded-full" />
                     </div>
                   ) : null}
                 </div>
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* Selected Era Curatorial Detail Panel */}
-      <div
-        className="rounded-xl p-3 space-y-2 shrink-0"
-        style={{
-          border: "1px solid var(--line)",
-          background: "var(--surface)",
-          boxShadow: "var(--shadow-card)",
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <Shimmer className="h-3 w-40" />
-          <Shimmer className="h-4 w-32 rounded-full" />
-        </div>
-        <Shimmer className="h-3.5 w-48" />
-        <div className="space-y-1">
-          <Shimmer className="h-3 w-full" />
-          <Shimmer className="h-3 w-4/5" />
         </div>
       </div>
     </div>
