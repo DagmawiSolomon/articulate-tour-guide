@@ -24,7 +24,7 @@ import { ArticulateAvatar } from "@/components/avatar/articulate-avatar";
 import {
   type ExpressionId,
 } from "@/components/avatar/avatar-expressions";
-import { Header } from "@/components/layout/header";
+import { SettingsDialog } from "@/components/layout/settings-dialog";
 import { Footer } from "@/components/layout/footer";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArtifactStage, type ArtifactType, type ChatMessage } from "@/components/artifacts/artifact-stage";
@@ -67,7 +67,7 @@ export default function Home() {
   const [isMuted, setIsMuted] = React.useState(true);
   const [activeArtifact, setActiveArtifact] = React.useState<ArtifactType>("info");
   const [activeMapRoute, setActiveMapRoute] = React.useState<"restrooms" | "gauguin" | "elevator">("restrooms");
-  const [activeHotspotId, setActiveHotspotId] = React.useState<"cypress" | "star" | "steeple">("cypress");
+  const [activeHotspotId, setActiveHotspotId] = React.useState<"cypress" | "star" | "steeple" | "vortex" | "moon" | undefined>(undefined);
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
   // Will be wired to real events once voice is connected.
   const [isArtifactLoading, setIsArtifactLoading] = React.useState(false);
@@ -393,10 +393,10 @@ export default function Home() {
 
   const isListening = isTourActive && !isMuted && !isPaused && activeExpressionId === "listening";
 
-  // Top-left rounded corner cutout houses the avatar without changing the card bounds.
-  const avatarNotchPath =
-    "M 104 0.5 C 95 0.5 88 7.5 88 16.5 L 88 58 C 88 68 80 76 70 76 L 18.5 76 C 8.5 76 0.5 84 0.5 94";
-  const avatarNotchMask = `${avatarNotchPath} L -4 94 L -4 -4 L 104 -4 Z`;
+
+  // Bottom cradle notch with a comfortable 10px margin framing the dock
+  const bottomDockNotchPath =
+    "M 0 44.5 C 16 44.5 24 38 28 28 C 32 16 40 6.5 54 6.5 H 202 C 216 6.5 224 16 228 28 C 232 38 240 44.5 256 44.5";
 
   // Original top-right inverted border radius (outer edge of circle matches top and right borders)
   const btnRadius = tuning.closeSize / 2;
@@ -450,7 +450,7 @@ export default function Home() {
       onClick={togglePause}
       aria-label={isPaused ? "Resume tour" : "Pause tour"}
       title={isPaused ? "Resume tour" : "Pause tour"}
-      className="call-group-pause-btn h-9 px-3.5 rounded-full flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer transition-all active:scale-95 bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-none"
+      className="call-group-pause-btn size-9 rounded-full p-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-none shrink-0"
     >
       <HugeIcon
         icon={isPaused ? PlayIcon : PauseIcon}
@@ -458,9 +458,6 @@ export default function Home() {
         color="#ffffff"
         className="text-white shrink-0"
       />
-      <span className="call-group-pause-label tracking-[-0.1px]">
-        {isPaused ? "Resume" : "Pause"}
-      </span>
     </Button>
   );
 
@@ -533,38 +530,33 @@ export default function Home() {
     </button>
   );
 
-  // Call group: horizontal on mobile / unexpanded; transitions to vertical under Mr. T on larger screens
+  // Call group: horizontal dock at bottom with settings & mic on the left, divider, and pause & end on the right
   const callGroup = (
     <div
-      className="call-group-container flex h-[52px] w-[196px] items-center justify-center gap-1.5 rounded-full border border-border bg-card px-2 shadow-xs transition-all duration-300"
+      className="call-group-container flex h-[52px] w-[192px] items-center justify-center gap-1.5 rounded-full border border-border bg-card px-2 shadow-xs transition-all duration-300"
       role="group"
       aria-label="Tour controls"
     >
+      <SettingsDialog />
       {micControl}
-      <span className="call-group-divider h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+      <span className="call-group-divider h-5 w-px shrink-0 bg-border mx-0.5" aria-hidden="true" />
       {pauseControl}
       {endControl}
     </div>
   );
 
-  // Monotonic shoulders meet the capsule at its widest points, avoiding a lower bulge.
+  // Concentric cradle notch with balanced 10px margin around the 192x52px dock capsule
   const dockPath =
-    "M 0 63.5 C 12 63.5 14 53.5 14 37.5 A 32 32 0 0 1 46 5.5 H 178 A 32 32 0 0 1 210 37.5 C 210 53.5 212 63.5 224 63.5";
-
-  // Side cradle notch: matches Mr. T's corner curvature, with depth tailored to the dock (56px)
-  const sideDockPath =
-    "M 0.5 0 C 0.5 10 8.5 18 18.5 18 L 38 18 C 48 18 56 26 56 36 L 56 168 C 56 178 48 186 38 186 L 18.5 186 C 8.5 186 0.5 194 0.5 204";
-  const sideDockMask = `${sideDockPath} L -4 204 L -4 0 Z`;
+    "M 0 67.5 C 13 67.5 16 56 16 41.5 A 36 36 0 0 1 52 5.5 H 192 A 36 36 0 0 1 228 41.5 C 228 56 231 67.5 244 67.5";
 
   return (
     <div className="h-dvh min-h-[480px] w-full bg-background flex overflow-hidden relative">
-      <div className="flex-1 min-w-0 h-full grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden relative">
-        <Header showSettings={isTourActive} />
+      <div className="flex-1 min-w-0 h-full grid grid-rows-[minmax(0,1fr)_auto] overflow-hidden relative">
         <main
           className={
             !isTourActive
               ? "min-h-0 h-full w-full relative flex items-stretch overflow-y-auto"
-              : "min-h-0 h-full w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 py-6 relative flex items-center justify-center overflow-visible"
+              : "min-h-0 h-full w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 pt-5 pb-6 sm:pt-6 sm:pb-8 relative flex items-center justify-center overflow-visible"
           }
         >
           {!isTourActive ? (
@@ -691,19 +683,11 @@ export default function Home() {
             </div>
           ) : (
             /* Active Tour Stage */
-            <div className="guide-stage relative w-full h-full max-h-[660px] 2xl:max-h-[740px]" data-expanded={isExpanded}>
-              <div className="guide-card-layer absolute inset-0" inert={!isExpanded} aria-hidden={!isExpanded}>
+            <div className="guide-stage relative w-full h-full max-h-[min(90vh,860px)] 2xl:max-h-[940px]" data-expanded={isExpanded}>
+              <div className="guide-card-layer absolute inset-0 md:left-24" inert={!isExpanded} aria-hidden={!isExpanded}>
                 <div className="guide-card w-full h-full rounded-2xl border border-border bg-card shadow-xs relative flex items-center justify-center overflow-visible">
 
-                  {/* Top-Left Avatar Notch: Houses Mr. T at top-left */}
-                  <div className="absolute -top-px -left-px pointer-events-none z-10" aria-hidden="true">
-                    <svg viewBox="0 0 105 95" width="105" height="95" fill="none" className="overflow-visible">
-                      <path d={avatarNotchMask} className="fill-background" />
-                      <path d={avatarNotchPath} className="stroke-border" strokeWidth="1" />
-                    </svg>
-                  </div>
-
-                  {/* Top-Right Original Inverted Corner Notch: Houses the close button */}
+                  {/* Top-Right Original Inverted Corner Notch: Houses the close button (kept exactly as requested) */}
                   <div
                     className="absolute -top-px -right-px pointer-events-none z-10 flex items-start justify-end"
                     style={{
@@ -749,8 +733,8 @@ export default function Home() {
                     <HugeIcon icon={Cancel01Icon} size={15} />
                   </button>
 
-                  {/* Artifact Stage spanning outside the notches */}
-                  <div className="w-full h-full px-6 md:pl-24 md:pr-16 pt-20 md:pt-10 pb-16 md:pb-8 overflow-hidden">
+                  {/* Artifact Stage - clean canvas utilizing the entire newly formed card as working area */}
+                  <div className="w-full h-full pt-14 pb-16 px-3 md:p-5 md:pb-16 md:pr-14 overflow-hidden">
                     <ArtifactStage
                       artifactType={activeArtifact}
                       mapRouteId={activeMapRoute}
@@ -767,27 +751,20 @@ export default function Home() {
                     />
                   </div>
 
-                  {/* Left Side Pill Cradle Notch: Depth tailored to dock (56px) with Mr. T corner curvature */}
+                  {/* Bottom Pill Cradle Notch: Frames the dock with balanced 10px margin */}
                   <div
-                    className="absolute -left-px top-1/2 -translate-y-1/2 z-20 pointer-events-none hidden md:block"
-                    style={{ width: 60, height: 204 }}
+                    className="absolute -bottom-px left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+                    style={{ width: 244, height: 68 }}
                     aria-hidden="true"
                   >
                     <svg
-                      viewBox="0 0 60 204"
-                      style={{ width: 60, height: 204 }}
+                      viewBox="0 0 244 68"
+                      width="244"
+                      height="68"
                       fill="none"
                       className="overflow-visible"
                     >
-                      <path d={sideDockMask} className="fill-background" />
-                      <path d={sideDockPath} className="stroke-border" strokeWidth="1" />
-                    </svg>
-                  </div>
-
-                  {/* Bottom Pill Cradle Notch: Frames the dock on mobile */}
-                  <div className="absolute -bottom-px left-1/2 -translate-x-1/2 z-20 h-16 w-[224px] pointer-events-none md:hidden" aria-hidden="true">
-                    <svg viewBox="0 0 224 64" width="224" height="64" fill="none" className="overflow-visible">
-                      <path d={`${dockPath} L 224 68 L 0 68 Z`} className="fill-background" />
+                      <path d={`${dockPath} L 244 72 L 0 72 Z`} className="fill-background" />
                       <path d={dockPath} className="stroke-border" strokeWidth="1" />
                     </svg>
                   </div>
@@ -827,12 +804,17 @@ export default function Home() {
             </div>
           )}
         </main>
-        {/* Footer with clean fallback view switcher positioned outside the main stage view */}
+        {/* Footer with brand logo and clean fallback view switcher positioned outside the main stage view */}
         <footer className="w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 py-3 flex items-center justify-between text-xs text-secondary-text z-30 select-none">
-          <div>
-            Made by{" "}
-            <span className="font-semibold text-foreground tracking-[-0.1px]">
-              articulate
+          <div className="flex items-center gap-3">
+            <span
+              className="font-medium text-foreground select-none leading-none tracking-[-0.03em]"
+              style={{
+                fontFamily: "'Afacad Flux', sans-serif",
+                fontSize: "15pt",
+              }}
+            >
+              articulate tour guide.
             </span>
           </div>
 

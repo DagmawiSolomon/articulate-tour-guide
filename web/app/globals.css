@@ -377,9 +377,9 @@ body {
   transition: top 650ms var(--guide-ease), left 650ms var(--guide-ease), transform 650ms var(--guide-ease);
 }
 .guide-stage[data-expanded="true"] .guide-avatar {
-  top: -20px;
-  left: 42px;
-  transform: translateX(-50%) scale(0.2416666667);
+  top: 10px;
+  left: 36px;
+  transform: translateX(-50%) scale(0.2);
 }
 .guide-card-layer {
   opacity: 0;
@@ -410,26 +410,35 @@ body {
   bottom: 0.5px;
   left: 50%;
   transform: translateX(-50%);
-  transition: top 650ms var(--guide-ease), left 650ms var(--guide-ease), bottom 650ms var(--guide-ease), transform 650ms var(--guide-ease);
+  transition: bottom 650ms var(--guide-ease), left 650ms var(--guide-ease), transform 650ms var(--guide-ease);
+}
+.guide-stage[data-expanded="true"] .guide-dock {
+  bottom: 0.5px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 @media (min-width: 768px) {
+  .guide-stage[data-expanded="true"] .guide-avatar {
+    top: 14px;
+    left: 48px;
+    transform: translateX(-50%) scale(0.22);
+  }
   .guide-stage[data-expanded="true"] .guide-dock {
-    bottom: auto;
-    top: 50%;
-    left: 28px;
-    transform: translate(-50%, -50%);
+    bottom: 0.5px;
+    left: calc(50% + 48px);
+    transform: translateX(-50%);
   }
   .guide-stage[data-expanded="true"] .guide-dock .call-group-container {
-    flex-direction: column;
-    width: 48px;
-    height: auto;
-    gap: 8px;
-    padding: 8px 6px;
+    flex-direction: row;
+    width: 192px;
+    height: 52px;
+    gap: 6px;
+    padding: 0 8px;
   }
   .guide-stage[data-expanded="true"] .guide-dock .call-group-divider {
-    width: 20px;
-    height: 1px;
+    width: 1px;
+    height: 20px;
   }
   .guide-stage[data-expanded="true"] .guide-dock .call-group-pause-label {
     display: none;
