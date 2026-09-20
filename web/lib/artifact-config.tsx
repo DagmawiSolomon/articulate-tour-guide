@@ -1,5 +1,12 @@
 import * as React from "react";
 
+export interface ArtifactConfig {
+  bg: string;
+  border: string;
+  color: string;
+  icon: React.ReactNode;
+}
+
 export function MapIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
