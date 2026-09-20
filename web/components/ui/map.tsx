@@ -14,7 +14,13 @@ import {
   Layers01Icon,
 } from "@hugeicons/core-free-icons";
 
+// Configure MapLibre GL v6 Web Worker URL for Next.js bundling compatibility
+if (typeof window !== "undefined") {
+  MapLibreGL.setWorkerUrl("/maplibre-gl-worker.mjs");
+}
+
 // Blank style with transparent background — perfect for indoor floorplan overlays
+// Clean museum parchment style — perfect for indoor architectural floorplans
 export const blankMapStyle: MapLibreGL.StyleSpecification = {
   version: 8,
   sources: {},
@@ -22,7 +28,7 @@ export const blankMapStyle: MapLibreGL.StyleSpecification = {
     {
       id: "background",
       type: "background",
-      paint: { "background-color": "rgba(9, 10, 12, 1)" },
+      paint: { "background-color": "#f8f7f2" },
     },
   ],
 };
@@ -52,6 +58,7 @@ export type MapViewport = {
 export type MapProps = {
   children?: React.ReactNode;
   className?: string;
+  style?: MapLibreGL.StyleSpecification | string;
   initialCenter?: [number, number];
   initialZoom?: number;
   initialPitch?: number;
@@ -61,10 +68,11 @@ export type MapProps = {
   onMapReady?: (map: MapLibreGL.Map) => void;
 };
 
-export const Map = React.forwardRef<MapLibreGL.Map | null, MapProps>(function Map(
+export const Map = React.forwardRef<MapLibreGL.Map, MapProps>(function Map(
   {
     children,
     className,
+    style = blankMapStyle,
     initialCenter = [0, 0],
     initialZoom = 15,
     initialPitch = 0,
@@ -79,14 +87,14 @@ export const Map = React.forwardRef<MapLibreGL.Map | null, MapProps>(function Ma
   const [mapInstance, setMapInstance] = React.useState<MapLibreGL.Map | null>(null);
   const [isLoaded, setIsLoaded] = React.useState(false);
 
-  React.useImperativeHandle(ref, () => mapInstance, [mapInstance]);
+  React.useImperativeHandle(ref, () => mapInstance!, [mapInstance]);
 
   React.useEffect(() => {
     if (!containerRef.current) return;
 
     const map = new MapLibreGL.Map({
       container: containerRef.current,
-      style: blankMapStyle,
+      style: style,
       center: initialCenter,
       zoom: initialZoom,
       pitch: initialPitch,
@@ -154,14 +162,14 @@ export const Map = React.forwardRef<MapLibreGL.Map | null, MapProps>(function Ma
 export interface MapMarkerProps extends Omit<MarkerOptions, "element"> {
   longitude: number;
   latitude: number;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onClick?: (e: MouseEvent) => void;
 }
 
-export function MapMarker({ longitude, latitude, children, onClick, ...options }: MapMarkerProps) {
+export function MapMarker({ longitude, latitude, children, onClick, color = "#1f1e1b", ...options }: MapMarkerProps) {
   const { map } = useMap();
   const [container] = React.useState<HTMLDivElement | null>(() => {
-    if (typeof document !== "undefined") {
+    if (typeof document !== "undefined" && children) {
       return document.createElement("div");
     }
     return null;
@@ -170,11 +178,13 @@ export function MapMarker({ longitude, latitude, children, onClick, ...options }
   const markerRef = React.useRef<MapLibreGL.Marker | null>(null);
 
   React.useEffect(() => {
-    if (!map || !container) return;
+    if (!map) return;
 
+    // If custom children are provided, use container element; otherwise, render the library's built-in marker
     const marker = new MapLibreGL.Marker({
       ...options,
-      element: container,
+      color,
+      ...(container ? { element: container } : {}),
     }).setLngLat([longitude, latitude]);
 
     marker.addTo(map);
@@ -184,7 +194,7 @@ export function MapMarker({ longitude, latitude, children, onClick, ...options }
       marker.remove();
       markerRef.current = null;
     };
-  }, [map, container]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [map, container, color]); // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => {
     if (!container || !onClick) return;
@@ -201,9 +211,47 @@ export function MapMarker({ longitude, latitude, children, onClick, ...options }
     markerRef.current?.setLngLat([longitude, latitude]);
   }, [longitude, latitude]);
 
-  if (!container) return null;
+  if (!container || !children) return null;
 
   return createPortal(children, container);
+}
+
+/* ── Library's Standard User Location Indicator ──────── */
+
+export interface MapUserLocationProps {
+  longitude: number;
+  latitude: number;
+}
+
+export function MapUserLocation({ longitude, latitude }: MapUserLocationProps) {
+  const { map } = useMap();
+  const markerRef = React.useRef<MapLibreGL.Marker | null>(null);
+
+  React.useEffect(() => {
+    if (!map) return;
+
+    // Use MapLibre's built-in official user location indicator element
+    const el = document.createElement("div");
+    el.className = "maplibregl-user-location-dot";
+
+    const marker = new MapLibreGL.Marker({
+      element: el,
+    }).setLngLat([longitude, latitude]);
+
+    marker.addTo(map);
+    markerRef.current = marker;
+
+    return () => {
+      marker.remove();
+      markerRef.current = null;
+    };
+  }, [map]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  React.useEffect(() => {
+    markerRef.current?.setLngLat([longitude, latitude]);
+  }, [longitude, latitude]);
+
+  return null;
 }
 
 /* ── Map Floating Controls ───────────────────────────── */
