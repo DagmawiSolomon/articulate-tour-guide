@@ -98,6 +98,33 @@ export function DetailHotspotsView({
     [containerSize, naturalRatio]
   );
 
+  const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleMouseEnter = (id: DetailHotspot["id"]) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setHoveredId(id);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredId(null);
+    }, 120);
+  };
+
   // Synchronize when activeHotspotId changes externally (e.g. from docent tool calls)
   React.useEffect(() => {
     if (activeHotspotId && hotspots.some((h) => h.id === activeHotspotId)) {
@@ -116,17 +143,13 @@ export function DetailHotspotsView({
   const handleSelect = (id: DetailHotspot["id"]) => {
     playTactileTap();
     if (zoomedId === id) {
-      if (!isCardOpen) {
-        // If already zoomed into this detail but card was closed, reopen card without zooming out
-        setIsCardOpen(true);
-      } else {
-        // If card was open and pin clicked again, zoom out
-        setZoomedId(null);
-        setIsCardOpen(false);
-      }
+      // Toggle zoom out if already zoomed in on this hotspot
+      setZoomedId(null);
+      setIsCardOpen(false);
     } else {
+      // Zoom in to this hotspot
       setZoomedId(id);
-      setIsCardOpen(true);
+      setIsCardOpen(false);
       onSelectHotspot?.(id);
     }
   };
@@ -178,8 +201,7 @@ export function DetailHotspotsView({
       {hotspots.map((hotspot) => {
         const isSelected = zoomedId === hotspot.id;
         const isHovered = hoveredId === hotspot.id;
-        const isCardVisible =
-          (isSelected && isCardOpen) || (zoomedId === null && isHovered);
+        const isCardVisible = isHovered || (isSelected && isCardOpen);
         const isAnySelected = zoomedId !== null;
         const screenPos = getHotspotScreenPos(hotspot.xPercent, hotspot.yPercent);
 
@@ -198,17 +220,18 @@ export function DetailHotspotsView({
               top: `${screenPos.topPercent}%`,
               transform: "translate(-50%, -50%)",
             }}
-            onMouseEnter={() => setHoveredId(hotspot.id)}
-            onMouseLeave={() => setHoveredId(null)}
+            onMouseEnter={() => handleMouseEnter(hotspot.id)}
+            onMouseLeave={handleMouseLeave}
           >
-            {/* Clean solid white dot marker (no dark dot, no bubble ping) */}
+            {/* Clean solid white dot marker */}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 handleSelect(hotspot.id);
               }}
-              aria-label={`Inspect ${hotspot.name}`}
+              aria-label={isSelected ? `Zoom out from ${hotspot.name}` : `Zoom in on ${hotspot.name}`}
+              title={isSelected ? "Click to zoom out" : "Click to zoom in"}
               className={`relative size-3.5 sm:size-4 rounded-full bg-white transition-transform duration-200 cursor-pointer shadow-md ${
                 isSelected
                   ? "scale-150 ring-2 ring-white/80 ring-offset-1 ring-offset-black/40"
@@ -219,7 +242,9 @@ export function DetailHotspotsView({
             {/* Quadrant-Aware Curatorial Popover Card */}
             <div
               onClick={(e) => e.stopPropagation()}
-              className={`absolute z-40 w-60 sm:w-72 rounded-2xl border border-border bg-card/95 p-3.5 shadow-xl backdrop-blur-md transition-all duration-200 ${
+              className={`absolute z-40 w-60 sm:w-72 rounded-2xl border border-border bg-card/95 p-3.5 shadow-xl backdrop-blur-md transition-all duration-200 before:absolute before:inset-y-0 before:w-4 ${
+                hotspot.xPercent > 50 ? "before:-right-4" : "before:-left-4"
+              } ${
                 isCardVisible
                   ? "pointer-events-auto opacity-100 scale-100 translate-y-0"
                   : "pointer-events-none opacity-0 scale-95 translate-y-1"
@@ -229,12 +254,12 @@ export function DetailHotspotsView({
                 hotspot.yPercent > 50 ? "bottom-0" : "top-0"
               }`}
             >
-              {/* Header with Title and X vertically centered */}
+              {/* Header with Title and optional X button */}
               <div className="flex items-center justify-between gap-2">
                 <h4 className="text-[13px] font-semibold text-foreground leading-snug">
                   {hotspot.name}
                 </h4>
-                {isSelected && (
+                {isSelected && isCardOpen && (
                   <button
                     type="button"
                     onClick={(e) => {
