@@ -231,33 +231,34 @@ function TimelineSkeleton() {
 /* ── Hotspots ─────────────────────────────────────────── */
 function HotspotsSkeleton() {
   return (
-    <div className="w-full h-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-      <div className="lg:col-span-7 h-full flex flex-col items-center justify-center">
-        <div
-          className="relative w-full h-[340px] sm:h-[380px] lg:h-full max-h-[480px] 2xl:max-h-[540px] rounded-xl overflow-hidden"
-          style={{ border: "1px solid var(--line)", background: "var(--inset)" }}
-        >
-          <Shimmer className="w-full h-full rounded-none" />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div
-              className="size-14 rounded-full border-2"
-              style={{ borderColor: "var(--line-strong)" }}
-            />
-          </div>
+    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+      <div
+        className="relative rounded-xl overflow-hidden select-none"
+        style={{
+          aspectRatio: "1280 / 1014",
+          height: "100%",
+          maxHeight: "100%",
+          maxWidth: "100%",
+          width: "auto",
+        }}
+      >
+        <Shimmer className="w-full h-full rounded-none" />
+
+        {/* Shimmer pin circles matching hotspot positions */}
+        <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "24%", top: "55%" }}>
+          <Shimmer className="w-full h-full rounded-full" />
         </div>
-      </div>
-      <div className="lg:col-span-5 flex flex-col justify-center">
-        <div
-          className="rounded-xl p-4 space-y-4"
-          style={{ border: "1px solid var(--line)", background: "var(--surface)", boxShadow: "var(--shadow-card)" }}
-        >
-          <Shimmer className="h-5 w-2/3" />
-          <Shimmer className="h-3 w-1/3" />
-          <div className="space-y-1.5 pt-1">
-            <Shimmer className="h-3 w-full" />
-            <Shimmer className="h-3 w-5/6" />
-            <Shimmer className="h-3 w-4/6" />
-          </div>
+        <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "63%", top: "44%" }}>
+          <Shimmer className="w-full h-full rounded-full" />
+        </div>
+        <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "52%", top: "74%" }}>
+          <Shimmer className="w-full h-full rounded-full" />
+        </div>
+        <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "46%", top: "28%" }}>
+          <Shimmer className="w-full h-full rounded-full" />
+        </div>
+        <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "86%", top: "18%" }}>
+          <Shimmer className="w-full h-full rounded-full" />
         </div>
       </div>
     </div>
