@@ -78,26 +78,28 @@ export function SettingsDialog({ trigger }: SettingsDialogProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        {trigger ? (
-          trigger
-        ) : (
-          <button
-            type="button"
-            onClick={handleTriggerClick}
-            className="size-9 rounded-full bg-card hover:bg-muted text-foreground border border-border/80 flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95 shrink-0 group"
-            title="Tour settings"
-            aria-label="Tour settings"
-          >
-            <span
-              className="inline-flex transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:rotate-45"
-              style={{ transform: `rotate(${rotation}deg)` }}
+      <DialogTrigger
+        render={
+          trigger ? (
+            (trigger as React.ReactElement)
+          ) : (
+            <button
+              type="button"
+              onClick={handleTriggerClick}
+              className="size-9 rounded-full bg-card hover:bg-muted text-foreground border border-border/80 flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95 shrink-0 group"
+              title="Tour settings"
+              aria-label="Tour settings"
             >
-              <HugeiconsIcon icon={Settings02Icon} size={16} />
-            </span>
-          </button>
-        )}
-      </DialogTrigger>
+              <span
+                className="inline-flex transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:rotate-45"
+                style={{ transform: `rotate(${rotation}deg)` }}
+              >
+                <HugeiconsIcon icon={Settings02Icon} size={16} />
+              </span>
+            </button>
+          )
+        }
+      />
 
       <DialogContent className="sm:max-w-lg z-50">
         <DialogHeader>
