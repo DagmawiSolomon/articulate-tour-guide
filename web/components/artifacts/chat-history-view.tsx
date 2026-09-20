@@ -134,7 +134,7 @@ function ArtifactChip({
         className="flex shrink-0 items-center justify-center rounded-sm"
         style={{ width: 18, height: 18, background: config.bg, border: `1px solid ${config.border}` }}
       >
-        {React.cloneElement(config.icon as React.ReactElement, { style: { color: config.color } })}
+        {React.cloneElement(config.icon as React.ReactElement<React.HTMLAttributes<HTMLElement>>, { style: { color: config.color } })}
       </span>
       <span>{label}</span>
     </button>
@@ -244,9 +244,9 @@ export function ChatHistoryView({
     for (let i = 0; i < activeMessages.length; i++) {
       const msg = activeMessages[i];
       if (msg.role === "tool") {
-        const tools = [msg];
+        const tools: Extract<ChatMessage, { role: "tool" }>[] = [msg];
         while (i + 1 < activeMessages.length && activeMessages[i + 1].role === "tool") {
-          tools.push(activeMessages[i + 1]);
+          tools.push(activeMessages[i + 1] as Extract<ChatMessage, { role: "tool" }>);
           i++;
         }
         groups.push({ type: "tool_group", id: tools[0].id, tools });
@@ -258,10 +258,9 @@ export function ChatHistoryView({
   }, [activeMessages]);
 
   return (
-    /* BUI Chat container: bg-canvas, rounded-[14px], shadow-card */
+    /* BUI Chat container */
     <div
-      className="flex h-full w-full flex-col self-start overflow-hidden rounded-[14px] select-text"
-      style={{ background: "var(--surface)", boxShadow: "var(--shadow-card)" }}
+      className="relative flex h-full w-full lg:max-w-3xl xl:max-w-4xl mx-auto flex-col overflow-hidden select-text"
     >
       {/* Scrollable conversation thread */}
       <div
@@ -272,14 +271,14 @@ export function ChatHistoryView({
         {groupedMessages.map((item) => {
           // ── Tool call group ──────────────────────────────────────────────
           if ("type" in item && item.type === "tool_group") {
-            const steps = item.tools.map((m) => ({
-              icon: m.toolName.includes("map")
+            const steps: ToolStep[] = item.tools.map((m) => ({
+              icon: (m.toolName.includes("map")
                 ? "map"
                 : m.toolName.includes("hotspot")
                 ? "zoom"
                 : m.toolName.includes("timeline")
                 ? "archive"
-                : "compare",
+                : "compare") as "map" | "zoom" | "archive" | "compare",
               label: m.label,
               chip: m.toolName,
               artifactType: m.artifactType,
@@ -400,12 +399,12 @@ export function ChatHistoryView({
         )}
       </div>
 
-      {/* BUI-style bottom scroll fade */}
+      {/* Bottom scroll fade */}
       <div
-        className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 rounded-b-[14px]"
+        className="pointer-events-none absolute bottom-0 left-0 right-0 h-8"
         style={{
           background:
-            "linear-gradient(to top, var(--surface) 0%, transparent 100%)",
+            "linear-gradient(to top, var(--card) 0%, transparent 100%)",
         }}
         aria-hidden="true"
       />
