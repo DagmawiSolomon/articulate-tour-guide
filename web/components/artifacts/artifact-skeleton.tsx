@@ -38,35 +38,45 @@ function Shimmer({ className }: { className?: string }) {
 /* ── Info ──────────────────────────────────────────────── */
 function InfoSkeleton() {
   return (
-    <div
-      className="flex flex-col lg:flex-row w-full h-full max-w-4xl mx-auto overflow-hidden p-0 gap-6 lg:gap-10 shadow-none border-none bg-transparent items-center justify-center"
-    >
-      <div className="relative w-full lg:w-1/2 h-[280px] sm:h-[320px] lg:h-[400px] shrink-0 rounded-2xl overflow-hidden">
-        <Shimmer className="w-full h-full rounded-2xl" />
-      </div>
+    <div className="w-full h-full flex items-center justify-center p-2 sm:p-4 overflow-hidden">
+      <div className="relative w-full max-w-[780px] rounded-2xl border border-border/70 shadow-xs flex flex-col lg:flex-row overflow-hidden">
+        {/* Left side: Image shimmer (equal 50% size, matching border) */}
+        <div className="w-full lg:w-1/2 h-[320px] sm:h-[360px] lg:h-[380px] border-b lg:border-b-0 lg:border-r border-border/50 overflow-hidden bg-muted/20 shrink-0">
+          <Shimmer className="w-full h-full rounded-none" />
+        </div>
 
-      {/* Info card zone */}
-      <div className="flex flex-col w-full lg:w-1/2 overflow-y-auto py-2 justify-center">
-        <div className="space-y-4">
-          <div className="flex justify-between items-start gap-4">
-            <div className="space-y-2 flex-1">
-              <Shimmer className="h-6 w-3/4" />
-              <Shimmer className="h-4 w-1/2" />
+        {/* Right side: Text Content shimmer (equal 50% size, matching border) */}
+        <div className="w-full lg:w-1/2 h-auto p-4 sm:p-6 lg:p-7 flex flex-col justify-center space-y-3">
+          {/* Title */}
+          <Shimmer className="h-6 sm:h-7 w-3/4" />
+
+          {/* Key-Value Pairs */}
+          <div className="space-y-2 pt-0.5">
+            <div className="flex justify-between items-center pb-1 border-b border-border/30">
+              <Shimmer className="h-3 w-14" />
+              <Shimmer className="h-3 w-28" />
             </div>
-            <Shimmer className="h-6 w-16 rounded-full shrink-0" />
-          </div>
-          
-          <div className="space-y-2 pt-2">
-            <Shimmer className="h-4 w-full" />
-            <Shimmer className="h-4 w-full" />
+            <div className="flex justify-between items-center pb-1 border-b border-border/30">
+              <Shimmer className="h-3 w-12" />
+              <Shimmer className="h-3 w-20" />
+            </div>
+            <div className="flex justify-between items-center pb-1 border-b border-border/30">
+              <Shimmer className="h-3 w-16" />
+              <Shimmer className="h-3 w-24" />
+            </div>
+            <div className="flex justify-between items-center">
+              <Shimmer className="h-3 w-20" />
+              <Shimmer className="h-3 w-32" />
+            </div>
           </div>
 
-          <Shimmer className="h-px w-full rounded-none my-2" />
+          <Shimmer className="h-px w-full rounded-none my-1" />
 
-          <div className="space-y-2">
-            <Shimmer className="h-3 w-full" />
-            <Shimmer className="h-3 w-5/6" />
-            <Shimmer className="h-3 w-4/6" />
+          {/* Summary lines */}
+          <div className="space-y-1.5 pt-0.5">
+            <Shimmer className="h-2.5 w-full" />
+            <Shimmer className="h-2.5 w-5/6" />
+            <Shimmer className="h-2.5 w-4/6" />
           </div>
         </div>
       </div>
@@ -231,35 +241,24 @@ function TimelineSkeleton() {
 /* ── Hotspots ─────────────────────────────────────────── */
 function HotspotsSkeleton() {
   return (
-    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-      <div
-        className="relative rounded-xl overflow-hidden select-none"
-        style={{
-          aspectRatio: "1280 / 1014",
-          height: "100%",
-          maxHeight: "100%",
-          maxWidth: "100%",
-          width: "auto",
-        }}
-      >
-        <Shimmer className="w-full h-full rounded-none" />
+    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-border/60 bg-muted/20 shadow-xs select-none">
+      <Shimmer className="w-full h-full rounded-none" />
 
-        {/* Shimmer pin circles matching hotspot positions */}
-        <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "24%", top: "55%" }}>
-          <Shimmer className="w-full h-full rounded-full" />
-        </div>
-        <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "63%", top: "44%" }}>
-          <Shimmer className="w-full h-full rounded-full" />
-        </div>
-        <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "52%", top: "74%" }}>
-          <Shimmer className="w-full h-full rounded-full" />
-        </div>
-        <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "46%", top: "28%" }}>
-          <Shimmer className="w-full h-full rounded-full" />
-        </div>
-        <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "86%", top: "18%" }}>
-          <Shimmer className="w-full h-full rounded-full" />
-        </div>
+      {/* Shimmer pin circles matching hotspot positions */}
+      <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "24%", top: "55%" }}>
+        <Shimmer className="w-full h-full rounded-full" />
+      </div>
+      <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "63%", top: "44%" }}>
+        <Shimmer className="w-full h-full rounded-full" />
+      </div>
+      <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "52%", top: "74%" }}>
+        <Shimmer className="w-full h-full rounded-full" />
+      </div>
+      <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "46%", top: "28%" }}>
+        <Shimmer className="w-full h-full rounded-full" />
+      </div>
+      <div className="absolute z-20 size-3.5 sm:size-4 -translate-x-1/2 -translate-y-1/2" style={{ left: "86%", top: "18%" }}>
+        <Shimmer className="w-full h-full rounded-full" />
       </div>
     </div>
   );
