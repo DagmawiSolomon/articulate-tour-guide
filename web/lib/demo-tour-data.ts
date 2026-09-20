@@ -22,6 +22,8 @@ export interface MapRoute {
   steps: string[];
   pathD: string;
   targetCoords: { x: number; y: number };
+  geoPath?: [number, number][];
+  geoTarget?: [number, number];
 }
 
 export interface ComparisonDiff {
@@ -83,6 +85,13 @@ export const MAP_ROUTES: Record<string, MapRoute> = {
     ],
     pathD: "M 220 170 L 220 230 L 220 290 L 140 290 L 140 330",
     targetCoords: { x: 140, y: 345 },
+    geoPath: [
+      [-0.003, 0.003],
+      [-0.003, -0.009],
+      [-0.011, -0.009],
+      [-0.011, -0.013],
+    ],
+    geoTarget: [-0.011, -0.0145],
   },
   gauguin: {
     id: "gauguin",
@@ -96,6 +105,12 @@ export const MAP_ROUTES: Record<string, MapRoute> = {
     ],
     pathD: "M 220 170 L 320 170 L 360 170",
     targetCoords: { x: 385, y: 170 },
+    geoPath: [
+      [-0.003, 0.003],
+      [0.007, 0.003],
+      [0.011, 0.003],
+    ],
+    geoTarget: [0.0135, 0.003],
   },
   elevator: {
     id: "elevator",
@@ -109,6 +124,13 @@ export const MAP_ROUTES: Record<string, MapRoute> = {
     ],
     pathD: "M 220 170 L 120 170 L 60 170 L 60 100",
     targetCoords: { x: 60, y: 85 },
+    geoPath: [
+      [-0.003, 0.003],
+      [-0.013, 0.003],
+      [-0.019, 0.003],
+      [-0.019, 0.010],
+    ],
+    geoTarget: [-0.019, 0.0115],
   },
 };
 
