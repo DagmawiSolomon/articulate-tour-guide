@@ -42,7 +42,7 @@ export interface TimelineMilestone {
 }
 
 export interface DetailHotspot {
-  id: "cypress" | "star" | "steeple";
+  id: "cypress" | "star" | "steeple" | "vortex" | "moon";
   name: string;
   tag: string;
   xPercent: number;
@@ -201,7 +201,7 @@ export const DETAIL_HOTSPOTS: DetailHotspot[] = [
     xPercent: 24,
     yPercent: 55,
     zoomScale: 2.1,
-    zoomOrigin: "24% 58%",
+    zoomOrigin: "24% 55%",
     insight:
       "In Mediterranean culture, the cypress is the traditional tree of mourning. Van Gogh transforms it into a living dark flame bridging earth and cosmos.",
   },
@@ -223,9 +223,31 @@ export const DETAIL_HOTSPOTS: DetailHotspot[] = [
     xPercent: 52,
     yPercent: 74,
     zoomScale: 2.4,
-    zoomOrigin: "52% 76%",
+    zoomOrigin: "52% 74%",
     insight:
       "Churches in Provence lack tall Gothic steeples; Van Gogh painted this spire from nostalgic memories of his father's Dutch Reformed parish.",
+  },
+  {
+    id: "vortex",
+    name: "Cosmic Sky Vortex",
+    tag: "Atmospheric Turbulence",
+    xPercent: 46,
+    yPercent: 28,
+    zoomScale: 2.2,
+    zoomOrigin: "46% 28%",
+    insight:
+      "The central undulating spiral evokes oceanic dynamics and fluid turbulence, painted with concentric rhythmic strokes of French ultramarine and cobalt.",
+  },
+  {
+    id: "moon",
+    name: "Crescent Moon & Sun Orb",
+    tag: "Celestial Fusion",
+    xPercent: 86,
+    yPercent: 18,
+    zoomScale: 2.5,
+    zoomOrigin: "86% 18%",
+    insight:
+      "Van Gogh synthesizes sun and moon into a fiery golden crescent radiating pulsating halo concentric waves across an illuminated night sky.",
   },
 ];
 
