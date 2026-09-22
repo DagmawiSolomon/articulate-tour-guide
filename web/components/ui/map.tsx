@@ -63,6 +63,7 @@ export type MapProps = {
   initialZoom?: number;
   initialPitch?: number;
   initialBearing?: number;
+  minZoom?: number;
   maxBounds?: [number, number, number, number];
   onViewportChange?: (viewport: MapViewport) => void;
   onMapReady?: (map: MapLibreGL.Map) => void;
@@ -77,6 +78,7 @@ export const Map = React.forwardRef<MapLibreGL.Map, MapProps>(function Map(
     initialZoom = 15,
     initialPitch = 0,
     initialBearing = 0,
+    minZoom = 12,
     maxBounds,
     onViewportChange,
     onMapReady,
@@ -100,7 +102,7 @@ export const Map = React.forwardRef<MapLibreGL.Map, MapProps>(function Map(
       pitch: initialPitch,
       bearing: initialBearing,
       maxPitch: 65,
-      minZoom: 12,
+      minZoom,
       maxZoom: 18,
       attributionControl: false,
     });
