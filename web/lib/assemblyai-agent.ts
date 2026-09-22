@@ -139,17 +139,21 @@ export async function createVoiceAgent(
 
       case "transcript.user": {
         console.log("[Agent] User transcript final:", msg.text);
-        callbacks.onTranscriptFinal?.(msg.text as string);
+        callbacks.onTranscriptFinal?.((msg.text as string) || "");
         break;
       }
 
       case "transcript.agent.delta": {
-        callbacks.onAgentTranscriptPartial?.(msg.text as string);
+        if (msg.text === undefined && msg.delta === undefined) {
+          console.log("[Agent] transcript.agent.delta missing text/delta:", msg);
+        }
+        callbacks.onAgentTranscriptPartial?.((msg.text as string) || (msg.delta as string) || "");
         break;
       }
 
       case "transcript.agent": {
-        callbacks.onAgentTranscriptFinal?.(msg.text as string);
+        console.log("[Agent] Agent transcript final:", msg.text);
+        callbacks.onAgentTranscriptFinal?.((msg.text as string) || "");
         break;
       }
 

@@ -252,7 +252,9 @@ export default function Home() {
           setChatMessages((prev) => {
             const without = prev.filter((m) => m.id !== id);
             const existing = prev.find((m) => m.id === id);
-            const newText = existing ? existing.text + deltaText : deltaText;
+            const safeDelta = deltaText || "";
+            const safeExisting = existing?.text || "";
+            const newText = safeExisting + safeDelta;
             return [...without, { id, role: "agent", text: newText, isStreaming: true, timestamp: new Date() }];
           });
         },
