@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
-import { Inter, DM_Sans } from "next/font/google";
+import { Inter, DM_Sans, Afacad_Flux } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
 const dmSansHeading = DM_Sans({subsets:['latin'],variable:'--font-heading'});
+
+const afacadFlux = Afacad_Flux({
+  variable: "--font-afacad-flux",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "block",
+});
 
 const inter = Inter({
   variable: "--font-inter",
@@ -23,7 +30,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("light", "h-full", "antialiased", inter.variable, dmSansHeading.variable)}
+      className={cn("light", "h-full", "antialiased", inter.variable, dmSansHeading.variable, afacadFlux.variable)}
       style={{ colorScheme: "light" }}
     >
       <body className="h-full overflow-hidden bg-background text-foreground">{children}</body>

@@ -73,7 +73,7 @@ export function Header({ showSettings = true }: { showSettings?: boolean }) {
       <span
         className="font-medium text-foreground select-none leading-none"
         style={{
-          fontFamily: "'Afacad Flux', sans-serif",
+          fontFamily: "var(--font-logo)",
           fontSize: "16pt",
           letterSpacing: "-0.03em",
         }}
