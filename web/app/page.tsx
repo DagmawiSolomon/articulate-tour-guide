@@ -194,6 +194,7 @@ export default function Home() {
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       }
+      agentRef.current?.end();
     };
   }, []);
 
