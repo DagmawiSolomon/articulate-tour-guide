@@ -138,6 +138,7 @@ function AgentSection({
   time: string;
   body: string;
   resolving?: boolean;
+  isStreaming?: boolean;
   citations?: CiteRef[];
   artifactTokens?: ArtifactTokenPart[];
   onSelectArtifact?: (type: string, params?: Record<string, any>) => void;
@@ -189,6 +190,9 @@ function AgentSection({
       ) : (
         <p className="text-[13px] leading-relaxed m-0" style={{ color: "var(--ink)" }}>
           {body}
+          {isStreaming && (
+            <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-ink-2 animate-pulse" style={{ borderRadius: 1 }} />
+          )}
         </p>
       )}
     </div>
@@ -359,6 +363,7 @@ export function ChatHistoryView({
                 time={time}
                 body={msg.text}
                 resolving={msg.resolving}
+                isStreaming={msg.isStreaming}
                 citations={msg.citations}
                 artifactTokens={(msg as any).artifactTokens}
                 onSelectArtifact={onSelectArtifact}
