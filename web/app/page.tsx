@@ -76,6 +76,7 @@ export default function Home() {
   // Chat history state â€” messages accumulate as the tour progresses.
   const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([]);
   const [isChatThinking, setIsChatThinking] = React.useState(false);
+  const [summaryData, setSummaryData] = React.useState<any>(null);
   // Partial visitor transcript ID â€” updated in place as partials arrive
   const partialMsgIdRef = React.useRef<string>("visitor-partial");
   // Voice Agent + audio player refs
@@ -332,22 +333,45 @@ export default function Home() {
 
   };
 
-  const handleConfirmEndTour = () => {
+  const handleConfirmEndTour = async () => {
     playCallEnd();
     setIsEndDialogOpen(false);
-    setIsTourActive(false);
-    setIsPaused(false);
-    setIsExpanded(false);
-    setActiveArtifact("info");
-    setActiveExpressionId("neutral");
-    setChatMessages([]);
-    setIsChatThinking(false);
+    
+    // Stop mic and agent session cleanly immediately
     stopMic();
-    // End agent session cleanly — stops billing immediately
     agentRef.current?.end();
     agentRef.current = null;
     audioPlayerRef.current?.flush();
     audioPlayerRef.current = null;
+
+    // Transition to summary state
+    setIsPaused(false);
+    setIsExpanded(true); // Must be expanded to see summary
+    setActiveArtifact("summary");
+    setActiveExpressionId("neutral");
+    setIsChatThinking(false);
+    
+    setIsArtifactLoading(true);
+
+    try {
+      const res = await fetch("/api/tour-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: chatMessages })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSummaryData(data);
+      } else {
+        console.error("Failed to fetch summary", await res.text());
+        setSummaryData({ summary: ["Your tour summary could not be generated at this time."], quiz: [] });
+      }
+    } catch (err) {
+      console.error(err);
+      setSummaryData({ summary: ["Your tour summary could not be generated at this time."], quiz: [] });
+    } finally {
+      setIsArtifactLoading(false);
+    }
   };
 
   const togglePause = React.useCallback(() => {
@@ -648,22 +672,6 @@ export default function Home() {
                   <div className="flex flex-1 sm:flex-none items-center gap-2 justify-end">
                     <button
                       type="button"
-                      onClick={() => {
-                        setIsTourActive(true);
-                        setIsExpanded(true);
-                        setActiveArtifact("summary");
-                      }}
-                      className="inline-flex shrink-0 items-center justify-center rounded-full px-3 h-9 text-[13px] font-medium cursor-pointer transition-all active:scale-[0.96]"
-                      style={{
-                        background: "var(--field)",
-                        color: "var(--ink)",
-                        border: "1px solid var(--line)",
-                      }}
-                    >
-                      Test Summary UI
-                    </button>
-                    <button
-                      type="button"
                       onClick={handleStartTour}
                       className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-4 h-9 text-[13px] font-medium cursor-pointer transition-all active:scale-[0.96]"
                       style={{
@@ -685,7 +693,7 @@ export default function Home() {
           ) : (
             /* Active Tour Stage */
             <div className="guide-stage relative w-full h-full max-h-[min(90vh,860px)] 2xl:max-h-[940px]" data-expanded={isExpanded}>
-              <div className="guide-card-layer absolute inset-0 md:left-24" inert={!isExpanded} aria-hidden={!isExpanded}>
+              <div className={`guide-card-layer absolute inset-0 ${activeArtifact !== 'summary' ? 'md:left-24' : ''}`} inert={!isExpanded} aria-hidden={!isExpanded}>
                 <div className="guide-card w-full h-full rounded-2xl border border-border bg-card shadow-xs relative flex items-center justify-center overflow-visible">
 
                   {/* Top-Right Original Inverted Corner Notch: Houses the close button (kept exactly as requested) */}
@@ -719,7 +727,11 @@ export default function Home() {
                     type="button"
                     onClick={() => {
                       playStageClose();
-                      setIsExpanded(false);
+                      if (activeArtifact === "summary") {
+                        window.location.reload();
+                      } else {
+                        setIsExpanded(false);
+                      }
                     }}
                     title="Close artifact stage"
                     aria-label="Close artifact stage"
@@ -737,7 +749,7 @@ export default function Home() {
                   {/* Artifact Stage - clean canvas utilizing the entire newly formed card as working area */}
                   <div
                     className={`w-full h-full overflow-hidden ${
-                      activeArtifact === "map"
+                      activeArtifact === "map" || activeArtifact === "summary"
                         ? "p-0 rounded-2xl"
                         : "pt-14 pb-16 px-3 md:p-5 md:pb-16 md:pr-14"
                     }`}
@@ -749,6 +761,7 @@ export default function Home() {
                       isLoading={isArtifactLoading}
                       chatMessages={chatMessages}
                       isChatThinking={isChatThinking}
+                      summaryData={summaryData}
                       onSelectArtifact={(type, params) => {
                         setActiveArtifact(type);
                         if (params?.routeId) setActiveMapRoute(params.routeId as any);
@@ -759,54 +772,62 @@ export default function Home() {
                   </div>
 
                   {/* Bottom Pill Cradle Notch: Frames the dock with balanced 10px margin */}
-                  <div
-                    className="absolute -bottom-px left-1/2 -translate-x-1/2 z-20 pointer-events-none"
-                    style={{ width: 244, height: 68 }}
-                    aria-hidden="true"
-                  >
-                    <svg
-                      viewBox="0 0 244 68"
-                      width="244"
-                      height="68"
-                      fill="none"
-                      className="overflow-visible"
+                  {activeArtifact !== "summary" && (
+                    <div
+                      className="absolute -bottom-px left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+                      style={{ width: 244, height: 68 }}
+                      aria-hidden="true"
                     >
-                      <path d={`${dockPath} L 244 72 L 0 72 Z`} className="fill-background" />
-                      <path d={dockPath} className="stroke-border" strokeWidth="1" />
-                    </svg>
-                  </div>
+                      <svg
+                        viewBox="0 0 244 68"
+                        width="244"
+                        height="68"
+                        fill="none"
+                        className="overflow-visible"
+                      >
+                        <path d={`${dockPath} L 244 72 L 0 72 Z`} className="fill-background" />
+                        <path d={dockPath} className="stroke-border" strokeWidth="1" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
               </div>
               {/* One persistent avatar travels between the two positions. */}
-              <button
-                type="button"
-                className="guide-avatar absolute z-20 border-0 bg-transparent p-0 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-                onClick={handleToggleExpanded}
-                aria-label={isExpanded ? "Close card" : "Open card"}
-                aria-expanded={isExpanded}
-              >
-                <ArticulateAvatar
-                  expressionId={activeExpressionId}
-                  size={480}
-                  isListening={isListening}
-                  isMuted={isTourActive && isMuted}
-                  className="relative flex items-center justify-center"
-                />
-              </button>
+              {activeArtifact !== "summary" && (
+                <button
+                  type="button"
+                  className="guide-avatar absolute z-20 border-0 bg-transparent p-0 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+                  onClick={handleToggleExpanded}
+                  aria-label={isExpanded ? "Close card" : "Open card"}
+                  aria-expanded={isExpanded}
+                >
+                  <ArticulateAvatar
+                    expressionId={activeExpressionId}
+                    size={480}
+                    isListening={isListening}
+                    isMuted={isTourActive && isMuted}
+                    className="relative flex items-center justify-center"
+                  />
+                </button>
+              )}
 
               {/* Status Indicator: Positioned directly below Mr. T with padding */}
-              <div
-                className="guide-status"
-                inert={isExpanded}
-                aria-hidden={isExpanded}
-              >
-                {statusIndicator}
-              </div>
+              {activeArtifact !== "summary" && (
+                <div
+                  className="guide-status"
+                  inert={isExpanded}
+                  aria-hidden={isExpanded}
+                >
+                  {statusIndicator}
+                </div>
+              )}
 
               {/* Persistent Media Dock: Exact same position at bottom whether uncollapsed or collapsed */}
-              <div className="guide-dock" role="group" aria-label="Tour controls">
-                {callGroup}
-              </div>
+              {activeArtifact !== "summary" && (
+                <div className="guide-dock" role="group" aria-label="Tour controls">
+                  {callGroup}
+                </div>
+              )}
 
             </div>
           )}
@@ -828,15 +849,18 @@ export default function Home() {
           {isTourActive && (
             <div className="flex items-center gap-2">
               {/* Dev toggle: simulates skeleton loading state */}
-              <Button
-                size="sm"
-                variant={isArtifactLoading ? "default" : "outline"}
+              {activeArtifact !== "summary" && (
+                <Button
+                  size="sm"
+                  variant={isArtifactLoading ? "default" : "outline"}
                 className="h-6 px-2.5 text-[11px] rounded-full cursor-pointer font-mono"
                 onClick={() => setIsArtifactLoading((v) => !v)}
                 title="Toggle skeleton loading state (dev)"
               >
-                {isArtifactLoading ? "â³ loading" : "skeleton"}
+                {isArtifactLoading ? "â ³ loading" : "skeleton"}
               </Button>
+              )}
+              {activeArtifact !== "summary" && (
               <Tabs
                 value={activeArtifact}
                 onValueChange={(val) => {
@@ -868,6 +892,7 @@ export default function Home() {
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
+              )}
 
               {activeArtifact === "map" && (
                 <div className="flex items-center gap-1 pl-1">

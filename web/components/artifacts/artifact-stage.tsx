@@ -26,6 +26,8 @@ interface ArtifactStageProps {
   chatMessages?: ChatMessage[];
   /** When true shows the thinking indicator in chat. */
   isChatThinking?: boolean;
+  /** Summary data for the tour end summary. */
+  summaryData?: any;
   /** Callback to switch or open an artifact */
   onSelectArtifact?: (type: ArtifactType, params?: Record<string, any>) => void;
 }
@@ -38,6 +40,7 @@ export function ArtifactStage({
   isLoading = false,
   chatMessages = [],
   isChatThinking = false,
+  summaryData = null,
   onSelectArtifact,
 }: ArtifactStageProps) {
   return (
@@ -58,7 +61,7 @@ export function ArtifactStage({
             {artifactType === "timeline" && <TimelineView />}
             {artifactType === "hotspots" && <DetailHotspotsView activeHotspotId={hotspotId} />}
             {artifactType === "quote" && <QuoteView activeLetterId={letterId} />}
-            {artifactType === "summary" && <SummaryView />}
+            {artifactType === "summary" && <SummaryView data={summaryData} />}
             {artifactType === "chat" && (
               <ChatHistoryView
                 messages={chatMessages}
@@ -72,4 +75,3 @@ export function ArtifactStage({
     </div>
   );
 }
-
