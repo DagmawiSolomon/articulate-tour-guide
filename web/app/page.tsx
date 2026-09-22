@@ -175,6 +175,11 @@ export default function Home() {
     } catch (err) {
       console.warn("Microphone access error or denied:", err);
       setIsMuted(true);
+      if (err instanceof Error && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+        alert("Microphone access was denied. Please allow microphone access in your browser settings to speak with the guide.");
+      } else {
+        alert("Could not access the microphone. Please check your system settings.");
+      }
     }
     return null;
   }, []);
