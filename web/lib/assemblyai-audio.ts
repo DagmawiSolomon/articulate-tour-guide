@@ -30,10 +30,34 @@ export function createAudioPlayer() {
    * Chunks are queued so they play back-to-back without gaps.
    */
   function playChunk(base64: string) {
+    if (!base64 || typeof base64 !== "string") {
+      console.warn("playChunk received invalid or missing base64 string:", base64);
+      return;
+    }
+
     const audioCtx = getContext();
 
     // Decode base64 → Uint8Array
-    const binary = atob(base64);
+    // AssemblyAI may use URL-safe base64 or include newlines/prefixes.
+    let cleanBase64 = base64
+      .replace(/^data:.*,/, '')
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .replace(/\s/g, '');
+      
+    // Add missing padding if needed
+    const padLen = cleanBase64.length % 4;
+    if (padLen > 0) {
+      cleanBase64 += '='.repeat(4 - padLen);
+    }
+    
+    let binary = "";
+    try {
+      binary = atob(cleanBase64);
+    } catch (err) {
+      console.error("Failed to decode base64 chunk. Length:", base64.length, "Prefix:", base64.substring(0, 50));
+      return;
+    }
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
       bytes[i] = binary.charCodeAt(i);
