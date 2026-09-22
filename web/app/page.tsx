@@ -195,6 +195,7 @@ export default function Home() {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       }
       agentRef.current?.end();
+      audioPlayerRef.current?.flush();
     };
   }, []);
 
