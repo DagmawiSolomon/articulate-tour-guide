@@ -247,11 +247,13 @@ export default function Home() {
           setAgentStatus("thinking");
         },
 
-        onAgentTranscriptPartial: (text) => {
+        onAgentTranscriptPartial: (deltaText) => {
           const id = partialAgentMsgIdRef.current;
           setChatMessages((prev) => {
             const without = prev.filter((m) => m.id !== id);
-            return [...without, { id, role: "agent", text, isPartial: true, timestamp: new Date() }];
+            const existing = prev.find((m) => m.id === id);
+            const newText = existing ? existing.text + deltaText : deltaText;
+            return [...without, { id, role: "agent", text: newText, isStreaming: true, timestamp: new Date() }];
           });
         },
 
@@ -367,34 +369,15 @@ export default function Home() {
     audioPlayerRef.current?.flush();
     audioPlayerRef.current = null;
 
-    // Transition to summary state
+    // Reset back to pre-tour state
+    setIsTourActive(false);
     setIsPaused(false);
-    setIsExpanded(true); // Must be expanded to see summary
-    setActiveArtifact("summary");
+    setIsExpanded(false);
+    setActiveArtifact("info");
     setActiveExpressionId("neutral");
+    setChatMessages([]);
     setIsChatThinking(false);
-    
-    setIsArtifactLoading(true);
-
-    try {
-      const res = await fetch("/api/tour-summary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: chatMessages })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSummaryData(data);
-      } else {
-        console.error("Failed to fetch summary", await res.text());
-        setSummaryData({ summary: ["Your tour summary could not be generated at this time."], quiz: [] });
-      }
-    } catch (err) {
-      console.error(err);
-      setSummaryData({ summary: ["Your tour summary could not be generated at this time."], quiz: [] });
-    } finally {
-      setIsArtifactLoading(false);
-    }
+    setSummaryData(null);
   };
 
   const togglePause = React.useCallback(() => {
