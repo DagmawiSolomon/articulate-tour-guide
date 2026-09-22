@@ -39,6 +39,8 @@ import {
   playTactileTap,
   playToggle,
 } from "@/lib/sounds";
+import { createVoiceAgent, type VoiceAgent } from "@/lib/assemblyai-agent";
+import { createAudioPlayer, type AudioPlayer } from "@/lib/assemblyai-audio";
 
 type AgentStatus = "listening" | "thinking" | "speaking";
 
@@ -71,10 +73,14 @@ export default function Home() {
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
   // Will be wired to real events once voice is connected.
   const [isArtifactLoading, setIsArtifactLoading] = React.useState(false);
-  // Chat history state — messages accumulate as the tour progresses.
+  // Chat history state â€” messages accumulate as the tour progresses.
   const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([]);
   const [isChatThinking, setIsChatThinking] = React.useState(false);
-  const demoTimersRef = React.useRef<NodeJS.Timeout[]>([]);
+  // Partial visitor transcript ID â€” updated in place as partials arrive
+  const partialMsgIdRef = React.useRef<string>("visitor-partial");
+  // Voice Agent + audio player refs
+  const agentRef = React.useRef<VoiceAgent | null>(null);
+  const audioPlayerRef = React.useRef<AudioPlayer | null>(null);
 
   // Fixed card geometry.
   const tuning = {
@@ -121,23 +127,18 @@ export default function Home() {
       }, 2400);
     }
 
-    // Conversational flow progression
-    const flowDuration = agentStatus === "listening" ? 8000 : agentStatus === "thinking" ? 4000 : 6000;
-    const flowTimer = setTimeout(() => {
-      setAgentStatus((prev) =>
-        prev === "listening" ? "thinking" : prev === "thinking" ? "speaking" : "listening"
-      );
-    }, flowDuration);
-
+    // agentStatus is now driven by real Voice Agent events (reply.started / reply.done)
+    // â€” no fake progression timer needed.
     return () => {
       if (emotionInterval) clearInterval(emotionInterval);
-      clearTimeout(flowTimer);
     };
   }, [isTourActive, agentStatus, isMuted, isPaused]);
 
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
 
   const stopMic = React.useCallback(() => {
+    // Stop sending audio to the agent (keep WS open)
+    agentRef.current?.stopAudio();
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => {
         track.stop();
@@ -154,11 +155,19 @@ export default function Home() {
           mediaStreamRef.current.getTracks().forEach((track) => track.stop());
           mediaStreamRef.current = null;
         }
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Echo cancellation on, noiseSuppression off (Voice Agent API handles
+        // server-side noise suppression â€” stacking client-side adds artifacts)
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: true },
+        });
         mediaStreamRef.current = stream;
         stream.getAudioTracks().forEach((track) => {
           track.enabled = true;
         });
+        // Resume AudioContext (must be inside a user gesture)
+        await audioPlayerRef.current?.resume();
+        // Start streaming audio to the agent
+        agentRef.current?.startAudio(stream);
         setIsMuted(false);
         return stream;
       }
@@ -196,159 +205,116 @@ export default function Home() {
     setIsPaused(false);
     setAgentStatus("listening");
     setActiveExpressionId("listening");
-    // Reset chat and kick off the scripted demo sequence
     setChatMessages([]);
     setIsChatThinking(false);
-    demoTimersRef.current.forEach(clearTimeout);
-    demoTimersRef.current = [];
 
-    // Helper to schedule a message and track the timer
-    const after = (ms: number, fn: () => void) => {
-      const t = setTimeout(fn, ms);
-      demoTimersRef.current.push(t);
-    };
-    const uid = () => Math.random().toString(36).slice(2);
-    const now = () => new Date();
+    // Initialise the audio player (once per tour)
+    audioPlayerRef.current = createAudioPlayer();
 
-    // ── Scripted demo conversation ──────────────────────────────────────────
-    // t=1.5s  Visitor partial
-    after(1500, () =>
-      setChatMessages([{ id: "v-partial", role: "visitor", text: "Can you tell me about this painting?", isPartial: true, timestamp: now() }])
-    );
-    // t=3s    Visitor final
-    after(3000, () =>
-      setChatMessages([{ id: "v-1", role: "visitor", text: "Can you tell me about this painting?", timestamp: now() }])
-    );
-    // t=3.2s  Thinking
-    after(3200, () => setChatMessages((prev) => [
-      ...prev,
-      {
-        id: "think-1",
-        role: "reasoning",
-        variant: "Steps",
-        active: "Consulting Museum Archives…",
-        done: "Verified in 1889 Archives",
-        rows: [
-          { primary: "Accessing Saint-Rémy asylum records (1889)" },
-          { primary: "Cross-referencing Letter 782 to Theo" }
-        ],
-        timestamp: now()
-      }
-    ]));
-    // t=5.5s  Agent streams response with Beautiful UI StreamingText
-    after(5500, () => {
-      const fullText = "Of course! You're looking at The Starry Night[1] — painted by Vincent van Gogh in June 1889 from his room at the Saint-Paul-de-Mausole asylum in Saint-Rémy-de-Provence[2].";
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          id: uid(),
-          role: "agent",
-          text: fullText,
-          timestamp: now(),
-          speakerName: "Mr. Triangle",
-          citations: [
-            {
-              n: 1,
-              label: "Van Gogh Museum Letters: Letter 782 to Theo",
-              host: "vangoghletters.org",
-              url: "https://vangoghletters.org/vg/letters/let782/letter.html",
-            },
-            {
-              n: 2,
-              label: "MoMA Collection: The Starry Night",
-              host: "moma.org",
-              url: "https://www.moma.org/collection/works/79802",
-            },
-          ],
+    // Connect the Voice Agent
+    try {
+      const agent = await createVoiceAgent({
+        onReady: (sessionId) => {
+          console.log("[Agent] Session ready:", sessionId);
         },
-      ]);
-    });
-    // t=17s   Visitor asks about the cypresses
-    after(17000, () =>
-      setChatMessages((prev) => [...prev, { id: "v-partial-2", role: "visitor", text: "What about those dark shapes?", isPartial: true, timestamp: now() }])
-    );
-    after(18500, () =>
-      setChatMessages((prev) => [
-        ...prev.filter((m) => m.id !== "v-partial-2"),
-        { id: "v-2", role: "visitor", text: "What about those dark shapes?", timestamp: now() },
-      ])
-    );
-    after(18700, () => setChatMessages((prev) => [
-      ...prev,
-      {
-        id: "think-2",
-        role: "reasoning",
-        variant: "Reasoning",
-        active: "Synthesizing Docent Insights…",
-        done: "Context synthesized",
-        rows: [
-          { primary: "Visitor inquired about foreground landscape elements." },
-          { primary: "Identified cypress flame motif connecting earth with the cosmos." }
-        ],
-        timestamp: now()
-      }
-    ]));
-    // t=21s   Agent explains cypress with Beautiful UI StreamingText
-    after(21000, () => {
-      const fullText = "Those are cypress trees — Van Gogh was obsessed with them. They appear almost flame-like, connecting the turbulent earth to the swirling heavens above.";
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          id: uid(),
-          role: "agent",
-          text: fullText,
-          timestamp: now(),
-          speakerName: "Mr. Triangle",
-          topic: "Symbolic Analysis",
-          artifactTokens: [
-            { text: "Those" }, { text: "are" },
-            {
-              text: "cypress trees",
-              artifactTarget: {
-                type: "hotspots",
-                label: "Cypress Hotspot",
-                params: { hotspotId: "cypress" },
+
+        onTranscriptPartial: (text) => {
+          const id = partialMsgIdRef.current;
+          setChatMessages((prev) => {
+            const without = prev.filter((m) => m.id !== id);
+            return [...without, { id, role: "visitor", text, isPartial: true, timestamp: new Date() }];
+          });
+          setAgentStatus("listening");
+        },
+
+        onTranscriptFinal: (text) => {
+          const id = partialMsgIdRef.current;
+          setChatMessages((prev) => {
+            const without = prev.filter((m) => m.id !== id);
+            return [...without, { id: `visitor-${Date.now()}`, role: "visitor", text, timestamp: new Date() }];
+          });
+          // Agent is now processing â€” show thinking state
+          setAgentStatus("thinking");
+        },
+
+        onAgentSpeakingStart: () => {
+          setAgentStatus("speaking");
+        },
+
+        onAgentSpeakingEnd: (interrupted) => {
+          setAgentStatus("listening");
+          if (interrupted) {
+            // User barged in â€” flush audio buffer immediately
+            audioPlayerRef.current?.flush();
+          }
+        },
+
+        onAgentAudio: (base64) => {
+          audioPlayerRef.current?.playChunk(base64);
+        },
+
+        onToolCall: (tool) => {
+          const params = tool.arguments as Record<string, string>;
+          setIsArtifactLoading(true);
+
+          // Brief loading pulse then switch artifact
+          setTimeout(() => {
+            setIsArtifactLoading(false);
+            switch (tool.name) {
+              case "show_hotspots":
+                setActiveArtifact("hotspots");
+                if (params.hotspotId) {
+                  setActiveHotspotId(params.hotspotId as "cypress" | "star" | "steeple" | "vortex" | "moon");
+                }
+                break;
+              case "show_map":
+                setActiveArtifact("map");
+                if (params.routeId) setActiveMapRoute(params.routeId);
+                break;
+              case "show_timeline":
+                setActiveArtifact("timeline");
+                break;
+              case "show_comparison":
+                setActiveArtifact("comparison");
+                break;
+              case "show_info":
+              default:
+                setActiveArtifact("info");
+                break;
+            }
+            // Add tool call bubble to chat
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                id: `tool-${Date.now()}`,
+                role: "tool",
+                toolName: tool.name,
+                label: params.label ?? tool.name.replace("show_", ""),
+                artifactType: tool.name.replace("show_", "") as any,
+                params,
+                detail: "",
+                timestamp: new Date(),
               },
-            },
-            { text: "—" }, { text: "Van" }, { text: "Gogh" }, { text: "was" },
-            { text: "obsessed" }, { text: "with" }, { text: "them." },
-            { text: "They" }, { text: "appear" }, { text: "almost" },
-            { text: "flame-like," }, { text: "connecting" }, { text: "the" },
-            { text: "turbulent" }, { text: "earth" }, { text: "to" },
-            { text: "the" }, { text: "swirling" }, { text: "heavens" },
-            { text: "above." },
-          ],
+            ]);
+            // Return the result to unblock the agent
+            agent.sendToolResult(tool.callId, { success: true });
+          }, 400);
         },
-        {
-          id: "tool-1",
-          role: "tool",
-          toolName: "show_hotspots",
-          label: "Cypress Flame",
-          artifactType: "hotspots",
-          params: { hotspotId: "cypress" },
-          detail: "High-resolution inspection focused on foreground cypresses",
-          timestamp: now(),
-        },
-      ]);
-    });
 
-    // t=28s   Docent syncs map location
-    after(28000, () => {
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          id: "tool-2",
-          role: "tool",
-          toolName: "highlight_map_location",
-          label: "Musée d'Orsay Level 5",
-          artifactType: "map",
-          params: { routeId: "restrooms" },
-          detail: "Position verified on Museum Level 2 Floorplan",
-          timestamp: now(),
+        onEnded: () => {
+          console.log("[Agent] Session ended");
         },
-      ]);
-    });
-    await startMic();
+
+        onError: (code, message) => {
+          console.error(`[Agent] Error ${code}:`, message);
+        },
+      });
+
+      agentRef.current = agent;
+    } catch (err) {
+      console.error("[Agent] Failed to connect:", err);
+    }
+
   };
 
   const handleConfirmEndTour = () => {
@@ -359,12 +325,14 @@ export default function Home() {
     setIsExpanded(false);
     setActiveArtifact("info");
     setActiveExpressionId("neutral");
-    // Clear demo timers and chat
-    demoTimersRef.current.forEach(clearTimeout);
-    demoTimersRef.current = [];
     setChatMessages([]);
     setIsChatThinking(false);
     stopMic();
+    // End agent session cleanly — stops billing immediately
+    agentRef.current?.end();
+    agentRef.current = null;
+    audioPlayerRef.current?.flush();
+    audioPlayerRef.current = null;
   };
 
   const togglePause = React.useCallback(() => {
@@ -560,7 +528,7 @@ export default function Home() {
           }
         >
           {!isTourActive ? (
-            /* ── BUI Agent Screen-inspired landing hero ─────────────────── */
+            /* â”€â”€ BUI Agent Screen-inspired landing hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             <div className="w-full h-full flex items-center justify-center p-6">
               <div
                 className="relative w-full max-w-[420px] overflow-hidden rounded-[20px]"
@@ -834,7 +802,7 @@ export default function Home() {
                 onClick={() => setIsArtifactLoading((v) => !v)}
                 title="Toggle skeleton loading state (dev)"
               >
-                {isArtifactLoading ? "⏳ loading" : "skeleton"}
+                {isArtifactLoading ? "â³ loading" : "skeleton"}
               </Button>
               <Tabs
                 value={activeArtifact}
