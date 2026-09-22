@@ -210,6 +210,7 @@ export default function Home() {
 
     // Initialise the audio player (once per tour)
     audioPlayerRef.current = createAudioPlayer();
+    await audioPlayerRef.current.resume();
 
     // Connect the Voice Agent
     try {
