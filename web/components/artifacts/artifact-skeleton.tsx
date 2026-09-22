@@ -372,6 +372,49 @@ function QuoteSkeleton() {
   );
 }
 
+/* ── Summary ──────────────────────────────────────────── */
+function SummarySkeleton() {
+  return (
+    <div className="w-full h-full flex flex-col p-6 sm:p-8 overflow-hidden">
+      <div className="max-w-2xl mx-auto w-full flex flex-col gap-8">
+        {/* Header */}
+        <div className="flex flex-col gap-2">
+          <Shimmer className="h-4 w-28" />
+          <Shimmer className="h-8 w-64 mt-2" />
+          <Shimmer className="h-4 w-full max-w-md mt-1" />
+        </div>
+
+        {/* Bullets */}
+        <div className="flex flex-col gap-3">
+          <Shimmer className="h-16 w-full rounded-xl" />
+          <Shimmer className="h-16 w-full rounded-xl" />
+          <Shimmer className="h-16 w-full rounded-xl" />
+        </div>
+
+        <Shimmer className="h-px w-full rounded-none my-2" />
+
+        {/* Quiz */}
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <Shimmer className="h-6 w-48" />
+            <Shimmer className="h-4 w-24" />
+          </div>
+          <div className="p-6 rounded-[16px] border border-border bg-card/50 flex flex-col gap-5">
+            <Shimmer className="h-5 w-full" />
+            <Shimmer className="h-5 w-3/4 mb-2" />
+            
+            <div className="flex flex-col gap-2.5">
+              <Shimmer className="h-12 w-full rounded-xl" />
+              <Shimmer className="h-12 w-full rounded-xl" />
+              <Shimmer className="h-12 w-full rounded-xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Export ───────────────────────────────────────────── */
 
 export function ArtifactSkeleton({ artifactType }: ArtifactSkeletonProps) {
@@ -384,6 +427,7 @@ export function ArtifactSkeleton({ artifactType }: ArtifactSkeletonProps) {
       {artifactType === "hotspots"   && <HotspotsSkeleton />}
       {artifactType === "quote"      && <QuoteSkeleton />}
       {artifactType === "chat"       && <ChatSkeleton />}
+      {artifactType === "summary"    && <SummarySkeleton />}
     </div>
   );
 }
