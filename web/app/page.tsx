@@ -306,16 +306,28 @@ export default function Home() {
 
         onEnded: () => {
           console.log("[Agent] Session ended");
+          handleConfirmEndTour();
         },
 
         onError: (code, message) => {
           console.error(`[Agent] Error ${code}:`, message);
+          if (code === "connection_error" || code === "disconnected") {
+            alert(`Voice Agent disconnected: ${message}`);
+            handleConfirmEndTour();
+          }
         },
       });
 
       agentRef.current = agent;
+
+      // Automatically unmute/start mic if not manually muted
+      if (!isMuted) {
+        await startMic();
+      }
     } catch (err) {
       console.error("[Agent] Failed to connect:", err);
+      alert("Failed to connect to Voice Agent. Please check your API key and network connection.");
+      handleConfirmEndTour();
     }
 
   };
