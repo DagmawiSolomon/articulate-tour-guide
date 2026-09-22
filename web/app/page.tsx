@@ -635,32 +635,50 @@ export default function Home() {
 
                 {/* Card footer with CTA */}
                 <div
-                  className="px-7 py-5 flex items-center justify-between gap-3"
+                  className="px-7 py-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3"
                   style={{ borderTop: "1px solid var(--line)" }}
                 >
                   <p
-                    className="text-[11.5px] leading-relaxed"
+                    className="text-[11.5px] leading-relaxed hidden sm:block"
                     style={{ color: "var(--ink-3)" }}
                   >
                     Microphone access required for voice interaction.
                   </p>
 
-                  <button
-                    type="button"
-                    onClick={handleStartTour}
-                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-4 h-9 text-[13px] font-medium cursor-pointer transition-all active:scale-[0.96]"
-                    style={{
-                      background: "var(--ink)",
-                      color: "#fff",
-                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
-                    }}
-                  >
-                    Start tour
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14M13 6l6 6-6 6" />
-                    </svg>
-                  </button>
+                  <div className="flex flex-1 sm:flex-none items-center gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsTourActive(true);
+                        setIsExpanded(true);
+                        setActiveArtifact("summary");
+                      }}
+                      className="inline-flex shrink-0 items-center justify-center rounded-full px-3 h-9 text-[13px] font-medium cursor-pointer transition-all active:scale-[0.96]"
+                      style={{
+                        background: "var(--field)",
+                        color: "var(--ink)",
+                        border: "1px solid var(--line)",
+                      }}
+                    >
+                      Test Summary UI
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleStartTour}
+                      className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-4 h-9 text-[13px] font-medium cursor-pointer transition-all active:scale-[0.96]"
+                      style={{
+                        background: "var(--ink)",
+                        color: "#fff",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
+                      }}
+                    >
+                      Start tour
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14m-6-6l6 6-6 6" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

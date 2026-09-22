@@ -9,8 +9,9 @@ import { DetailHotspotsView } from "./detail-hotspots-view";
 import { ArtifactSkeleton } from "./artifact-skeleton";
 import { ChatHistoryView, type ChatMessage } from "./chat-history-view";
 import { QuoteView } from "./quote-view";
+import { SummaryView } from "./summary-view";
 
-export type ArtifactType = "info" | "map" | "comparison" | "timeline" | "hotspots" | "chat" | "quote";
+export type ArtifactType = "info" | "map" | "comparison" | "timeline" | "hotspots" | "chat" | "quote" | "summary";
 export type { ChatMessage };
 
 interface ArtifactStageProps {
@@ -57,6 +58,7 @@ export function ArtifactStage({
             {artifactType === "timeline" && <TimelineView />}
             {artifactType === "hotspots" && <DetailHotspotsView activeHotspotId={hotspotId} />}
             {artifactType === "quote" && <QuoteView activeLetterId={letterId} />}
+            {artifactType === "summary" && <SummaryView />}
             {artifactType === "chat" && (
               <ChatHistoryView
                 messages={chatMessages}
