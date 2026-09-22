@@ -68,35 +68,7 @@ interface ChatHistoryViewProps {
 
 // ─── Default Exhibition Messages ──────────────────────────────────────────────
 
-const DEFAULT_MESSAGES: ChatMessage[] = [
-  {
-    id: "m-init-1",
-    role: "visitor",
-    text: "Can you tell me about this painting?",
-    timestamp: new Date(),
-  },
-  {
-    id: "m-init-2",
-    role: "agent",
-    text: "Of course! You're looking at The Starry Night[1] — painted by Vincent van Gogh in June 1889 from his room at the Saint-Paul-de-Mausole asylum in Saint-Rémy-de-Provence[2].",
-    speakerName: "Mr. Triangle",
-    timestamp: new Date(),
-    citations: [
-      {
-        n: 1,
-        label: "Van Gogh Museum Letters: Letter 782 to Theo",
-        host: "vangoghletters.org",
-        url: "https://vangoghletters.org/vg/letters/let782/letter.html",
-      },
-      {
-        n: 2,
-        label: "MoMA Collection: The Starry Night",
-        host: "moma.org",
-        url: "https://www.moma.org/collection/works/79802",
-      },
-    ],
-  },
-];
+// Removed mock data
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -231,7 +203,7 @@ export function ChatHistoryView({
   onSelectArtifact,
 }: ChatHistoryViewProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
-  const activeMessages = messages.length > 0 ? messages : DEFAULT_MESSAGES;
+  const activeMessages = messages;
 
   React.useEffect(() => {
     if (scrollRef.current) {
@@ -256,6 +228,16 @@ export function ChatHistoryView({
     }
     return groups;
   }, [activeMessages]);
+
+  if (activeMessages.length === 0 && !isThinking) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center p-6 pb-20">
+        <p className="text-[14px] font-medium" style={{ color: "var(--ink-3)" }}>
+          No transcripts
+        </p>
+      </div>
+    );
+  }
 
   return (
     /* BUI Chat container */
