@@ -218,22 +218,61 @@ export async function createVoiceAgent(
 
   let audioCtx: AudioContext | null = null;
   let micSource: MediaStreamAudioSourceNode | null = null;
-  let processor: ScriptProcessorNode | null = null;
+  let processor: AudioWorkletNode | null = null;
+  let workletUrl: string | null = null;
 
-  function startAudio(stream: MediaStream) {
+  const workletCode = `
+class PcmProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.bufferSize = 2048;
+    this.buffer = new Float32Array(this.bufferSize);
+    this.bufferIndex = 0;
+  }
+  process(inputs, outputs, parameters) {
+    const input = inputs[0];
+    if (input.length > 0) {
+      const channelData = input[0];
+      for (let i = 0; i < channelData.length; i++) {
+        this.buffer[this.bufferIndex++] = channelData[i];
+        if (this.bufferIndex >= this.bufferSize) {
+          this.port.postMessage(this.buffer);
+          this.buffer = new Float32Array(this.bufferSize);
+          this.bufferIndex = 0;
+        }
+      }
+    }
+    return true;
+  }
+}
+registerProcessor('pcm-processor', PcmProcessor);
+  `;
+
+  async function startAudio(stream: MediaStream) {
     if (audioCtx) return; // already streaming
 
     // Voice Agent API defaults to PCM 24kHz mono
     audioCtx = new AudioContext({ sampleRate: 24000 });
     micSource = audioCtx.createMediaStreamSource(stream);
     
-    // 2048 samples = ~85ms chunks at 24kHz
-    processor = audioCtx.createScriptProcessor(2048, 1, 1);
+    if (!workletUrl) {
+      const blob = new Blob([workletCode], { type: 'application/javascript' });
+      workletUrl = URL.createObjectURL(blob);
+    }
+    
+    try {
+      await audioCtx.audioWorklet.addModule(workletUrl);
+    } catch (err) {
+      console.warn("Failed to load AudioWorklet, falling back...", err);
+      return;
+    }
+    
+    processor = new AudioWorkletNode(audioCtx, 'pcm-processor');
 
-    processor.onaudioprocess = (e) => {
+    processor.port.onmessage = (e) => {
       if (!isConnected || ws.readyState !== WebSocket.OPEN) return;
       
-      const inputData = e.inputBuffer.getChannelData(0);
+      const inputData = e.data as Float32Array;
       
       // Resample to 24000 Hz if the browser ignored our sampleRate request
       const targetRate = 24000;
@@ -268,14 +307,8 @@ export async function createVoiceAgent(
       ws.send(JSON.stringify({ type: "input.audio", audio: base64 }));
     };
 
-    // To prevent the mic from looping to the speakers, we connect to a zero-gain node
-    // Note: ScriptProcessor must be connected to destination to fire onaudioprocess in some browsers
-    const silentGain = audioCtx.createGain();
-    silentGain.gain.value = 0;
-    
     micSource.connect(processor);
-    processor.connect(silentGain);
-    silentGain.connect(audioCtx.destination);
+    processor.connect(audioCtx.destination);
   }
 
   function stopAudio() {
