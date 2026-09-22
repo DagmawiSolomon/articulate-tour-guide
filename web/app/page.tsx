@@ -79,6 +79,7 @@ export default function Home() {
   const [summaryData, setSummaryData] = React.useState<any>(null);
   // Partial visitor transcript ID â€” updated in place as partials arrive
   const partialMsgIdRef = React.useRef<string>("visitor-partial");
+  const partialAgentMsgIdRef = React.useRef<string>("agent-partial");
   // Voice Agent + audio player refs
   const agentRef = React.useRef<VoiceAgent | null>(null);
   const audioPlayerRef = React.useRef<AudioPlayer | null>(null);
@@ -246,8 +247,25 @@ export default function Home() {
           setAgentStatus("thinking");
         },
 
+        onAgentTranscriptPartial: (text) => {
+          const id = partialAgentMsgIdRef.current;
+          setChatMessages((prev) => {
+            const without = prev.filter((m) => m.id !== id);
+            return [...without, { id, role: "agent", text, isPartial: true, timestamp: new Date() }];
+          });
+        },
+
+        onAgentTranscriptFinal: (text) => {
+          const id = partialAgentMsgIdRef.current;
+          setChatMessages((prev) => {
+            const without = prev.filter((m) => m.id !== id);
+            return [...without, { id: `agent-${Date.now()}`, role: "agent", text, timestamp: new Date() }];
+          });
+        },
+
         onAgentSpeakingStart: () => {
           setAgentStatus("speaking");
+          setIsChatThinking(false);
         },
 
         onAgentSpeakingEnd: (interrupted) => {
