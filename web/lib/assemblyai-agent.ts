@@ -124,6 +124,7 @@ export async function createVoiceAgent(
 
     switch (type) {
       case "session.ready": {
+        console.log("[Agent] Session ready full config:", msg);
         callbacks.onReady?.(msg.session_id as string);
         break;
       }
@@ -135,6 +136,7 @@ export async function createVoiceAgent(
       }
 
       case "transcript.user": {
+        console.log("[Agent] User transcript final:", msg.text);
         callbacks.onTranscriptFinal?.(msg.text as string);
         break;
       }
@@ -146,7 +148,12 @@ export async function createVoiceAgent(
       }
 
       case "reply.audio": {
-        callbacks.onAgentAudio?.(msg.audio as string);
+        const base64 = msg.audio || msg.data || msg.audio_data;
+        if (!base64) {
+          console.warn("reply.audio missing base64 data:", msg);
+        } else {
+          callbacks.onAgentAudio?.(base64 as string);
+        }
         break;
       }
 
@@ -164,6 +171,7 @@ export async function createVoiceAgent(
       }
 
       case "tool.call": {
+        console.log("[Agent] Tool call received:", msg);
         // arguments (not args) per April 2026 rename
         const tool: AgentToolCall = {
           callId: msg.call_id as string,
@@ -208,35 +216,80 @@ export async function createVoiceAgent(
 
   // --- Public API ---
 
+  let audioCtx: AudioContext | null = null;
+  let micSource: MediaStreamAudioSourceNode | null = null;
+  let processor: ScriptProcessorNode | null = null;
+
   function startAudio(stream: MediaStream) {
-    if (mediaRecorder) return; // already streaming
+    if (audioCtx) return; // already streaming
 
-    // getUserMedia with echo cancellation (recommended for browser voice agents)
-    // Audio: PCM 24kHz mono — use MediaRecorder with audio/pcm if supported,
-    // otherwise timesliced webm chunks are fine for the base64 path
-    const recorder = new MediaRecorder(stream, {
-      mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "audio/webm",
-      audioBitsPerSecond: 128000,
-    });
+    // Voice Agent API defaults to PCM 24kHz mono
+    audioCtx = new AudioContext({ sampleRate: 24000 });
+    micSource = audioCtx.createMediaStreamSource(stream);
+    
+    // 2048 samples = ~85ms chunks at 24kHz
+    processor = audioCtx.createScriptProcessor(2048, 1, 1);
 
-    recorder.ondataavailable = async (e) => {
-      if (!isConnected || e.data.size === 0) return;
-      const buf = await e.data.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    processor.onaudioprocess = (e) => {
+      if (!isConnected || ws.readyState !== WebSocket.OPEN) return;
+      
+      const inputData = e.inputBuffer.getChannelData(0);
+      
+      // Resample to 24000 Hz if the browser ignored our sampleRate request
+      const targetRate = 24000;
+      const sourceRate = audioCtx!.sampleRate;
+      let resampled = inputData;
+      
+      if (sourceRate !== targetRate) {
+        const ratio = sourceRate / targetRate;
+        const newLength = Math.round(inputData.length / ratio);
+        resampled = new Float32Array(newLength);
+        for (let i = 0; i < newLength; i++) {
+          resampled[i] = inputData[Math.floor(i * ratio)];
+        }
+      }
+      
+      // Convert Float32 to Int16
+      const int16 = new Int16Array(resampled.length);
+      for (let i = 0; i < resampled.length; i++) {
+        const s = Math.max(-1, Math.min(1, resampled[i]));
+        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      
+      // Encode Int16Array to base64
+      const bytes = new Uint8Array(int16.buffer);
+      // Fast conversion for small buffers
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
+      
       ws.send(JSON.stringify({ type: "input.audio", audio: base64 }));
     };
 
-    // ~50ms chunks — recommended by AssemblyAI docs
-    recorder.start(50);
-    mediaRecorder = recorder;
+    // To prevent the mic from looping to the speakers, we connect to a zero-gain node
+    // Note: ScriptProcessor must be connected to destination to fire onaudioprocess in some browsers
+    const silentGain = audioCtx.createGain();
+    silentGain.gain.value = 0;
+    
+    micSource.connect(processor);
+    processor.connect(silentGain);
+    silentGain.connect(audioCtx.destination);
   }
 
   function stopAudio() {
-    if (mediaRecorder) {
-      mediaRecorder.stop();
-      mediaRecorder = null;
+    if (processor) {
+      processor.disconnect();
+      processor = null;
+    }
+    if (micSource) {
+      micSource.disconnect();
+      micSource = null;
+    }
+    if (audioCtx) {
+      audioCtx.close();
+      audioCtx = null;
     }
   }
 
