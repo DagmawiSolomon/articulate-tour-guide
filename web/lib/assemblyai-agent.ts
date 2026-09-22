@@ -29,6 +29,8 @@ export type VoiceAgentCallbacks = {
   onTranscriptPartial?: (text: string) => void;
   /** Final visitor transcript for the turn */
   onTranscriptFinal?: (text: string) => void;
+  onAgentTranscriptPartial?: (text: string) => void;
+  onAgentTranscriptFinal?: (text: string) => void;
   /** Agent started speaking (reply.started) */
   onAgentSpeakingStart?: () => void;
   /** Agent finished speaking or was interrupted (reply.done) */
@@ -138,6 +140,16 @@ export async function createVoiceAgent(
       case "transcript.user": {
         console.log("[Agent] User transcript final:", msg.text);
         callbacks.onTranscriptFinal?.(msg.text as string);
+        break;
+      }
+
+      case "transcript.agent.delta": {
+        callbacks.onAgentTranscriptPartial?.(msg.text as string);
+        break;
+      }
+
+      case "transcript.agent": {
+        callbacks.onAgentTranscriptFinal?.(msg.text as string);
         break;
       }
 
