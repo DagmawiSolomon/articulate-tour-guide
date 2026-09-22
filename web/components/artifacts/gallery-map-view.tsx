@@ -173,7 +173,16 @@ React.useEffect(() => {
     const source = map.getSource("route-source") as MapLibreGL.GeoJSONSource | undefined;
     if (!source) return;
 
-
+    // Re-center camera on the user dot so it's always in the middle of the panel
+    // Slight delay so the line animation starts first, then camera eases in
+    const cameraTimer = setTimeout(() => {
+      map.easeTo({
+        center: [-0.0028, -0.0066],
+        zoom: 14.6,
+        duration: 700,
+        easing: (t) => 1 - Math.pow(1 - t, 3),
+      });
+    }, 150);
 
     // Precalculate corridor segment lengths
     let totalLength = 0;
@@ -214,9 +223,14 @@ React.useEffect(() => {
     animFrameId = requestAnimationFrame(animateLine);
 
     return () => {
+      clearTimeout(cameraTimer);
       cancelAnimationFrame(animFrameId);
     };
   }, [activeRouteId, ensureRouteLayers, mapLoaded, route.geoPath, route.geoTarget]);
+
+  // Floorplan image bounds: [-0.016, -0.0078] → [0.016, 0.0078]
+  // Add a tiny buffer so the edge rooms don't get clipped at the panel edges
+  const FLOORPLAN_BOUNDS: [number, number, number, number] = [-0.017, -0.009, 0.017, 0.009];
 
   return (
     <div className="w-full h-full relative select-none rounded-2xl overflow-hidden">
@@ -224,6 +238,8 @@ React.useEffect(() => {
         initialCenter={[-0.0028, -0.0066]}
         initialZoom={14.6}
         initialPitch={0}
+        minZoom={14.4}
+        maxBounds={FLOORPLAN_BOUNDS}
         onMapReady={handleMapReady}
         className="w-full h-full"
       >
