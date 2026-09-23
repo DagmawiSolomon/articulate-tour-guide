@@ -227,7 +227,7 @@ React.useEffect(() => {
       clearTimeout(cameraTimer);
       cancelAnimationFrame(animFrameId);
     };
-  }, [activeRouteId, ensureRouteLayers, mapLoaded, route.geoPath, route.geoTarget]);
+  }, [ensureRouteLayers, mapLoaded, dynamicGeoPath]);
 
   // Floorplan image bounds: [-0.016, -0.0078] → [0.016, 0.0078]
   // Add a tiny buffer so the edge rooms don't get clipped at the panel edges
@@ -245,9 +245,11 @@ React.useEffect(() => {
         className="w-full h-full"
       >
         {/* User Location Indicator */}
-        <MapMarker longitude={-0.0028} latitude={-0.0066}>
-          <div className="size-3.5 rounded-full bg-blue-500 border-[2.5px] border-white shadow-sm" />
-        </MapMarker>
+        {dynamicGeoPath && dynamicGeoPath.length > 0 && (
+          <MapMarker longitude={dynamicGeoPath[0][0]} latitude={dynamicGeoPath[0][1]}>
+            <div className="size-3.5 rounded-full bg-blue-500 border-[2.5px] border-white shadow-sm" />
+          </MapMarker>
+        )}
 
 
         {/* Built-in Floating Navigation Controls from mapcn */}
