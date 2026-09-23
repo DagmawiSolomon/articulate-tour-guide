@@ -68,7 +68,8 @@ export default function Home() {
   const [agentStatus, setAgentStatus] = React.useState<AgentStatus>("listening");
   const [isMuted, setIsMuted] = React.useState(true);
   const [activeArtifact, setActiveArtifact] = React.useState<ArtifactType>("info");
-  const [activeMapRoute, setActiveMapRoute] = React.useState<"restrooms" | "gauguin" | "elevator" | "garden" | "store" | string>("restrooms");
+  const [originMapRoute, setOriginMapRoute] = React.useState<string>("gallery36");
+  const [activeMapRoute, setActiveMapRoute] = React.useState<string>("gallery36");
   const [activeHotspotId, setActiveHotspotId] = React.useState<"cypress" | "star" | "steeple" | "vortex" | "moon" | undefined>(undefined);
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
   // Will be wired to real events once voice is connected.
@@ -300,7 +301,10 @@ export default function Home() {
                 break;
               case "show_map":
                 setActiveArtifact("map");
-                if (params.routeId) setActiveMapRoute(params.routeId);
+                if (params.routeId) {
+                  setOriginMapRoute(activeMapRoute);
+                  setActiveMapRoute(params.routeId);
+                }
                 break;
               case "show_timeline":
                 setActiveArtifact("timeline");
@@ -765,6 +769,7 @@ export default function Home() {
                     <ArtifactStage
                       artifactType={activeArtifact}
                       mapRouteId={activeMapRoute}
+                      originMapRouteId={originMapRoute}
                       hotspotId={activeHotspotId}
                       isLoading={isArtifactLoading}
                       chatMessages={chatMessages}

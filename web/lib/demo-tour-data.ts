@@ -170,6 +170,41 @@ export const MAP_ROUTES: Record<string, MapRoute> = {
   },
 };
 
+type GraphNode = {
+  id: string;
+  entryPath: [number, number][]; // Path from the main corridor (x = -0.0028) to the room
+};
+
+const ROOM_PATHS: Record<string, GraphNode> = {
+  gallery36: { id: "gallery36", entryPath: [[-0.0028, -0.0066]] },
+  store: { id: "store", entryPath: [[-0.0028, -0.0044], [-0.0077, -0.0044]] },
+  restrooms: { id: "restrooms", entryPath: [[-0.0028, -0.0028], [0.0015, -0.0028]] },
+  gauguin: { id: "gauguin", entryPath: [[-0.0028, -0.0024], [-0.0104, -0.0024]] },
+  garden: { id: "garden", entryPath: [[-0.0028, 0.0020], [0.0020, 0.0020], [0.0058, 0.0043]] },
+  elevator: { id: "elevator", entryPath: [[-0.0028, 0.0051], [-0.0014, 0.0051]] },
+};
+
+export function getDynamicRoute(startId: string, endId: string): [number, number][] {
+  const start = ROOM_PATHS[startId] || ROOM_PATHS.gallery36;
+  const end = ROOM_PATHS[endId];
+  if (!end || startId === endId) return start.entryPath;
+
+  const pathOut = [...start.entryPath].reverse();
+  const startCorridorY = pathOut[pathOut.length - 1][1];
+  const endCorridorY = end.entryPath[0][1];
+  const pathIn = [...end.entryPath];
+
+  const route: [number, number][] = [];
+  route.push(...pathOut);
+  
+  if (startCorridorY !== endCorridorY) {
+    route.push([-0.0028, endCorridorY]);
+  }
+  
+  route.push(...pathIn.slice(1));
+  return route;
+}
+
 export const COMPARISON_DATA = {
   study: {
     title: "Letter 782 Preparatory Study",

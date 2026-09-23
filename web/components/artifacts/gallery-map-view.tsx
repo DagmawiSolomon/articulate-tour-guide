@@ -2,17 +2,19 @@
 
 import * as React from "react";
 import type * as MapLibreGL from "maplibre-gl";
-import { MAP_ROUTES, MapRoute } from "@/lib/demo-tour-data";
+import { MAP_ROUTES, MapRoute, getDynamicRoute } from "@/lib/demo-tour-data";
 import { Map, MapMarker, MapControls } from "@/components/ui/map";
 import { HugeIcon } from "@/components/ui/hugeicon";
 import { WomanIcon } from "@hugeicons/core-free-icons";
 
 interface GalleryMapViewProps {
+  originRouteId?: string;
   activeRouteId?: "restrooms" | "gauguin" | "elevator" | "garden" | "store" | string;
 }
 
-export function GalleryMapView({ activeRouteId = "restrooms" }: GalleryMapViewProps) {
+export function GalleryMapView({ originRouteId = "gallery36", activeRouteId = "restrooms" }: GalleryMapViewProps) {
   const route: MapRoute = MAP_ROUTES[activeRouteId] || MAP_ROUTES.restrooms;
+  const dynamicGeoPath = getDynamicRoute(originRouteId, activeRouteId);
 
   const mapInstanceRef = React.useRef<MapLibreGL.Map | null>(null);
   const [mapLoaded, setMapLoaded] = React.useState(false);
@@ -33,7 +35,7 @@ export function GalleryMapView({ activeRouteId = "restrooms" }: GalleryMapViewPr
         },
       });
 
-      // Path underglow for crisp contrast over architectural features
+      // Path casing (dark blue outer edge for Mapbox Navigation style)
       map.addLayer({
         id: "route-glow-layer",
         type: "line",
@@ -43,13 +45,13 @@ export function GalleryMapView({ activeRouteId = "restrooms" }: GalleryMapViewPr
           "line-cap": "round",
         },
         paint: {
-          "line-color": "#ffffff",
+          "line-color": "#1d4ed8",
           "line-width": 8,
-          "line-opacity": 0.95,
+          "line-opacity": 1,
         },
       });
 
-      // Dashed architectural ink line
+      // Solid blue navigation line
       map.addLayer({
         id: "route-line-layer",
         type: "line",
@@ -59,9 +61,8 @@ export function GalleryMapView({ activeRouteId = "restrooms" }: GalleryMapViewPr
           "line-cap": "round",
         },
         paint: {
-          "line-color": "#1f1e1b",
-          "line-width": 3.5,
-          "line-dasharray": [2.5, 1.8],
+          "line-color": "#3b82f6",
+          "line-width": 4,
         },
       });
     }
@@ -122,12 +123,12 @@ export function GalleryMapView({ activeRouteId = "restrooms" }: GalleryMapViewPr
     };
     img.src = "/moma-floorplan.svg";
 
-    if (route.geoPath) {
-      ensureRouteLayers(map, route.geoPath);
+    if (dynamicGeoPath) {
+      ensureRouteLayers(map, dynamicGeoPath);
     }
 
     setMapLoaded(true);
-  }, [ensureRouteLayers, route.geoPath]);
+  }, [ensureRouteLayers, dynamicGeoPath]);
 
 // Helper to calculate partial LineString coordinates along a polyline at a given distance
 function getSubPath(path: [number, number][], targetDist: number): [number, number][] {
@@ -165,7 +166,7 @@ function getSubPath(path: [number, number][], targetDist: number): [number, numb
 // Update route polyline, camera, and progressive line drawing animation
 React.useEffect(() => {
     const map = mapInstanceRef.current;
-    const path = route.geoPath;
+    const path = dynamicGeoPath;
     if (!map || !mapLoaded || !path || path.length < 2) return;
 
     ensureRouteLayers(map, path);
@@ -173,11 +174,11 @@ React.useEffect(() => {
     const source = map.getSource("route-source") as MapLibreGL.GeoJSONSource | undefined;
     if (!source) return;
 
-    // Re-center camera on the user dot so it's always in the middle of the panel
+    // Re-center camera on the start node so it's always in the middle of the panel
     // Slight delay so the line animation starts first, then camera eases in
     const cameraTimer = setTimeout(() => {
       map.easeTo({
-        center: [-0.0028, -0.0066],
+        center: path[0] as [number, number],
         zoom: 14.6,
         duration: 700,
         easing: (t) => 1 - Math.pow(1 - t, 3),
