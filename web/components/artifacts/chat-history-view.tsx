@@ -129,6 +129,7 @@ function AgentSection({
   time,
   body,
   resolving,
+  isStreaming,
   citations,
   artifactTokens,
   onSelectArtifact,
