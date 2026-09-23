@@ -16,6 +16,7 @@ export type { ChatMessage };
 
 interface ArtifactStageProps {
   artifactType: ArtifactType;
+  originMapRouteId?: string;
   mapRouteId?: "restrooms" | "gauguin" | "elevator" | "garden" | "store" | string;
   hotspotId?: "cypress" | "star" | "steeple" | "vortex" | "moon" | string;
   letterId?: "letter-782" | "letter-cypress" | "letter-stars";
@@ -34,6 +35,7 @@ interface ArtifactStageProps {
 
 export function ArtifactStage({
   artifactType,
+  originMapRouteId,
   mapRouteId = "restrooms",
   hotspotId,
   letterId = "letter-782",
@@ -56,7 +58,7 @@ export function ArtifactStage({
         ) : (
           <>
             {artifactType === "info" && <ArtworkInfoCard />}
-            {artifactType === "map" && <GalleryMapView activeRouteId={mapRouteId} />}
+            {artifactType === "map" && <GalleryMapView originRouteId={originMapRouteId} activeRouteId={mapRouteId} />}
             {artifactType === "comparison" && <ComparisonView />}
             {artifactType === "timeline" && <TimelineView />}
             {artifactType === "hotspots" && <DetailHotspotsView activeHotspotId={hotspotId} />}
