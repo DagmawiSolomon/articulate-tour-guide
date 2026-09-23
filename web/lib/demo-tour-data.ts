@@ -168,6 +168,37 @@ export const MAP_ROUTES: Record<string, MapRoute> = {
     ],
     geoTarget: [-0.0077, -0.0044],
   },
+  entrance: {
+    id: "entrance",
+    label: "53 Street Entrance",
+    targetRoom: "Main Foyer & Lobby",
+    distance: "0 m",
+    walkingTime: "0 sec",
+    steps: ["You are at the main 53 Street entrance foyer."],
+    pathD: "",
+    targetCoords: { x: 380, y: 430 },
+    geoPath: [[-0.0028, -0.0066]],
+    geoTarget: [-0.0028, -0.0066],
+  },
+  west: {
+    id: "west",
+    label: "1 West",
+    targetRoom: "1 West: Special Exhibitions",
+    distance: "25 m",
+    walkingTime: "~30 sec",
+    steps: [
+      "Turn left through the western entrance corridor",
+      "Enter 1 West special exhibition gallery directly ahead",
+    ],
+    pathD: "M 360 430 L 360 310 L 156 310 L 135 310",
+    targetCoords: { x: 135, y: 300 },
+    geoPath: [
+      [-0.0028, -0.0066],
+      [-0.0028, -0.0024],
+      [-0.0104, -0.0024],
+    ],
+    geoTarget: [-0.0104, -0.0024],
+  },
 };
 
 type GraphNode = {
@@ -176,10 +207,12 @@ type GraphNode = {
 };
 
 const ROOM_PATHS: Record<string, GraphNode> = {
+  entrance: { id: "entrance", entryPath: [[-0.0028, -0.0066]] },
   gallery36: { id: "gallery36", entryPath: [[-0.0028, -0.0066]] },
   store: { id: "store", entryPath: [[-0.0028, -0.0044], [-0.0077, -0.0044]] },
   restrooms: { id: "restrooms", entryPath: [[-0.0028, -0.0028], [0.0015, -0.0028]] },
   gauguin: { id: "gauguin", entryPath: [[-0.0028, -0.0024], [-0.0104, -0.0024]] },
+  west: { id: "west", entryPath: [[-0.0028, -0.0024], [-0.0104, -0.0024]] },
   garden: { id: "garden", entryPath: [[-0.0028, 0.0020], [0.0020, 0.0020], [0.0058, 0.0043]] },
   elevator: { id: "elevator", entryPath: [[-0.0028, 0.0051], [-0.0014, 0.0051]] },
 };
