@@ -41,6 +41,8 @@ import {
 } from "@/lib/sounds";
 import { createVoiceAgent, type VoiceAgent } from "@/lib/assemblyai-agent";
 import { createAudioPlayer, type AudioPlayer } from "@/lib/assemblyai-audio";
+import { BayerDitherBackground } from "@/components/ui/bayer-dither-background";
+import { PaperImageDither } from "@/components/ui/paper-image-dither";
 
 type AgentStatus = "listening" | "thinking" | "speaking";
 
@@ -58,6 +60,30 @@ const THINKING_EMOTIONS: ExpressionId[] = [
   "confused",
 ];
 
+const SHOWCASE_EXHIBITS = [
+  {
+    id: "starry-night",
+    title: "The Starry Night",
+    artist: "Van Gogh, 1889",
+    imageSrc: "/starry-night.jpg",
+    creditUrl: "https://en.wikipedia.org/wiki/The_Starry_Night",
+  },
+  {
+    id: "sunflowers",
+    title: "Sunflowers",
+    artist: "Van Gogh, 1887",
+    imageSrc: "/sunflowers.jpg",
+    creditUrl: "https://www.metmuseum.org/art/collection/search/436524",
+  },
+  {
+    id: "vermeer-study",
+    title: "The Annunciation",
+    artist: "Fra Angelico, 1433",
+    imageSrc: "/vermeer-study.jpg",
+    creditUrl: "https://www.metmuseum.org/art/collection/search/459055",
+  },
+];
+
 export default function Home() {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isTourActive, setIsTourActive] = React.useState(false);
@@ -68,8 +94,8 @@ export default function Home() {
   const [agentStatus, setAgentStatus] = React.useState<AgentStatus>("listening");
   const [isMuted, setIsMuted] = React.useState(true);
   const [activeArtifact, setActiveArtifact] = React.useState<ArtifactType>("info");
-  const [originMapRoute, setOriginMapRoute] = React.useState<string>("gallery36");
-  const [activeMapRoute, setActiveMapRoute] = React.useState<string>("gallery36");
+  const [originMapRoute, setOriginMapRoute] = React.useState<string>("entrance");
+  const [activeMapRoute, setActiveMapRoute] = React.useState<string>("entrance");
   const [activeHotspotId, setActiveHotspotId] = React.useState<"cypress" | "star" | "steeple" | "vortex" | "moon" | undefined>(undefined);
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
   // Will be wired to real events once voice is connected.
@@ -211,12 +237,14 @@ export default function Home() {
     playCallStart();
     setIsTourActive(true);
     setIsExpanded(true);
-    setActiveArtifact("chat");
+    setActiveArtifact("map");
     setIsPaused(false);
     setAgentStatus("listening");
     setActiveExpressionId("listening");
     setChatMessages([]);
     setIsChatThinking(false);
+    setOriginMapRoute("entrance");
+    setActiveMapRoute("entrance");
 
     // Initialise the audio player (once per tour)
     audioPlayerRef.current = createAudioPlayer();
@@ -302,8 +330,9 @@ export default function Home() {
               case "show_map":
                 setActiveArtifact("map");
                 if (params.routeId) {
+                  const target = params.routeId === "west" ? "gauguin" : params.routeId;
                   setOriginMapRoute(activeMapRoute);
-                  setActiveMapRoute(params.routeId);
+                  setActiveMapRoute(target);
                 }
                 break;
               case "show_timeline":
@@ -384,6 +413,8 @@ export default function Home() {
     setChatMessages([]);
     setIsChatThinking(false);
     setSummaryData(null);
+    setOriginMapRoute("entrance");
+    setActiveMapRoute("entrance");
   };
 
   const togglePause = React.useCallback(() => {
@@ -579,126 +610,49 @@ export default function Home() {
           }
         >
           {!isTourActive ? (
-            /* â”€â”€ BUI Agent Screen-inspired landing hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-            <div className="w-full h-full flex items-center justify-center p-6">
+            /* ── Gallery Showcase Landing ── */
+            <div className="w-full h-full flex flex-col relative">
+              {/* Single full-width dithered image */}
               <div
-                className="relative w-full max-w-[420px] overflow-hidden rounded-[20px]"
-                style={{
-                  background: "var(--surface)",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.06), 0 0 0 1px var(--line)",
-                }}
+                className="w-full shrink-0 relative overflow-hidden select-none"
+                style={{ height: "65vh" }}
               >
-                {/* BUI pixel-grid decorative header band */}
-                <div
-                  className="relative overflow-hidden px-7 pt-8 pb-6"
-                  style={{ background: "var(--canvas)" }}
-                >
-                  {/* Subtle dot-grid texture */}
-                  <div
-                    aria-hidden="true"
-                    className="absolute inset-0 pointer-events-none"
+                <PaperImageDither
+                  imageSrc="/landing.png"
+                  size={2}
+                  colorSteps={5}
+                  type="8x8"
+                  className="pointer-events-none"
+                />
+              </div>
+
+              {/* Grow zone — perfectly centers the row between image and footer */}
+              <div className="flex-1 min-h-0 flex items-center">
+                <div className="w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 flex items-center justify-between gap-6">
+                  <div className="flex flex-col gap-1">
+                    <h1 className="text-xl font-semibold text-black tracking-[-0.025em] leading-snug">
+                      Masterpieces of Modern Art
+                    </h1>
+                    <p className="text-sm text-zinc-500 leading-snug max-w-sm line-clamp-2">
+                      An ambient, voice-guided tour exploring iconic modern masterworks, from brushwork and symbolism to the stories behind each canvas.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleStartTour}
+                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-5 h-9 text-[13px] font-medium cursor-pointer transition-all active:scale-[0.96]"
                     style={{
-                      backgroundImage:
-                        "radial-gradient(circle, var(--line) 1px, transparent 1px)",
-                      backgroundSize: "18px 18px",
-                      opacity: 0.45,
+                      background: "var(--ink)",
+                      color: "#fff",
                     }}
-                  />
-                  {/* Shimmer gradient overlay */}
-                  <div
-                    aria-hidden="true"
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      background:
-                        "radial-gradient(ellipse at 50% 0%, var(--canvas) 0%, transparent 70%)",
-                    }}
-                  />
-
-                  {/* Logo */}
-                  <div className="relative z-10 mb-5">
-                    <span
-                      className="font-medium select-none leading-none"
-                      style={{
-                        fontFamily: "'Afacad Flux', sans-serif",
-                        fontSize: "15pt",
-                        letterSpacing: "-0.03em",
-                        color: "var(--ink)",
-                      }}
-                    >
-                      articulate.
-                    </span>
-                  </div>
-
-                  {/* BUI-style shimmer heading */}
-                  <h1
-                    className="relative z-10 text-[22px] font-semibold leading-snug tracking-[-0.025em]"
-                    style={{ color: "var(--ink)" }}
                   >
-                    Your AI museum guide
-                    <br />
-                    <span style={{ color: "var(--ink-3)" }}>is ready to begin.</span>
-                  </h1>
-
-                  <p
-                    className="relative z-10 mt-2 text-[13px] leading-relaxed"
-                    style={{ color: "var(--ink-2)" }}
-                  >
-                    Ask questions about any artwork. Mr. Triangle will explain,
-                    navigate, and guide you through the exhibition.
-                  </p>
-
-                  {/* BUI feature chips */}
-                  <div className="relative z-10 mt-4 flex flex-wrap gap-1.5">
-                    {[
-                      "Voice-guided",
-                      "Real-time transcription",
-                      "Interactive artifacts",
-                    ].map((chip) => (
-                      <span
-                        key={chip}
-                        className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11.5px] font-medium"
-                        style={{
-                          background: "var(--field)",
-                          color: "var(--ink-2)",
-                          border: "1px solid var(--line)",
-                        }}
-                      >
-                        {chip}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Card footer with CTA */}
-                <div
-                  className="px-7 py-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3"
-                  style={{ borderTop: "1px solid var(--line)" }}
-                >
-                  <p
-                    className="text-[11.5px] leading-relaxed hidden sm:block"
-                    style={{ color: "var(--ink-3)" }}
-                  >
-                    Microphone access required for voice interaction.
-                  </p>
-
-                  <div className="flex flex-1 sm:flex-none items-center gap-2 justify-end">
-                    <button
-                      type="button"
-                      onClick={handleStartTour}
-                      className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-4 h-9 text-[13px] font-medium cursor-pointer transition-all active:scale-[0.96]"
-                      style={{
-                        background: "var(--ink)",
-                        color: "#fff",
-                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
-                      }}
-                    >
-                      Start tour
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14m-6-6l6 6-6 6" />
-                      </svg>
-                    </button>
-                  </div>
+                    Start tour
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14m-6-6l6 6-6 6" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
