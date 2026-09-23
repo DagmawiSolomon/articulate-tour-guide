@@ -12,8 +12,8 @@ interface GalleryMapViewProps {
   activeRouteId?: "restrooms" | "gauguin" | "elevator" | "garden" | "store" | string;
 }
 
-export function GalleryMapView({ originRouteId = "gallery36", activeRouteId = "restrooms" }: GalleryMapViewProps) {
-  const route: MapRoute = MAP_ROUTES[activeRouteId] || MAP_ROUTES.restrooms;
+export function GalleryMapView({ originRouteId = "entrance", activeRouteId = "entrance" }: GalleryMapViewProps) {
+  const route: MapRoute = MAP_ROUTES[activeRouteId] || MAP_ROUTES.entrance || MAP_ROUTES.restrooms;
   const dynamicGeoPath = getDynamicRoute(originRouteId, activeRouteId);
 
   const mapInstanceRef = React.useRef<MapLibreGL.Map | null>(null);
@@ -247,10 +247,31 @@ React.useEffect(() => {
         {/* User Location Indicator */}
         {dynamicGeoPath && dynamicGeoPath.length > 0 && (
           <MapMarker longitude={dynamicGeoPath[0][0]} latitude={dynamicGeoPath[0][1]}>
-            <div className="size-3.5 rounded-full bg-blue-500 border-[2.5px] border-white shadow-sm" />
+            <div className="relative flex items-center justify-center">
+              <span className="absolute -top-6 px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-medium whitespace-nowrap shadow-sm">
+                You
+              </span>
+              <div className="size-3.5 rounded-full bg-blue-500 border-[2.5px] border-white shadow-md animate-pulse" />
+            </div>
           </MapMarker>
         )}
 
+        {/* Destination Target Marker */}
+        {originRouteId !== activeRouteId && dynamicGeoPath && dynamicGeoPath.length > 1 && (
+          <MapMarker
+            longitude={dynamicGeoPath[dynamicGeoPath.length - 1][0]}
+            latitude={dynamicGeoPath[dynamicGeoPath.length - 1][1]}
+          >
+            <div className="relative flex items-center justify-center">
+              <span className="absolute -top-6 px-2 py-0.5 rounded bg-ink text-paper text-[10px] font-semibold whitespace-nowrap shadow-md border border-ink-1">
+                {route.label}
+              </span>
+              <div className="size-4 rounded-full bg-red-500 border-2 border-white shadow-lg flex items-center justify-center">
+                <div className="size-1.5 rounded-full bg-white" />
+              </div>
+            </div>
+          </MapMarker>
+        )}
 
         {/* Built-in Floating Navigation Controls from mapcn */}
         <MapControls className="right-4 bottom-4 md:right-5 md:bottom-5" />
