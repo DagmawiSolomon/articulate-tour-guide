@@ -42,7 +42,6 @@ import {
 import { createVoiceAgent, type VoiceAgent } from "@/lib/assemblyai-agent";
 import { createAudioPlayer, type AudioPlayer } from "@/lib/assemblyai-audio";
 import { BayerDitherBackground } from "@/components/ui/bayer-dither-background";
-import { PaperImageDither } from "@/components/ui/paper-image-dither";
 
 type AgentStatus = "listening" | "thinking" | "speaking";
 
@@ -90,6 +89,7 @@ export default function Home() {
   const [visitorName, setVisitorName] = React.useState("Visitor");
   const [isPaused, setIsPaused] = React.useState(false);
   const [isEndDialogOpen, setIsEndDialogOpen] = React.useState(false);
+  const [isExhibitInfoOpen, setIsExhibitInfoOpen] = React.useState(false);
   const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("neutral");
   const [agentStatus, setAgentStatus] = React.useState<AgentStatus>("listening");
   const [isMuted, setIsMuted] = React.useState(true);
@@ -600,8 +600,11 @@ export default function Home() {
     "M 0 67.5 C 13 67.5 16 56 16 41.5 A 36 36 0 0 1 52 5.5 H 192 A 36 36 0 0 1 228 41.5 C 228 56 231 67.5 244 67.5";
 
   return (
-    <div className="h-dvh min-h-[480px] w-full bg-background flex overflow-hidden relative">
-      <div className="flex-1 min-w-0 h-full grid grid-rows-[minmax(0,1fr)_auto] overflow-hidden relative">
+    <div className={`relative h-dvh min-h-[480px] w-full flex overflow-hidden ${!isTourActive ? "bg-white" : "bg-background"}`}>
+      {!isTourActive && (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 right-0 z-[3] mx-auto max-w-6xl border-x border-[#e5e7eb]" />
+      )}
+      <div className="relative z-[2] flex-1 min-w-0 h-full grid grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
         <main
           className={
             !isTourActive
@@ -610,51 +613,56 @@ export default function Home() {
           }
         >
           {!isTourActive ? (
-            /* ── Gallery Showcase Landing ── */
-            <div className="w-full h-full flex flex-col relative">
-              {/* Single full-width dithered image */}
+            /* ── Start Tour Landing ── */
+            <div className="flex h-full w-full flex-col items-center bg-white font-outfit">
               <div
-                className="w-full shrink-0 relative overflow-hidden select-none"
-                style={{ height: "65vh" }}
+                className="relative mx-auto w-full max-w-6xl shrink-0 overflow-hidden bg-[#172d3c]"
+                style={{ height: "min(68.75vh, calc(100% - 12rem))", minHeight: "16rem" }}
               >
-                <PaperImageDither
-                  imageSrc="/landing.png"
-                  size={2}
-                  colorSteps={5}
-                  type="8x8"
-                  className="pointer-events-none"
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/landing-generated.png"
+                  alt="A quiet, empty art museum gallery with a framed night-sky painting"
+                  className="block h-full w-full max-w-6xl object-cover object-center"
                 />
               </div>
 
-              {/* Grow zone — perfectly centers the row between image and footer */}
-              <div className="flex-1 min-h-0 flex items-center">
-                <div className="w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 flex items-center justify-between gap-6">
-                  <div className="flex flex-col gap-1">
-                    <h1 className="text-xl font-semibold text-black tracking-[-0.025em] leading-snug">
-                      Masterpieces of Modern Art
-                    </h1>
-                    <p className="text-sm text-zinc-500 leading-snug max-w-sm line-clamp-2">
-                      An ambient, voice-guided tour exploring iconic modern masterworks, from brushwork and symbolism to the stories behind each canvas.
-                    </p>
-                  </div>
+              <section className="flex w-full flex-1 items-center border-y border-[#e5e7eb] bg-white">
+                <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-8 px-6 py-8 sm:px-8 md:grid-cols-[minmax(0,1fr)_minmax(0,31rem)] md:gap-12 lg:px-10">
+                  <h1 className="max-w-[34rem] font-outfit text-3xl font-medium leading-[1.06] tracking-[-0.025em] text-[#171717] sm:text-4xl lg:text-5xl">
+                    <span className="block">Turning Points</span>
+                    <span className="block">in Art History</span>
+                  </h1>
 
-                  <button
-                    type="button"
-                    onClick={handleStartTour}
-                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-5 h-9 text-[13px] font-medium cursor-pointer transition-all active:scale-[0.96]"
-                    style={{
-                      background: "var(--ink)",
-                      color: "#fff",
-                    }}
-                  >
-                    Start tour
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14m-6-6l6 6-6 6" />
-                    </svg>
-                  </button>
+                  <div className="flex w-full max-w-[31rem] flex-col items-start gap-4 justify-self-end font-sans">
+                    <p className="text-left text-base leading-relaxed font-medium text-[#3f3f46] opacity-100">
+                      <span className="block">An imagined gallery of art that shaped history,</span>
+                      <span className="block">from ancient icons to modern masterpieces.</span>
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={handleStartTour}
+                        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium cursor-pointer transition-all active:scale-[0.96]"
+                        style={{ background: "var(--ink)", color: "#fff" }}
+                      >
+                        Start tour
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M5 12h14m-6-6l6 6-6 6" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsExhibitInfoOpen(true)}
+                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-5 text-sm font-medium cursor-pointer transition-colors hover:bg-zinc-200"
+                        style={{ background: "#f4f4f5", color: "#1f1e1b" }}
+                      >
+                        About the exhibit
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </section>
             </div>
           ) : (
             /* Active Tour Stage */
@@ -800,16 +808,11 @@ export default function Home() {
           )}
         </main>
         {/* Footer with brand logo and clean fallback view switcher positioned outside the main stage view */}
-        <footer className="w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 py-3 flex items-center justify-between text-xs text-secondary-text z-30 select-none">
-          <div className="flex items-center gap-3">
-            <span
-              className="font-medium text-foreground select-none leading-none tracking-[-0.03em]"
-              style={{
-                fontFamily: "'Afacad Flux', sans-serif",
-                fontSize: "15pt",
-              }}
-            >
-              articulate tour guide.
+        <footer className="relative z-[4] w-full max-w-6xl mx-auto px-6 py-3 flex items-center justify-between text-xs text-secondary-text select-none">
+          <div>
+            Made by{" "}
+            <span className="font-semibold text-foreground tracking-[-0.1px]">
+              Dagmawi Solomon
             </span>
           </div>
 
@@ -966,6 +969,16 @@ export default function Home() {
         </footer>
       </div>
 
+      <Dialog open={isExhibitInfoOpen} onOpenChange={setIsExhibitInfoOpen}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl">Turning Points in Art History</DialogTitle>
+            <DialogDescription>
+              Journey through an imagined collection of history’s most influential artworks, from ancient icons to modern masterpieces, and discover the ideas that changed art along the way.
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
       {/* Confirmation Dialog: End Tour */}
       <Dialog open={isEndDialogOpen} onOpenChange={setIsEndDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">

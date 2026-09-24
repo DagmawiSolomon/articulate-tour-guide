@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, DM_Sans, Afacad_Flux } from "next/font/google";
+import { Inter, DM_Sans, Afacad_Flux, Outfit } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,12 @@ const afacadFlux = Afacad_Flux({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   display: "block",
+});
+
+const outfit = Outfit({
+  variable: "--font-outfit-family",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const inter = Inter({
@@ -30,7 +36,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("light", "h-full", "antialiased", inter.variable, dmSansHeading.variable, afacadFlux.variable)}
+      className={cn("light", "h-full", "antialiased", inter.variable, dmSansHeading.variable, afacadFlux.variable, outfit.variable)}
       style={{ colorScheme: "light" }}
     >
       <body className="h-full overflow-hidden bg-background text-foreground">{children}</body>
