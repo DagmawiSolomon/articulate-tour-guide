@@ -14,6 +14,7 @@ interface PaperImageDitherProps {
   size?: number;
   colorSteps?: number;
   type?: "8x8" | "4x4" | "2x2";
+  fit?: "cover" | "contain" | "fill";
 }
 
 export function PaperImageDither({
@@ -22,6 +23,7 @@ export function PaperImageDither({
   size = 2,
   colorSteps = 5,
   type = "8x8",
+  fit = "contain",
 }: PaperImageDitherProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = React.useState<{ width: number; height: number }>({
@@ -80,7 +82,7 @@ export function PaperImageDither({
           type={type}
           size={size}
           colorSteps={colorSteps}
-          fit="cover"
+          fit={fit}
           style={{ display: "block", width: "100%", height: "100%" }}
         />
       ) : (
