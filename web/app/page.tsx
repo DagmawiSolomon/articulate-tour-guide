@@ -59,30 +59,6 @@ const THINKING_EMOTIONS: ExpressionId[] = [
   "confused",
 ];
 
-const SHOWCASE_EXHIBITS = [
-  {
-    id: "starry-night",
-    title: "The Starry Night",
-    artist: "Van Gogh, 1889",
-    imageSrc: "/starry-night.jpg",
-    creditUrl: "https://en.wikipedia.org/wiki/The_Starry_Night",
-  },
-  {
-    id: "sunflowers",
-    title: "Sunflowers",
-    artist: "Van Gogh, 1887",
-    imageSrc: "/sunflowers.jpg",
-    creditUrl: "https://www.metmuseum.org/art/collection/search/436524",
-  },
-  {
-    id: "vermeer-study",
-    title: "The Annunciation",
-    artist: "Fra Angelico, 1433",
-    imageSrc: "/vermeer-study.jpg",
-    creditUrl: "https://www.metmuseum.org/art/collection/search/459055",
-  },
-];
-
 export default function Home() {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isTourActive, setIsTourActive] = React.useState(false);
@@ -601,9 +577,6 @@ export default function Home() {
 
   return (
     <div className={`relative h-dvh min-h-[480px] w-full flex overflow-hidden ${!isTourActive ? "bg-white" : "bg-background"}`}>
-      {!isTourActive && (
-        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 right-0 z-[3] mx-auto max-w-6xl border-x border-[#e5e7eb]" />
-      )}
       <div className="relative z-[2] flex-1 min-w-0 h-full grid grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
         <main
           className={
@@ -614,36 +587,36 @@ export default function Home() {
         >
           {!isTourActive ? (
             /* ── Start Tour Landing ── */
-            <div className="flex h-full w-full flex-col items-center bg-white font-outfit">
+            <div className="flex h-full w-full flex-col items-center bg-white font-sans">
               <div
-                className="relative mx-auto w-full max-w-6xl shrink-0 overflow-hidden bg-[#172d3c]"
-                style={{ height: "min(68.75vh, calc(100% - 12rem))", minHeight: "16rem" }}
+                className="relative w-full shrink-0 overflow-hidden bg-[#172d3c]"
+                style={{ height: "min(63.75vh, calc(100% - 12rem))", minHeight: "16rem" }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/landing-generated.png"
-                  alt="A quiet, empty art museum gallery with a framed night-sky painting"
-                  className="block h-full w-full max-w-6xl object-cover object-center"
+                  src="/hero-collage-picked.png"
+                  alt="A grainy cut-paper collage of two distinct painted portraits and a still life"
+                  className="block h-full w-full object-cover object-center"
                 />
               </div>
 
-              <section className="flex w-full flex-1 items-center border-y border-[#e5e7eb] bg-white">
-                <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-8 px-6 py-8 sm:px-8 md:grid-cols-[minmax(0,1fr)_minmax(0,31rem)] md:gap-12 lg:px-10">
-                  <h1 className="max-w-[34rem] font-outfit text-3xl font-medium leading-[1.06] tracking-[-0.025em] text-[#171717] sm:text-4xl lg:text-5xl">
+              <section className="flex w-full flex-1 items-center bg-white">
+                <div className="mx-auto grid w-full max-w-6xl h-full grid-cols-1 items-center gap-8 px-6 py-8 md:grid-cols-[minmax(0,1fr)_auto] md:gap-12">
+                  <h1 className="max-w-[34rem] font-outfit text-3xl font-normal leading-[1.06] tracking-[-0.025em] text-[#171717] sm:text-4xl lg:text-5xl">
                     <span className="block">Turning Points</span>
                     <span className="block">in Art History</span>
                   </h1>
 
-                  <div className="flex w-full max-w-[31rem] flex-col items-start gap-4 justify-self-end font-sans">
-                    <p className="text-left text-base leading-relaxed font-medium text-[#3f3f46] opacity-100">
+                  <div className="ml-auto flex w-fit max-w-[31rem] flex-col items-stretch gap-4 font-sans md:justify-self-end">
+                    <p className="w-full text-left text-base leading-relaxed font-normal" style={{ color: "#1f1e1b", opacity: 1 }}>
                       <span className="block">An imagined gallery of art that shaped history,</span>
                       <span className="block">from ancient icons to modern masterpieces.</span>
                     </p>
-                    <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="flex w-fit flex-wrap items-center justify-start gap-2.5 self-start">
                       <button
                         type="button"
                         onClick={handleStartTour}
-                        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium cursor-pointer transition-all active:scale-[0.96]"
+                        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-5 font-sans text-sm font-medium cursor-pointer transition-all active:scale-[0.96]"
                         style={{ background: "var(--ink)", color: "#fff" }}
                       >
                         Start tour
@@ -654,7 +627,7 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setIsExhibitInfoOpen(true)}
-                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-5 text-sm font-medium cursor-pointer transition-colors hover:bg-zinc-200"
+                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-5 font-sans text-sm font-medium cursor-pointer transition-colors hover:bg-zinc-200"
                         style={{ background: "#f4f4f5", color: "#1f1e1b" }}
                       >
                         About the exhibit
