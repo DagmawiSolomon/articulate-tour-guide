@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ArtworkInfoCard } from "./artwork-info-card";
 import { GalleryMapView } from "./gallery-map-view";
+import { ExhibitFloorMapView } from "./exhibit-floor-map-view";
 import { ComparisonView } from "./comparison-view";
 import { TimelineView } from "./timeline-view";
 import { DetailHotspotsView } from "./detail-hotspots-view";
@@ -18,6 +19,7 @@ interface ArtifactStageProps {
   artifactType: ArtifactType;
   originMapRouteId?: string;
   mapRouteId?: "restrooms" | "gauguin" | "elevator" | "garden" | "store" | string;
+  mapDisplay?: "navigation" | "exhibition";
   hotspotId?: "cypress" | "star" | "steeple" | "vortex" | "moon" | string;
   letterId?: "letter-782" | "letter-cypress" | "letter-stars";
   /** When true renders a layout-matched skeleton in place of the real artifact.
@@ -37,6 +39,7 @@ export function ArtifactStage({
   artifactType,
   originMapRouteId,
   mapRouteId = "restrooms",
+  mapDisplay = "navigation",
   hotspotId,
   letterId = "letter-782",
   isLoading = false,
@@ -58,7 +61,7 @@ export function ArtifactStage({
         ) : (
           <>
             {artifactType === "info" && <ArtworkInfoCard />}
-            {artifactType === "map" && <GalleryMapView originRouteId={originMapRouteId} activeRouteId={mapRouteId} />}
+            {artifactType === "map" && (mapDisplay === "exhibition" ? <ExhibitFloorMapView /> : <GalleryMapView originRouteId={originMapRouteId} activeRouteId={mapRouteId} />)}
             {artifactType === "comparison" && <ComparisonView />}
             {artifactType === "timeline" && <TimelineView />}
             {artifactType === "hotspots" && <DetailHotspotsView activeHotspotId={hotspotId} />}
