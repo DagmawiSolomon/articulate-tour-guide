@@ -27,6 +27,8 @@ import {
 import { SettingsDialog } from "@/components/layout/settings-dialog";
 import { Footer } from "@/components/layout/footer";
 import { ArtifactStage, type ArtifactType, type ChatMessage } from "@/components/artifacts/artifact-stage";
+import type { ExhibitArtworkInfo, ExhibitNavigationState } from "@/components/artifacts/exhibit-floor-map-view";
+import type { MapViewport } from "@/components/ui/map";
 import {
   initSounds,
   playCallStart,
@@ -69,6 +71,9 @@ export default function Home() {
   const [agentStatus, setAgentStatus] = React.useState<AgentStatus>("listening");
   const [isMuted, setIsMuted] = React.useState(true);
   const [activeArtifact, setActiveArtifact] = React.useState<ArtifactType>("info");
+  const [selectedArtwork, setSelectedArtwork] = React.useState<ExhibitArtworkInfo | null>(null);
+  const [mapNavigation, setMapNavigation] = React.useState<ExhibitNavigationState>({ startId: "entrance", destinationId: "", currentNodeId: null });
+  const [mapViewport, setMapViewport] = React.useState<MapViewport | null>(null);
   const [originMapRoute, setOriginMapRoute] = React.useState<string>("entrance");
   const [activeMapRoute, setActiveMapRoute] = React.useState<string>("entrance");
   const [activeHotspotId, setActiveHotspotId] = React.useState<"cypress" | "star" | "steeple" | "vortex" | "moon" | undefined>(undefined);
@@ -213,6 +218,9 @@ export default function Home() {
     setIsTourActive(true);
     setIsExpanded(true);
     setActiveArtifact("map");
+    setSelectedArtwork(null);
+    setMapNavigation({ startId: "entrance", destinationId: "", currentNodeId: null });
+    setMapViewport(null);
     setIsPaused(false);
     setIsMuted(true);
     setAgentStatus("listening");
@@ -431,7 +439,7 @@ export default function Home() {
     "M 0 67.5 C 13 67.5 16 56 16 41.5 A 36 36 0 0 1 52 5.5 H 192 A 36 36 0 0 1 228 41.5 C 228 56 231 67.5 244 67.5";
 
   return (
-    <div className={`relative h-dvh min-h-[480px] w-full flex overflow-hidden ${!isTourActive ? "bg-white" : "bg-background"}`}>
+    <div className="relative h-dvh min-h-[480px] w-full flex overflow-hidden bg-white">
       <div className="relative z-[2] flex-1 min-w-0 h-full grid grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
         <main
           className={
@@ -442,10 +450,9 @@ export default function Home() {
         >
           {!isTourActive ? (
             /* ── Start Tour Landing ── */
-            <div className="flex h-full w-full flex-col items-center bg-white font-sans">
+            <div className="flex min-h-full w-full flex-col items-center bg-white font-sans">
               <div
-                className="relative w-full shrink-0 overflow-hidden bg-[#172d3c]"
-                style={{ height: "min(63.75vh, calc(100% - 12rem))", minHeight: "16rem" }}
+                className="landing-hero-image relative w-full shrink-0 overflow-hidden bg-[#172d3c]"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -456,13 +463,13 @@ export default function Home() {
               </div>
 
               <section className="flex w-full flex-1 items-center bg-white">
-                <div className="mx-auto grid w-full max-w-6xl h-full grid-cols-1 items-center gap-8 px-6 py-8 md:grid-cols-[minmax(0,1fr)_auto] md:gap-12">
+                <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-6 px-5 py-6 sm:gap-8 sm:px-6 sm:py-8 md:h-full md:grid-cols-[minmax(0,1fr)_auto] md:gap-12">
                   <h1 className="max-w-[34rem] font-outfit text-3xl font-normal leading-[1.06] tracking-[-0.025em] text-[#171717] sm:text-4xl lg:text-5xl">
                     <span className="block">Turning Points</span>
                     <span className="block">in Art History</span>
                   </h1>
 
-                  <div className="ml-auto flex w-fit max-w-[31rem] flex-col items-stretch gap-4 font-sans md:justify-self-end">
+                  <div className="flex w-full max-w-[31rem] flex-col items-start gap-3 font-sans md:ml-auto md:w-fit md:items-stretch md:gap-4 md:justify-self-end">
                     <p className="w-full text-left text-base leading-relaxed font-normal" style={{ color: "#1f1e1b", opacity: 1 }}>
                       <span className="block">An imagined gallery of art that shaped history,</span>
                       <span className="block">from ancient icons to modern masterpieces.</span>
@@ -496,7 +503,7 @@ export default function Home() {
             /* Active Tour Stage */
             <div className="guide-stage relative w-full h-full max-h-[min(90vh,860px)] 2xl:max-h-[940px]" data-expanded={isExpanded}>
               <div className={`guide-card-layer absolute inset-0 ${activeArtifact !== 'summary' ? 'md:left-24' : ''}`} inert={!isExpanded} aria-hidden={!isExpanded}>
-                <div className="guide-card w-full h-full rounded-2xl border border-border bg-card shadow-xs relative flex items-center justify-center overflow-visible">
+                <div className="guide-card relative flex h-full w-full items-center justify-center overflow-visible rounded-2xl border border-[#e5e7e6] bg-[#fafafa] shadow-xs">
 
                   {/* Top-Right Original Inverted Corner Notch: Houses the close button (kept exactly as requested) */}
                   <div
@@ -559,6 +566,17 @@ export default function Home() {
                     <ArtifactStage
                       artifactType={activeArtifact}
                       mapDisplay="exhibition"
+                      selectedArtwork={selectedArtwork}
+                      mapNavigation={mapNavigation}
+                      onMapNavigationChange={setMapNavigation}
+                      mapViewport={mapViewport ?? undefined}
+                      onMapViewportChange={setMapViewport}
+                      onSelectArtwork={(artwork) => {
+                        setSelectedArtwork(artwork);
+                        setActiveArtifact("info");
+                        setIsExpanded(true);
+                        playTactileTap();
+                      }}
                       mapRouteId={activeMapRoute}
                       originMapRouteId={originMapRoute}
                       hotspotId={activeHotspotId}
@@ -637,7 +655,7 @@ export default function Home() {
           )}
         </main>
         {/* Footer with brand logo and clean fallback view switcher positioned outside the main stage view */}
-        <footer className="relative z-[4] w-full max-w-6xl mx-auto px-6 py-3 flex items-center justify-between text-xs text-secondary-text select-none">
+        <footer className="relative z-[4] mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-xs text-secondary-text select-none sm:px-6">
           <div>
             Made by{" "}
             <span className="font-semibold text-foreground tracking-[-0.1px]">
