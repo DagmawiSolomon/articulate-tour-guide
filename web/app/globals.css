@@ -628,3 +628,21 @@ body {
     opacity: 0.45;
   }
 }
+
+/* Landing hero image scales with the viewport while keeping the copy and calls to action accessible. */
+.landing-hero-image {
+  height: min(46svh, 28rem);
+  min-height: 12rem;
+}
+@media (min-width: 768px) {
+  .landing-hero-image {
+    height: min(63.75vh, calc(100% - 12rem));
+    min-height: 16rem;
+  }
+}
+@media (max-height: 620px) and (max-width: 767px) {
+  .landing-hero-image {
+    height: 36svh;
+    min-height: 10rem;
+  }
+}
