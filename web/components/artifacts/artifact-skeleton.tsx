@@ -86,45 +86,19 @@ function InfoSkeleton() {
 /* ── Map ──────────────────────────────────────────────── */
 function MapSkeleton() {
   return (
-    <div
-      className="w-full h-full relative select-none rounded-2xl overflow-hidden flex flex-col justify-between p-4 sm:p-6"
-      style={{ background: "#f8f7f2" }}
-    >
-      {/* Subtle architectural massing shimmers */}
-      <div className="w-full flex justify-between items-start pt-2 px-4">
-        <Shimmer className="h-6 w-36 rounded-md opacity-40" />
-        <Shimmer className="h-10 w-44 rounded-lg opacity-30" />
-      </div>
-
-      <div className="w-full flex justify-around items-center py-8">
-        <Shimmer className="h-32 w-52 rounded-xl opacity-25" />
-        <div className="flex flex-col items-center gap-2">
-          <Shimmer className="size-4 rounded-full opacity-60" />
-          <Shimmer className="h-1 w-28 rounded-full opacity-40" />
-        </div>
-        <Shimmer className="h-40 w-64 rounded-xl opacity-25" />
-      </div>
-
-      <div className="w-full flex justify-between items-end pb-2 px-4">
-        <Shimmer className="h-5 w-40 rounded-md opacity-40" />
-
-        {/* Bottom-right controls shimmer matching MapControls */}
-        <div
-          className="flex flex-col items-center gap-1.5 p-1 rounded-lg mr-1 mb-1"
-          style={{ border: "1px solid var(--line)", background: "var(--surface-raised)" }}
-        >
-          <Shimmer className="size-7 rounded-md" />
-          <Shimmer className="size-7 rounded-md" />
-          <div className="w-4 h-px opacity-30 my-0.5" style={{ background: "var(--line)" }} />
-          <Shimmer className="size-7 rounded-md" />
-          <Shimmer className="size-7 rounded-md" />
-        </div>
+    <div className="relative h-full w-full overflow-hidden rounded-2xl bg-[#f4f5f7]">
+      <div
+        className="absolute inset-0 bg-center bg-contain bg-no-repeat"
+        style={{ backgroundImage: "url('/museum-floorplan-base.png')" }}
+        aria-hidden="true"
+      />
+      <div className="absolute bottom-4 right-4 flex flex-col gap-1 rounded-lg border border-border/60 bg-card/85 p-1">
+        <Shimmer className="size-7 rounded-md" />
+        <Shimmer className="size-7 rounded-md" />
       </div>
     </div>
   );
-}
-
-/* ── Comparison ───────────────────────────────────────── */
+}/* ── Comparison ───────────────────────────────────────── */
 function ComparisonSkeleton() {
   return (
     <div className="w-full h-full flex flex-col justify-center overflow-hidden">

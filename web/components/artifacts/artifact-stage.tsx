@@ -3,7 +3,8 @@
 import * as React from "react";
 import { ArtworkInfoCard } from "./artwork-info-card";
 import { GalleryMapView } from "./gallery-map-view";
-import { ExhibitFloorMapView } from "./exhibit-floor-map-view";
+import { ExhibitFloorMapView, type ExhibitArtworkInfo, type ExhibitNavigationState } from "./exhibit-floor-map-view";
+import type { MapViewport } from "@/components/ui/map";
 import { ComparisonView } from "./comparison-view";
 import { TimelineView } from "./timeline-view";
 import { DetailHotspotsView } from "./detail-hotspots-view";
@@ -20,6 +21,12 @@ interface ArtifactStageProps {
   originMapRouteId?: string;
   mapRouteId?: "restrooms" | "gauguin" | "elevator" | "garden" | "store" | string;
   mapDisplay?: "navigation" | "exhibition";
+  selectedArtwork?: ExhibitArtworkInfo | null;
+  onSelectArtwork?: (artwork: ExhibitArtworkInfo) => void;
+  mapNavigation?: ExhibitNavigationState;
+  onMapNavigationChange?: (state: ExhibitNavigationState) => void;
+  mapViewport?: MapViewport;
+  onMapViewportChange?: (viewport: MapViewport) => void;
   hotspotId?: "cypress" | "star" | "steeple" | "vortex" | "moon" | string;
   letterId?: "letter-782" | "letter-cypress" | "letter-stars";
   /** When true renders a layout-matched skeleton in place of the real artifact.
@@ -40,6 +47,12 @@ export function ArtifactStage({
   originMapRouteId,
   mapRouteId = "restrooms",
   mapDisplay = "navigation",
+  selectedArtwork,
+  onSelectArtwork,
+  mapNavigation,
+  onMapNavigationChange,
+  mapViewport,
+  onMapViewportChange,
   hotspotId,
   letterId = "letter-782",
   isLoading = false,
@@ -49,7 +62,7 @@ export function ArtifactStage({
   onSelectArtifact,
 }: ArtifactStageProps) {
   return (
-    <div className="w-full h-full overflow-hidden">
+    <div className="relative w-full h-full overflow-hidden">
       {/*
         key={artifactType} forces React to unmount + remount this div every
         time the artifact changes, which restarts the CSS animation on mount.
@@ -60,8 +73,8 @@ export function ArtifactStage({
           <ArtifactSkeleton artifactType={artifactType} />
         ) : (
           <>
-            {artifactType === "info" && <ArtworkInfoCard />}
-            {artifactType === "map" && (mapDisplay === "exhibition" ? <ExhibitFloorMapView /> : <GalleryMapView originRouteId={originMapRouteId} activeRouteId={mapRouteId} />)}
+            {artifactType === "info" && <ArtworkInfoCard {...(selectedArtwork ?? {})} onReturnToMap={selectedArtwork && mapDisplay === "exhibition" ? () => onSelectArtifact?.("map") : undefined} />}
+            {artifactType === "map" && (mapDisplay === "exhibition" ? <ExhibitFloorMapView onSelectArtwork={onSelectArtwork} navigationState={mapNavigation} onNavigationStateChange={onMapNavigationChange} initialViewport={mapViewport} onViewportChange={onMapViewportChange} /> : <GalleryMapView originRouteId={originMapRouteId} activeRouteId={mapRouteId} />)}
             {artifactType === "comparison" && <ComparisonView />}
             {artifactType === "timeline" && <TimelineView />}
             {artifactType === "hotspots" && <DetailHotspotsView activeHotspotId={hotspotId} />}
@@ -77,6 +90,7 @@ export function ArtifactStage({
           </>
         )}
       </div>
+
     </div>
   );
 }
