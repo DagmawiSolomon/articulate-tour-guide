@@ -943,13 +943,45 @@ export default function Home() {
       </div>
 
       <Dialog open={isExhibitInfoOpen} onOpenChange={setIsExhibitInfoOpen}>
-        <DialogContent className="sm:max-w-[440px]">
-          <DialogHeader>
-            <DialogTitle className="font-serif text-2xl">Turning Points in Art History</DialogTitle>
-            <DialogDescription>
+        <DialogContent showCloseButton={false} className="grid max-h-[calc(100dvh-2rem)] w-full grid-cols-1 gap-0 overflow-y-auto rounded-none border-0 bg-white p-0 sm:h-[460px] sm:max-w-[760px] sm:grid-cols-[0.72fr_1fr] sm:overflow-hidden">
+          <button
+            type="button"
+            aria-label="Close about exhibit"
+            title="Close"
+            onClick={() => setIsExhibitInfoOpen(false)}
+            className="absolute right-4 top-4 z-10 grid size-9 place-items-center rounded-full bg-white text-[#1f1e1b] shadow-md transition-colors hover:bg-[#e5e7eb] hover:text-[#1f1e1b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1e1b]"
+          >
+            <HugeIcon icon={Cancel01Icon} size={16} />
+          </button>          <div className="flex min-h-[360px] flex-col justify-between p-7 sm:min-h-0 sm:p-8">
+            <div className="flex flex-col items-start gap-6">
+              <DialogHeader>
+                <DialogTitle className="max-w-[15rem] font-outfit text-3xl font-normal leading-tight tracking-normal">
+                  Turning Points in Art History
+                </DialogTitle>
+              </DialogHeader>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsExhibitInfoOpen(false);
+                  void handleStartTour();
+                }}
+                className="inline-flex h-9 items-center justify-center bg-[#1f1e1b] px-4 font-sans text-sm text-white transition-colors hover:bg-[#373633]"
+              >
+                Start tour
+              </button>
+            </div>
+            <DialogDescription className="mt-10 max-w-[17rem] font-sans text-sm leading-relaxed text-[#3f3f46]">
               Journey through an imagined collection of history’s most influential artworks, from ancient icons to modern masterpieces, and discover the ideas that changed art along the way.
             </DialogDescription>
-          </DialogHeader>
+          </div>
+          <div className="relative min-h-64 sm:min-h-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/about-oil-painting.png"
+              alt="An oil still life of wildflowers in an ochre vase"
+              className="h-64 w-full object-cover object-center sm:h-full"
+            />
+          </div>
         </DialogContent>
       </Dialog>
       {/* Confirmation Dialog: End Tour */}
