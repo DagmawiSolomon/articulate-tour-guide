@@ -965,9 +965,13 @@ export default function Home() {
                   setIsExhibitInfoOpen(false);
                   void handleStartTour();
                 }}
-                className="inline-flex h-9 items-center justify-center bg-[#1f1e1b] px-4 font-sans text-sm text-white transition-colors hover:bg-[#373633]"
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-5 font-sans text-sm font-medium cursor-pointer transition-all active:scale-[0.96]"
+                style={{ background: "var(--ink)", color: "#fff" }}
               >
                 Start tour
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M5 12h14m-6-6l6 6-6 6" />
+                </svg>
               </button>
             </div>
             <DialogDescription className="mt-10 max-w-[17rem] font-sans text-sm leading-relaxed text-[#3f3f46]">
