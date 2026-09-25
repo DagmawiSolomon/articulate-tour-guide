@@ -26,7 +26,6 @@ import {
 } from "@/components/avatar/avatar-expressions";
 import { SettingsDialog } from "@/components/layout/settings-dialog";
 import { Footer } from "@/components/layout/footer";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArtifactStage, type ArtifactType, type ChatMessage } from "@/components/artifacts/artifact-stage";
 import {
   initSounds,
@@ -39,8 +38,8 @@ import {
   playTactileTap,
   playToggle,
 } from "@/lib/sounds";
-import { createVoiceAgent, type VoiceAgent } from "@/lib/assemblyai-agent";
-import { createAudioPlayer, type AudioPlayer } from "@/lib/assemblyai-audio";
+import type { VoiceAgent } from "@/lib/assemblyai-agent";
+import type { AudioPlayer } from "@/lib/assemblyai-audio";
 import { BayerDitherBackground } from "@/components/ui/bayer-dither-background";
 
 type AgentStatus = "listening" | "thinking" | "speaking";
@@ -209,164 +208,19 @@ export default function Home() {
     };
   }, []);
 
-  const handleStartTour = async () => {
+  const handleStartTour = () => {
     playCallStart();
     setIsTourActive(true);
     setIsExpanded(true);
     setActiveArtifact("map");
     setIsPaused(false);
+    setIsMuted(true);
     setAgentStatus("listening");
     setActiveExpressionId("listening");
     setChatMessages([]);
     setIsChatThinking(false);
     setOriginMapRoute("entrance");
     setActiveMapRoute("entrance");
-
-    // Initialise the audio player (once per tour)
-    audioPlayerRef.current = createAudioPlayer();
-    await audioPlayerRef.current.resume();
-
-    // Connect the Voice Agent
-    try {
-      const agent = await createVoiceAgent({
-        onReady: (sessionId) => {
-          console.log("[Agent] Session ready:", sessionId);
-        },
-
-        onTranscriptPartial: (text) => {
-          const id = partialMsgIdRef.current;
-          setChatMessages((prev) => {
-            const without = prev.filter((m) => m.id !== id);
-            return [...without, { id, role: "visitor", text, isPartial: true, timestamp: new Date() }];
-          });
-          setAgentStatus("listening");
-        },
-
-        onTranscriptFinal: (text) => {
-          const id = partialMsgIdRef.current;
-          setChatMessages((prev) => {
-            const without = prev.filter((m) => m.id !== id);
-            return [...without, { id: `visitor-${Date.now()}`, role: "visitor", text, timestamp: new Date() }];
-          });
-          // Agent is now processing â€” show thinking state
-          setAgentStatus("thinking");
-        },
-
-        onAgentTranscriptPartial: (deltaText) => {
-          const id = partialAgentMsgIdRef.current;
-          setChatMessages((prev) => {
-            const without = prev.filter((m) => m.id !== id);
-            const existing = prev.find((m) => m.id === id);
-            const safeDelta = deltaText || "";
-            const safeExisting = existing?.text || "";
-            const newText = safeExisting + safeDelta;
-            return [...without, { id, role: "agent", text: newText, isStreaming: true, timestamp: new Date() }];
-          });
-        },
-
-        onAgentTranscriptFinal: (text) => {
-          const id = partialAgentMsgIdRef.current;
-          setChatMessages((prev) => {
-            const without = prev.filter((m) => m.id !== id);
-            return [...without, { id: `agent-${Date.now()}`, role: "agent", text, timestamp: new Date() }];
-          });
-        },
-
-        onAgentSpeakingStart: () => {
-          setAgentStatus("speaking");
-          setIsChatThinking(false);
-        },
-
-        onAgentSpeakingEnd: (interrupted) => {
-          setAgentStatus("listening");
-          if (interrupted) {
-            // User barged in â€” flush audio buffer immediately
-            audioPlayerRef.current?.flush();
-          }
-        },
-
-        onAgentAudio: (base64) => {
-          audioPlayerRef.current?.playChunk(base64);
-        },
-
-        onToolCall: (tool) => {
-          const params = tool.arguments as Record<string, string>;
-          setIsArtifactLoading(true);
-
-          // Brief loading pulse then switch artifact
-          setTimeout(() => {
-            setIsArtifactLoading(false);
-            switch (tool.name) {
-              case "show_hotspots":
-                setActiveArtifact("hotspots");
-                if (params.hotspotId) {
-                  setActiveHotspotId(params.hotspotId as "cypress" | "star" | "steeple" | "vortex" | "moon");
-                }
-                break;
-              case "show_map":
-                setActiveArtifact("map");
-                if (params.routeId) {
-                  const target = params.routeId === "west" ? "gauguin" : params.routeId;
-                  setOriginMapRoute(activeMapRoute);
-                  setActiveMapRoute(target);
-                }
-                break;
-              case "show_timeline":
-                setActiveArtifact("timeline");
-                break;
-              case "show_comparison":
-                setActiveArtifact("comparison");
-                break;
-              case "show_info":
-              default:
-                setActiveArtifact("info");
-                break;
-            }
-            // Add tool call bubble to chat
-            setChatMessages((prev) => [
-              ...prev,
-              {
-                id: `tool-${Date.now()}`,
-                role: "tool",
-                toolName: tool.name,
-                label: params.label ?? tool.name.replace("show_", ""),
-                artifactType: tool.name.replace("show_", "") as any,
-                params,
-                detail: "",
-                timestamp: new Date(),
-              },
-            ]);
-            // Return the result to unblock the agent
-            agent.sendToolResult(tool.callId, { success: true });
-          }, 400);
-        },
-
-        onEnded: () => {
-          console.log("[Agent] Session ended");
-          handleConfirmEndTour();
-        },
-
-        onError: (code, message) => {
-          console.error(`[Agent] Error ${code}:`, message);
-          if (code === "connection_error" || code === "disconnected") {
-            alert(`Voice Agent disconnected: ${message}`);
-            handleConfirmEndTour();
-          }
-        },
-      });
-
-      agentRef.current = agent;
-
-      // Automatically unmute/start mic if not manually muted
-      if (!isMuted) {
-        await startMic();
-      }
-    } catch (err) {
-      console.error("[Agent] Failed to connect:", err);
-      alert("Failed to connect to Voice Agent. Please check your API key and network connection.");
-      handleConfirmEndTour();
-    }
-
   };
 
   const handleConfirmEndTour = async () => {
@@ -457,6 +311,7 @@ export default function Home() {
     <Button
       type="button"
       onClick={toggleMic}
+      disabled
       aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
       title={isMuted ? "Unmute microphone" : "Mute microphone"}
       variant="outline"
@@ -513,7 +368,7 @@ export default function Home() {
       if (next) {
         playStageOpen();
         // Default to chat tab when opening the card
-        setActiveArtifact("chat");
+        setActiveArtifact("map");
       } else {
         playStageClose();
       }
@@ -703,6 +558,7 @@ export default function Home() {
                   >
                     <ArtifactStage
                       artifactType={activeArtifact}
+                      mapDisplay="exhibition"
                       mapRouteId={activeMapRoute}
                       originMapRouteId={originMapRoute}
                       hotspotId={activeHotspotId}
@@ -788,145 +644,6 @@ export default function Home() {
               Dagmawi Solomon
             </span>
           </div>
-
-          {isTourActive && (
-            <div className="flex items-center gap-2">
-              {/* Dev toggle: simulates skeleton loading state */}
-              {activeArtifact !== "summary" && (
-                <Button
-                  size="sm"
-                  variant={isArtifactLoading ? "default" : "outline"}
-                className="h-6 px-2.5 text-[11px] rounded-full cursor-pointer font-mono"
-                onClick={() => setIsArtifactLoading((v) => !v)}
-                title="Toggle skeleton loading state (dev)"
-              >
-                {isArtifactLoading ? "â ³ loading" : "skeleton"}
-              </Button>
-              )}
-              {activeArtifact !== "summary" && (
-              <Tabs
-                value={activeArtifact}
-                onValueChange={(val) => {
-                  if (val) {
-                    playToggle();
-                    setActiveArtifact(val as ArtifactType);
-                    if (!isExpanded) setIsExpanded(true);
-                  }
-                }}
-              >
-                <TabsList className="h-7 bg-muted/60 p-0.5 rounded-full gap-0.5">
-                  <TabsTrigger value="chat" className="text-xs px-2.5 h-6 rounded-full font-medium">
-                    Chat
-                  </TabsTrigger>
-                  <TabsTrigger value="info" className="text-xs px-2.5 h-6 rounded-full font-medium">
-                    Info
-                  </TabsTrigger>
-                  <TabsTrigger value="map" className="text-xs px-2.5 h-6 rounded-full font-medium">
-                    Map
-                  </TabsTrigger>
-                  <TabsTrigger value="comparison" className="text-xs px-2.5 h-6 rounded-full font-medium">
-                    Comparison
-                  </TabsTrigger>
-                  <TabsTrigger value="timeline" className="text-xs px-2.5 h-6 rounded-full font-medium">
-                    Timeline
-                  </TabsTrigger>
-                  <TabsTrigger value="hotspots" className="text-xs px-2.5 h-6 rounded-full font-medium">
-                    Hotspots
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-              )}
-
-              {activeArtifact === "map" && (
-                <div className="flex items-center gap-1 pl-1">
-                  <Button
-                    size="sm"
-                    variant={activeMapRoute === "restrooms" ? "secondary" : "ghost"}
-                    className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
-                    onClick={() => {
-                      playTactileTap();
-                      setActiveMapRoute("restrooms");
-                    }}
-                  >
-                    Restrooms
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={activeMapRoute === "gauguin" ? "secondary" : "ghost"}
-                    className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
-                    onClick={() => {
-                      playTactileTap();
-                      setActiveMapRoute("gauguin");
-                    }}
-                  >
-                    1 West
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={activeMapRoute === "elevator" ? "secondary" : "ghost"}
-                    className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
-                    onClick={() => {
-                      playTactileTap();
-                      setActiveMapRoute("elevator");
-                    }}
-                  >
-                    Elevator
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={activeMapRoute === "garden" ? "secondary" : "ghost"}
-                    className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
-                    onClick={() => {
-                      playTactileTap();
-                      setActiveMapRoute("garden");
-                    }}
-                  >
-                    Garden
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={activeMapRoute === "store" ? "secondary" : "ghost"}
-                    className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
-                    onClick={() => {
-                      playTactileTap();
-                      setActiveMapRoute("store");
-                    }}
-                  >
-                    Store
-                  </Button>
-                </div>
-              )}
-
-              {activeArtifact === "hotspots" && (
-                <div className="flex items-center gap-1 pl-1">
-                  <Button
-                    size="sm"
-                    variant={activeHotspotId === "cypress" ? "secondary" : "ghost"}
-                    className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
-                    onClick={() => setActiveHotspotId("cypress")}
-                  >
-                    Cypress
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={activeHotspotId === "star" ? "secondary" : "ghost"}
-                    className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
-                    onClick={() => setActiveHotspotId("star")}
-                  >
-                    Morning Star
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={activeHotspotId === "steeple" ? "secondary" : "ghost"}
-                    className="h-5 px-2 text-[11px] rounded-full cursor-pointer"
-                    onClick={() => setActiveHotspotId("steeple")}
-                  >
-                    Steeple
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
 
           <div>
             Powered by{" "}
