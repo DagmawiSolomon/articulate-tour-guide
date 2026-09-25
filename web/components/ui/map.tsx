@@ -65,6 +65,7 @@ export type MapProps = {
   initialBearing?: number;
   minZoom?: number;
   maxBounds?: [number, number, number, number];
+  maxPitch?: number;
   onViewportChange?: (viewport: MapViewport) => void;
   onMapReady?: (map: MapLibreGL.Map) => void;
 };
@@ -80,6 +81,7 @@ export const Map = React.forwardRef<MapLibreGL.Map, MapProps>(function Map(
     initialBearing = 0,
     minZoom = 12,
     maxBounds,
+    maxPitch = 65,
     onViewportChange,
     onMapReady,
   },
@@ -101,7 +103,7 @@ export const Map = React.forwardRef<MapLibreGL.Map, MapProps>(function Map(
       zoom: initialZoom,
       pitch: initialPitch,
       bearing: initialBearing,
-      maxPitch: 65,
+      maxPitch,
       minZoom,
       maxZoom: 18,
       attributionControl: false,
@@ -129,12 +131,12 @@ export const Map = React.forwardRef<MapLibreGL.Map, MapProps>(function Map(
     };
 
     map.on("load", loadHandler);
-    map.on("move", moveHandler);
+    map.on("moveend", moveHandler);
     setMapInstance(map);
 
     return () => {
       map.off("load", loadHandler);
-      map.off("move", moveHandler);
+      map.off("moveend", moveHandler);
       map.remove();
       setIsLoaded(false);
       setMapInstance(null);
@@ -258,9 +260,19 @@ export function MapUserLocation({ longitude, latitude }: MapUserLocationProps) {
 
 /* ── Map Floating Controls ───────────────────────────── */
 
-export function MapControls({ className }: { className?: string }) {
+export function MapControls({ className, show3D = true, showCompass = true }: { className?: string; show3D?: boolean; showCompass?: boolean }) {
   const { map } = useMap();
   const [is3D, setIs3D] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!map) return;
+    const syncPitch = () => setIs3D(map.getPitch() >= 20);
+    syncPitch();
+    map.on("pitchend", syncPitch);
+    return () => {
+      map.off("pitchend", syncPitch);
+    };
+  }, [map]);
 
   const handleZoomIn = () => map?.zoomIn({ duration: 300 });
   const handleZoomOut = () => map?.zoomOut({ duration: 300 });
@@ -272,13 +284,13 @@ export function MapControls({ className }: { className?: string }) {
 
   const handleToggle3D = () => {
     if (!map) return;
-    const nextPitch = is3D ? 0 : 45;
+    const nextPitch = map.getPitch() >= 20 ? 0 : 45;
     map.easeTo({ pitch: nextPitch, duration: 500 });
-    setIs3D(!is3D);
   };
 
   return (
     <div
+      onPointerDown={(event) => event.stopPropagation()}
       className={cn(
         "absolute right-3 bottom-3 z-10 flex flex-col items-center gap-1.5 rounded-lg border border-border/60 bg-card/85 p-1 backdrop-blur-md shadow-md",
         className
@@ -304,32 +316,34 @@ export function MapControls({ className }: { className?: string }) {
         <HugeIcon icon={MinusSignIcon} size={15} strokeWidth={2} />
       </button>
 
-      <div className="w-4 h-px bg-border/60 my-0.5" />
+      {(show3D || showCompass) && <div className="w-4 h-px bg-border/60 my-0.5" />}
 
-      <button
-        type="button"
-        onClick={handleToggle3D}
-        title={is3D ? "Switch to 2D Top-Down" : "Switch to 3D Isometric Tilt"}
-        aria-label="Toggle 3D View"
-        className={cn(
-          "size-7 rounded-md flex items-center justify-center transition-colors cursor-pointer",
-          is3D
-            ? "bg-foreground text-background"
-            : "text-foreground hover:bg-muted/70"
-        )}
-      >
-        <HugeIcon icon={Layers01Icon} size={14} strokeWidth={2} />
-      </button>
+      {show3D && (
+        <button
+          type="button"
+          onClick={handleToggle3D}
+          title={is3D ? "Switch to flat view" : "Switch to angled view"}
+          aria-label="Switch between flat and angled map views"
+          className={cn(
+            "size-7 rounded-md flex items-center justify-center transition-colors cursor-pointer",
+            is3D ? "bg-foreground text-background" : "text-foreground hover:bg-muted/70"
+          )}
+        >
+          <HugeIcon icon={Layers01Icon} size={14} strokeWidth={2} />
+        </button>
+      )}
 
-      <button
-        type="button"
-        onClick={handleResetBearing}
-        title="Reset North & Alignment"
-        aria-label="Reset North"
-        className="size-7 rounded-md flex items-center justify-center text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
-      >
-        <HugeIcon icon={Compass01Icon} size={14} strokeWidth={2} />
-      </button>
+      {showCompass && (
+        <button
+          type="button"
+          onClick={handleResetBearing}
+          title="Reset North & Alignment"
+          aria-label="Reset North"
+          className="size-7 rounded-md flex items-center justify-center text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+        >
+          <HugeIcon icon={Compass01Icon} size={14} strokeWidth={2} />
+        </button>
+      )}
     </div>
   );
 }
