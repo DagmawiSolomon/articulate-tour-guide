@@ -19,7 +19,9 @@ export type ExpressionId =
   | "surprised"
   | "confused"
   | "shy"
-  | "muted";
+  | "muted"
+  | "muted-glance"
+  | "muted-drowsy";
 
 export interface ExpressionConfig {
   id: ExpressionId;
@@ -135,6 +137,30 @@ export const EXPRESSIONS_CATALOG: ExpressionConfig[] = [
       tilt2: -3,
       edy: 0.8,    // resting slightly lower, calm and patient
       edx: 0.15,
+    }),
+  },
+  {
+    id: "muted-glance",
+    label: "Muted — Glancing",
+    expression: makePose({
+      esx: 0.98,
+      esy: 0.84,   // slightly narrow — distracted gaze
+      tilt: 3,
+      edy: 0.3,
+      edx: 2.6,    // eyes wander to the side
+      tilt2: -6,
+    }),
+  },
+  {
+    id: "muted-drowsy",
+    label: "Muted — Drowsy",
+    expression: makePose({
+      esx: 1.12,
+      esy: 0.48,   // heavy lids, losing attention
+      tilt: 2,
+      edy: 1.4,    // eyes droop downward
+      edx: 0.1,
+      tilt2: -1,
     }),
   },
   {
