@@ -14,7 +14,7 @@ interface PaperImageDitherProps {
   size?: number;
   colorSteps?: number;
   type?: "8x8" | "4x4" | "2x2";
-  fit?: "cover" | "contain" | "fill";
+  fit?: "cover" | "contain" | "none";
 }
 
 export function PaperImageDither({
