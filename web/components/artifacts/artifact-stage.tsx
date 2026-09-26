@@ -12,8 +12,18 @@ import { ArtifactSkeleton } from "./artifact-skeleton";
 import { ChatHistoryView, type ChatMessage } from "./chat-history-view";
 import { QuoteView } from "./quote-view";
 import { SummaryView } from "./summary-view";
+import { TURNING_POINTS_ARTWORKS } from "@/lib/turning-points-data";
 
-export type ArtifactType = "info" | "map" | "comparison" | "timeline" | "hotspots" | "chat" | "quote" | "summary";
+export type ArtifactType =
+  | "info"
+  | "map"
+  | "comparison"
+  | "timeline"
+  | "hotspots"
+  | "chat"
+  | "quote"
+  | "summary";
+
 export type { ChatMessage };
 
 interface ArtifactStageProps {
@@ -28,6 +38,8 @@ interface ArtifactStageProps {
   mapViewport?: MapViewport;
   onMapViewportChange?: (viewport: MapViewport) => void;
   hotspotId?: "cypress" | "star" | "steeple" | "vortex" | "moon" | string;
+  artworkId?: string;
+  comparisonPairId?: string;
   letterId?: "letter-782" | "letter-cypress" | "letter-stars";
   /** When true renders a layout-matched skeleton in place of the real artifact.
    *  Flip to true on tool.call, back to false on tool.result. */
@@ -40,6 +52,7 @@ interface ArtifactStageProps {
   summaryData?: any;
   /** Callback to switch or open an artifact */
   onSelectArtifact?: (type: ArtifactType, params?: Record<string, any>) => void;
+  onResetTour?: () => void;
 }
 
 export function ArtifactStage({
@@ -54,13 +67,19 @@ export function ArtifactStage({
   mapViewport,
   onMapViewportChange,
   hotspotId,
+  artworkId,
+  comparisonPairId = "comparison-perspective",
   letterId = "letter-782",
   isLoading = false,
   chatMessages = [],
   isChatThinking = false,
   summaryData = null,
   onSelectArtifact,
+  onResetTour,
 }: ArtifactStageProps) {
+  // If an artworkId is provided, get its specific hotspot and image info
+  const targetArtwork = artworkId ? TURNING_POINTS_ARTWORKS[artworkId] : null;
+
   return (
     <div className="relative w-full h-full overflow-hidden">
       {/*
@@ -75,15 +94,44 @@ export function ArtifactStage({
           <>
             {artifactType === "info" && (
               <ArtworkInfoCard
-                {...(selectedArtwork ?? {})}
+                {...(selectedArtwork ?? (targetArtwork ? {
+                  title: targetArtwork.title,
+                  imageSrc: targetArtwork.imageSrc,
+                  summary: targetArtwork.summary,
+                  metadata: [
+                    { label: "Artist", value: targetArtwork.artist },
+                    { label: "Year", value: targetArtwork.year },
+                    { label: "Location", value: targetArtwork.locationCreated },
+                    { label: "Medium", value: targetArtwork.medium },
+                  ],
+                } : {}))}
                 onReturnToMap={onSelectArtifact ? () => onSelectArtifact("map") : undefined}
                 onStartTour={onSelectArtifact ? () => onSelectArtifact("chat") : undefined}
               />
             )}
-            {artifactType === "map" && (mapDisplay === "exhibition" ? <ExhibitFloorMapView onSelectArtwork={onSelectArtwork} navigationState={mapNavigation} onNavigationStateChange={onMapNavigationChange} initialViewport={mapViewport} onViewportChange={onMapViewportChange} /> : <GalleryMapView originRouteId={originMapRouteId} activeRouteId={mapRouteId} />)}
-            {artifactType === "comparison" && <ComparisonView />}
+            {artifactType === "map" && (
+              mapDisplay === "exhibition" ? (
+                <ExhibitFloorMapView
+                  onSelectArtwork={onSelectArtwork}
+                  navigationState={mapNavigation}
+                  onNavigationStateChange={onMapNavigationChange}
+                  initialViewport={mapViewport}
+                  onViewportChange={onMapViewportChange}
+                />
+              ) : (
+                <GalleryMapView originRouteId={originMapRouteId} activeRouteId={mapRouteId} />
+              )
+            )}
+            {artifactType === "comparison" && <ComparisonView pairId={comparisonPairId} />}
             {artifactType === "timeline" && <TimelineView />}
-            {artifactType === "hotspots" && <DetailHotspotsView activeHotspotId={hotspotId} />}
+            {artifactType === "hotspots" && (
+              <DetailHotspotsView
+                activeHotspotId={hotspotId}
+                imageSrc={targetArtwork?.imageSrc}
+                imageAlt={targetArtwork?.title}
+                hotspots={targetArtwork?.hotspots}
+              />
+            )}
             {artifactType === "quote" && <QuoteView activeLetterId={letterId} />}
             {artifactType === "summary" && <SummaryView data={summaryData} />}
             {artifactType === "chat" && (
@@ -96,7 +144,6 @@ export function ArtifactStage({
           </>
         )}
       </div>
-
     </div>
   );
 }
