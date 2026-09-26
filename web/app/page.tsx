@@ -422,7 +422,7 @@ export default function Home() {
   // Call group: horizontal dock at bottom with settings & mic on the left, divider, and pause & end on the right
   const callGroup = (
     <div
-      className="call-group-container flex h-[52px] w-[192px] items-center justify-center gap-1.5 rounded-full border border-border bg-card px-2 shadow-xs transition-all duration-300"
+      className="call-group-container flex h-[52px] w-[192px] items-center justify-center gap-1.5 rounded-full border border-border bg-[#fafafa] px-2 shadow-xs transition-all duration-300"
       role="group"
       aria-label="Tour controls"
     >
@@ -550,7 +550,7 @@ export default function Home() {
                       width: tuning.closeSize,
                       height: tuning.closeSize,
                     }}
-                    className="absolute rounded-full bg-card hover:bg-muted text-secondary-text hover:text-foreground border border-border flex items-center justify-center transition-all cursor-pointer z-20 shadow-xs active:scale-95"
+                    className="absolute rounded-full bg-[#fafafa] hover:bg-muted text-secondary-text hover:text-foreground border border-border flex items-center justify-center transition-all cursor-pointer z-20 shadow-xs active:scale-95"
                   >
                     <HugeIcon icon={Cancel01Icon} size={15} />
                   </button>
@@ -684,7 +684,7 @@ export default function Home() {
             aria-label="Close about exhibit"
             title="Close"
             onClick={() => setIsExhibitInfoOpen(false)}
-            className="absolute right-4 top-4 z-10 grid size-9 place-items-center rounded-full bg-white text-[#1f1e1b] shadow-md transition-colors hover:bg-[#e5e7eb] hover:text-[#1f1e1b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1e1b]"
+            className="absolute right-4 top-4 z-10 grid size-9 place-items-center rounded-full bg-[#fafafa] text-[#1f1e1b] shadow-md transition-colors hover:bg-[#e5e7eb] hover:text-[#1f1e1b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1e1b]"
           >
             <HugeIcon icon={Cancel01Icon} size={16} />
           </button>          <div className="flex min-h-[360px] flex-col justify-between p-7 sm:min-h-0 sm:p-8">
