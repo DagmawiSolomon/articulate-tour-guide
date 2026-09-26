@@ -236,9 +236,9 @@ export function ChatHistoryView({
 
   if (activeMessages.length === 0 && !isThinking) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center p-6 pb-20">
+      <div className="w-full h-full flex flex-col items-center justify-center p-6">
         <p className="text-[14px] font-medium" style={{ color: "var(--ink-3)" }}>
-          No transcripts
+          No transcript
         </p>
       </div>
     );
