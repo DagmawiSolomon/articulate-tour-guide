@@ -19,6 +19,7 @@ export interface ArtworkInfoCardProps {
   summary?: string;
   metadata?: ArtworkMetadataField[];
   onReturnToMap?: () => void;
+  onStartTour?: () => void;
 }
 
 const DEFAULT_METADATA: ArtworkMetadataField[] = [
@@ -34,6 +35,7 @@ export function ArtworkInfoCard({
   summary = ARTWORK_DATA.summary,
   metadata,
   onReturnToMap,
+  onStartTour,
 }: ArtworkInfoCardProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
@@ -157,6 +159,37 @@ export function ArtworkInfoCard({
                 </div>
               ))}
             </div>
+
+            {/* Horizontal rule above CTA buttons */}
+            {(onStartTour || onReturnToMap) && (
+              <div className="mt-5">
+                <Separator className="mb-4 bg-border/60" />
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playTactileTap();
+                      onStartTour?.();
+                    }}
+                    className="inline-flex min-h-9 items-center justify-center rounded-full bg-button-bg px-5 py-2 text-xs font-medium text-white transition-all hover:bg-primary/90 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer shadow-xs"
+                  >
+                    Start tour
+                  </button>
+                  {onReturnToMap && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playTactileTap();
+                        onReturnToMap();
+                      }}
+                      className="inline-flex min-h-9 items-center justify-center rounded-full border border-border bg-transparent px-4 py-2 text-xs font-medium text-foreground transition-all hover:bg-muted active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer"
+                    >
+                      Go back to map
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
