@@ -280,30 +280,37 @@ body {
   animation: avatar-eager-perk 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-/* Speaking Conversational Vocal Cadence (Vocal squash & stretch) */
+/* Speaking Conversational Vocal Cadence (Vocal squash, stretch, and affirmative nods) */
 @keyframes avatar-speaking-cadence {
   0%, 100% {
-    transform: translateY(0px) scale(1, 1);
+    transform: translateY(0px) scale(1, 1) rotate(0deg);
   }
-  18% {
-    transform: translateY(-3.5px) scale(0.985, 1.025);
+  16% {
+    transform: translateY(-14px) scale(0.96, 1.06) rotate(-1.5deg);
   }
-  36% {
-    transform: translateY(1px) scale(1.02, 0.985);
+  32% {
+    transform: translateY(2px) scale(1.03, 0.97) rotate(0.8deg);
   }
-  54% {
-    transform: translateY(-4px) scale(0.98, 1.03);
+  50% {
+    transform: translateY(-18px) scale(0.95, 1.08) rotate(2deg);
   }
-  72% {
-    transform: translateY(0.5px) scale(1.015, 0.99);
+  68% {
+    transform: translateY(1.5px) scale(1.025, 0.975) rotate(-0.8deg);
   }
-  88% {
-    transform: translateY(-2px) scale(0.99, 1.015);
+  84% {
+    transform: translateY(-8px) scale(0.98, 1.03) rotate(0.5deg);
   }
 }
 
 .avatar-speaking {
-  animation: avatar-speaking-cadence 1.7s ease-in-out infinite;
+  animation: avatar-speaking-cadence 2.1s cubic-bezier(0.35, 0, 0.25, 1) infinite;
+  transform-origin: center 70%;
+}
+
+.avatar-speaking .mo-eye > * {
+  animation-name: mo-excited-blink, mo-wrap !important;
+  animation-duration: 2.8s, 6.2s !important;
+  animation-iteration-count: infinite !important;
 }
 
 /* Acoustic Voice Ripple Rings */
@@ -361,24 +368,19 @@ body {
   }
 }
 
-/* Subtle idle sway when muted: patient, observant waiting with gentle breathing motion */
+/* Calm slumber breathing when muted: peaceful, slow resting respiration */
 .avatar-muted {
-  animation: muted-idle-sway 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-  transform-origin: center 60%;
+  animation: muted-slumber-breathe 5.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  transform-origin: center 65%;
+  filter: contrast(0.94) brightness(0.98);
 }
 
-@keyframes muted-idle-sway {
+@keyframes muted-slumber-breathe {
   0%, 100% {
-    transform: rotate(0deg) scale(0.985);
-  }
-  25% {
-    transform: rotate(2.8deg) scale(0.99);
+    transform: translateY(3.5px) scale(0.965, 0.955) rotate(0deg);
   }
   50% {
-    transform: rotate(-0.5deg) scale(0.985);
-  }
-  75% {
-    transform: rotate(-2.2deg) scale(0.99);
+    transform: translateY(1px) scale(0.98, 0.98) rotate(1deg);
   }
 }
 /* Keep the avatar mounted while its card fades and it settles into the cradle. */
@@ -447,7 +449,7 @@ body {
   }
   .guide-stage[data-expanded="true"] .guide-dock .call-group-container {
     flex-direction: row;
-    width: 236px;
+    width: 196px;
     height: 52px;
     padding: 0 8px;
   }
