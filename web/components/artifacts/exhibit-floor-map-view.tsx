@@ -6,6 +6,7 @@ import { Map, MapControls, MapMarker, type MapViewport } from "@/components/ui/m
 import type { ArtworkMetadataField } from "./artwork-info-card";
 
 export interface ExhibitArtworkInfo {
+  id?: string;
   title: string;
   imageSrc: string;
   summary: string;
@@ -43,12 +44,12 @@ type Place = {
 };
 
 const roomLabels = [
-  { name: "Gallery 01", x: 220, y: 260 },
-  { name: "Gallery 02", x: 420, y: 260 },
-  { name: "Gallery 03", x: 600, y: 260 },
-  { name: "Gallery 04", x: 785, y: 260 },
-  { name: "Gallery 05", x: 995, y: 260 },
-  { name: "Gallery 06", x: 245, y: 520 },
+  { name: "Wing 1: Perspective", x: 220, y: 260 },
+  { name: "Wing 2: Shadow", x: 420, y: 260 },
+  { name: "Wing 3: Feeling", x: 600, y: 260 },
+  { name: "Wing 4: Cubism", x: 785, y: 260 },
+  { name: "Wing 5: Concept", x: 995, y: 260 },
+  { name: "Archives & Rotunda", x: 245, y: 520 },
 ];
 const nodes: Record<string, Point> = {
   entrance: [90,335], west: [250,335], midwest: [470,335], center: [680,335], east: [900,335], farEast: [1100,335],
@@ -60,12 +61,78 @@ const edges: [string,string][] = [
   ["lowerWest","lowerCenter"],["lowerCenter","lowerEast"],
 ];
 const works: ExhibitWork[] = [
-  { id:"starry",title:"The Starry Night",artist:"Vincent van Gogh",year:"1889",room:"Gallery 01",image:"/starry-night.jpg",x:220,y:205,accessNode:"west",description:"A vivid night sky of rolling blues, bright stars, and a quiet village, painted during van Gogh’s stay in Saint-Rémy." },
-  { id:"lilies",title:"Water Lilies",artist:"Claude Monet",year:"1916",room:"Gallery 02",image:"/water-lilies.jpg",x:420,y:205,accessNode:"midwest",description:"Monet’s late garden paintings turn the pond at Giverny into a shifting study of color, light, and reflection." },
-  { id:"sunflowers",title:"Sunflowers",artist:"Vincent van Gogh",year:"1888",room:"Gallery 03",image:"/sunflowers.jpg",x:600,y:205,accessNode:"center",description:"A brilliant still life from van Gogh’s Arles period, painted in anticipation of welcoming fellow artists to his Yellow House." },
-  { id:"crows",title:"Wheatfield with Crows",artist:"Vincent van Gogh",year:"1890",room:"Gallery 04",image:"/assets/timeline/auvers.jpg",x:785,y:205,accessNode:"east",description:"A late-period landscape with crows crossing a restless sky above a golden field." },
-  { id:"study",title:"The Starry Night (Study)",artist:"Vincent van Gogh",year:"1889",room:"Gallery 05",image:"/starry-night-sketch.jpg",x:995,y:205,accessNode:"farEast",description:"A preparatory study that offers a closer look at the flowing forms behind one of van Gogh’s best-known night scenes." },
-  { id:"portrait",title:"Self-Portrait in a Grey Felt Hat",artist:"Vincent van Gogh",year:"1887",room:"Gallery 06",image:"/assets/timeline/paris.jpg",x:245,y:465,accessNode:"lowerWest",description:"A Paris-period self-portrait that shows van Gogh exploring short, directional brushstrokes and complementary color." },
+  {
+    id: "masaccio-holy-trinity",
+    title: "The Holy Trinity",
+    artist: "Masaccio",
+    year: "1427",
+    room: "Wing 1: Perspective",
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Masaccio_trinity.jpg/1024px-Masaccio_trinity.jpg",
+    x: 220,
+    y: 205,
+    accessNode: "west",
+    description: "The foundational fresco of linear perspective, codifying Brunelleschi's mathematical grid with an open memento mori.",
+  },
+  {
+    id: "caravaggio-calling-st-matthew",
+    title: "The Calling of Saint Matthew",
+    artist: "Caravaggio",
+    year: "1600",
+    room: "Wing 2: Shadow",
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Caravaggio_-_The_Calling_of_Saint_Matthew.jpg/1280px-Caravaggio_-_The_Calling_of_Saint_Matthew.jpg",
+    x: 420,
+    y: 205,
+    accessNode: "midwest",
+    description: "Tenebrism, street-level tavern realism, and divine raking light piercing through everyday corruption.",
+  },
+  {
+    id: "van-gogh-starry-night",
+    title: "The Starry Night",
+    artist: "Vincent van Gogh",
+    year: "1889",
+    room: "Wing 3: Feeling",
+    image: "/starry-night.jpg",
+    x: 600,
+    y: 205,
+    accessNode: "center",
+    description: "Emotional expressionism and celestial vortices painted from the asylum window in Saint-Rémy.",
+  },
+  {
+    id: "picasso-demoiselles",
+    title: "Les Demoiselles d'Avignon",
+    artist: "Pablo Picasso",
+    year: "1907",
+    room: "Wing 4: Cubism",
+    image: "https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Les_Demoiselles_d%27Avignon.jpg/1024px-Les_Demoiselles_d%27Avignon.jpg",
+    x: 785,
+    y: 205,
+    accessNode: "east",
+    description: "Shattering 500 years of unified perspective into multiple simultaneous angles and Iberian masks.",
+  },
+  {
+    id: "pollock-autumn-rhythm",
+    title: "Autumn Rhythm (Number 30)",
+    artist: "Jackson Pollock",
+    year: "1950",
+    room: "Wing 5: Concept",
+    image: "https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Autumn_Rhythm.jpg/1280px-Autumn_Rhythm.jpg",
+    x: 995,
+    y: 205,
+    accessNode: "farEast",
+    description: "Action painting recording the kinetic trace of the artist's body in space across unstretched raw canvas.",
+  },
+  {
+    id: "duchamp-fountain",
+    title: "Fountain",
+    artist: "Marcel Duchamp",
+    year: "1917",
+    room: "Archives & Rotunda",
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Duchamp_Fountain.jpg/800px-Duchamp_Fountain.jpg",
+    x: 245,
+    y: 465,
+    accessNode: "lowerWest",
+    description: "The revolutionary readymade that transformed art from visual craftsmanship into pure conceptual inquiry.",
+  },
 ];
 
 const amenities: Amenity[] = [
@@ -165,8 +232,8 @@ function buildRoute(state:ExhibitNavigationState): Point[] {
 
 function artworkInfo(work:ExhibitWork): ExhibitArtworkInfo {
   return {
-    title:work.title,imageSrc:work.image,summary:work.description,
-    metadata:[{label:"Artist",value:work.artist},{label:"Date",value:work.year},{label:"Gallery",value:work.room}],
+    id:work.id,title:work.title,imageSrc:work.image,summary:work.description,
+    metadata:[{label:"Artist",value:work.artist},{label:"Date",value:work.year},{label:"Wing",value:work.room}],
   };
 }
 
