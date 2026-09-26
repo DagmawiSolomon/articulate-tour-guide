@@ -9,34 +9,20 @@ import {
   type ExpressionId,
 } from "./avatar-expressions";
 
-
 export interface ArticulateAvatarProps {
-  /** Current active conversational expression */
   expressionId: ExpressionId;
-  /** Custom Blobatar expression object (if overriding catalog) */
   customExpression?: Expression;
-  /** Pixel size when in full display mode (default: 220) */
   size?: number;
-  /** Whether the avatar is docked to the top-left card view */
   isDocked?: boolean;
-  /** Click handler (e.g. to toggle docking view) */
   onClick?: () => void;
-  /** Whether conversational state is currently listening (triggers eye flutter blink) */
   isListening?: boolean;
-  /** Whether the microphone is muted (triggers peaceful slumber pose and posture) */
   isMuted?: boolean;
-  /** Whether the docent/agent is currently speaking (triggers speaking vocal cadence) */
   isSpeaking?: boolean;
-  /** Real-time microphone audio level (0 to 1) when person speaks */
   audioLevel?: number;
-  /** Custom class names for the outer wrapper */
   className?: string;
-  /** Optional blob shape trait override (default: 0.11 for round) */
   shape?: number;
-  /** Optional blob seed name (default: "Articulate") */
   seedName?: string;
 }
-
 
 export function ArticulateAvatar({
   expressionId,
@@ -59,8 +45,6 @@ export function ArticulateAvatar({
   const resolvedExpression = React.useMemo(() => {
     if (customExpression) return customExpression;
     if (isMuted) return currentConfig.expression;
-
-    // Dynamically perk eyes and posture when the visitor speaks into the mic
     if (audioLevel > 0.02) {
       return makeAudioPerkedPose(currentConfig.expression, audioLevel);
     }
@@ -69,7 +53,6 @@ export function ArticulateAvatar({
 
   const isShy = expressionId === "shy";
   const currentSize = isDocked ? 64 : size;
-
   const isReactingToVoice = !isMuted && audioLevel > 0.012;
 
   return (
@@ -83,7 +66,6 @@ export function ArticulateAvatar({
         }`
       }
     >
-      {/* Main Avatar Container */}
       <div
         className={`relative rounded-full flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isListening ? "avatar-listening" : ""
@@ -101,7 +83,6 @@ export function ArticulateAvatar({
             : "transform 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 500ms ease",
         }}
       >
-        {/* Layer 1: Base Blobatar */}
         <div className="absolute inset-0">
           <Blobatar
             name={seedName}
@@ -109,10 +90,10 @@ export function ArticulateAvatar({
             animate="always"
             expression={resolvedExpression}
             traits={{ shape }}
+
           />
         </div>
 
-        {/* Layer 2: Precision SVG Overlay for Muted Headphones & Blush */}
         <svg
           viewBox="0 0 100 100"
           width={currentSize}
@@ -121,24 +102,20 @@ export function ArticulateAvatar({
           aria-hidden="true"
         >
 
-          {/* Shy Blushing: Fades in smoothly as the eyes move into the shy expression */}
-          <g
+<g
             className={`transition-opacity ease-out duration-700 ${
               isShy && shape >= 0.98 ? "opacity-100 delay-150" : "opacity-0 pointer-events-none duration-300"
             }`}
           >
             <defs>
               <linearGradient id="blush-shy-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                {/* Lighter, softer pastel pink towards the tip */}
                 <stop offset="12%" stopColor="#ffa6be" stopOpacity="0.65" />
                 <stop offset="25%" stopColor="#ffb8cb" stopOpacity="0.45" />
                 <stop offset="38%" stopColor="#ffd1dd" stopOpacity="0.2" />
-                {/* Fading down to super light at 2/3 of the guy */}
                 <stop offset="52%" stopColor="#ffeef4" stopOpacity="0" />
                 <stop offset="100%" stopColor="#ffeef4" stopOpacity="0" />
               </linearGradient>
             </defs>
-
             <path
               d="M41.08 25.86Q48.92 12.02 57.11 25.66L75.21 55.84Q83.4 69.48 67.38 69.68L31.93 70.12Q15.91 70.32 23.75 56.48L41.08 25.86Z"
               fill="url(#blush-shy-gradient)"
