@@ -35,6 +35,8 @@ export type VoiceAgentCallbacks = {
   onAgentSpeakingStart?: () => void;
   /** Agent finished speaking or was interrupted (reply.done) */
   onAgentSpeakingEnd?: (interrupted: boolean) => void;
+  /** Visitor started speaking (input.speech.started) */
+  onUserSpeakingStart?: () => void;
   /** Raw base64 PCM audio chunk from the agent */
   onAgentAudio?: (base64: string) => void;
   /** Agent wants to call a tool — respond with sendToolResult() */
@@ -68,10 +70,12 @@ export type VoiceAgent = {
  * event loop.
  */
 export async function createVoiceAgent(
-  callbacks: VoiceAgentCallbacks
+  callbacks: VoiceAgentCallbacks,
+  options?: { isMuted?: boolean }
 ): Promise<VoiceAgent> {
-  // 1. Fetch temp token + agent ID from our server
-  const tokenRes = await fetch("/api/agent-token");
+  const isMuted = options?.isMuted ?? true;
+  // 1. Fetch temp token + agent ID from our server (matching muted/unmuted state)
+  const tokenRes = await fetch(`/api/agent-token?muted=${isMuted}`);
   if (!tokenRes.ok) {
     const { error } = await tokenRes.json().catch(() => ({ error: "unknown" }));
     throw new Error(`Failed to get agent token: ${error}`);
@@ -200,6 +204,7 @@ export async function createVoiceAgent(
 
       case "input.speech.started": {
         lastEvent = "input.speech.started";
+        callbacks.onUserSpeakingStart?.();
         break;
       }
 
@@ -268,8 +273,9 @@ registerProcessor('pcm-processor', PcmProcessor);
     if (audioCtx) return; // already streaming
 
     // Voice Agent API defaults to PCM 24kHz mono
-    audioCtx = new AudioContext({ sampleRate: 24000 });
-    micSource = audioCtx.createMediaStreamSource(stream);
+    const ctx = new AudioContext({ sampleRate: 24000 });
+    audioCtx = ctx;
+    micSource = ctx.createMediaStreamSource(stream);
     
     if (!workletUrl) {
       const blob = new Blob([workletCode], { type: 'application/javascript' });
@@ -277,22 +283,28 @@ registerProcessor('pcm-processor', PcmProcessor);
     }
     
     try {
-      await audioCtx.audioWorklet.addModule(workletUrl);
+      await ctx.audioWorklet.addModule(workletUrl);
     } catch (err) {
       console.warn("Failed to load AudioWorklet, falling back...", err);
       return;
     }
     
-    processor = new AudioWorkletNode(audioCtx, 'pcm-processor');
+    // Safety guard: if stopAudio() or end() was called while awaiting addModule
+    if (!audioCtx || audioCtx !== ctx || ctx.state === "closed") {
+      return;
+    }
+
+    processor = new AudioWorkletNode(ctx, 'pcm-processor');
 
     processor.port.onmessage = (e) => {
       if (!isConnected || ws.readyState !== WebSocket.OPEN) return;
+      if (!audioCtx || audioCtx.state === "closed") return;
       
       const inputData = e.data as Float32Array;
       
       // Resample to 24000 Hz if the browser ignored our sampleRate request
       const targetRate = 24000;
-      const sourceRate = audioCtx!.sampleRate;
+      const sourceRate = audioCtx.sampleRate;
       let resampled = inputData;
       
       if (sourceRate !== targetRate) {
@@ -349,11 +361,22 @@ registerProcessor('pcm-processor', PcmProcessor);
 
   function end() {
     stopAudio();
+    ws.onmessage = null;
+    ws.onerror = null;
+    ws.onclose = null;
     if (ws.readyState === WebSocket.OPEN) {
       // session.end stops billing immediately (vs just closing the socket
       // which keeps the session alive for 30s and continues billing)
-      ws.send(JSON.stringify({ type: "session.end" }));
+      try {
+        ws.send(JSON.stringify({ type: "session.end" }));
+        ws.close(1000, "Tour agent session ended cleanly");
+      } catch {}
+    } else {
+      try {
+        ws.close();
+      } catch {}
     }
+    isConnected = false;
   }
 
   return {
