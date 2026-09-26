@@ -39,8 +39,8 @@ import {
   playTactileTap,
   playToggle,
 } from "@/lib/sounds";
-import type { VoiceAgent } from "@/lib/assemblyai-agent";
-import type { AudioPlayer } from "@/lib/assemblyai-audio";
+import { createVoiceAgent, type VoiceAgent } from "@/lib/assemblyai-agent";
+import { createAudioPlayer, type AudioPlayer } from "@/lib/assemblyai-audio";
 import { BayerDitherBackground } from "@/components/ui/bayer-dither-background";
 import { useMicAudioLevel } from "@/hooks/use-mic-audio-level";
 
@@ -254,7 +254,214 @@ export default function Home() {
     setIsChatThinking(false);
     setOriginMapRoute("entrance");
     setActiveMapRoute("entrance");
-    await startMic();
+
+    // 1. Initialize audio player for voice responses
+    if (!audioPlayerRef.current) {
+      audioPlayerRef.current = createAudioPlayer();
+    }
+    await audioPlayerRef.current.resume();
+
+    // 2. Start local microphone
+    const stream = await startMic();
+
+    // 3. Connect Voice Agent session
+    try {
+      const agent = await createVoiceAgent({
+        onReady: (sessionId) => {
+          console.log("[AssemblyAI] Tour session ready:", sessionId);
+          if (mediaStreamRef.current) {
+            agent.startAudio(mediaStreamRef.current);
+          }
+        },
+        onTranscriptPartial: (text) => {
+          if (!text) return;
+          setChatMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === partialMsgIdRef.current);
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx] = {
+                id: partialMsgIdRef.current,
+                role: "visitor",
+                text,
+                isPartial: true,
+                timestamp: new Date(),
+              };
+              return updated;
+            }
+            return [
+              ...prev,
+              {
+                id: partialMsgIdRef.current,
+                role: "visitor",
+                text,
+                isPartial: true,
+                timestamp: new Date(),
+              },
+            ];
+          });
+        },
+        onTranscriptFinal: (text) => {
+          if (!text?.trim()) return;
+          setChatMessages((prev) => {
+            const filtered = prev.filter((m) => m.id !== partialMsgIdRef.current);
+            return [
+              ...filtered,
+              {
+                id: `visitor-${Date.now()}`,
+                role: "visitor",
+                text,
+                isPartial: false,
+                timestamp: new Date(),
+              },
+            ];
+          });
+          partialMsgIdRef.current = `visitor-partial-${Date.now()}`;
+          setIsChatThinking(true);
+          setAgentStatus("thinking");
+        },
+        onAgentTranscriptPartial: (text) => {
+          if (!text) return;
+          setIsChatThinking(false);
+          setAgentStatus("speaking");
+          setChatMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === partialAgentMsgIdRef.current);
+            if (idx >= 0) {
+              const updated = [...prev];
+              const existing = updated[idx];
+              if (existing.role === "agent") {
+                updated[idx] = {
+                  ...existing,
+                  text,
+                  isStreaming: true,
+                };
+              }
+              return updated;
+            }
+            return [
+              ...prev,
+              {
+                id: partialAgentMsgIdRef.current,
+                role: "agent",
+                text,
+                isStreaming: true,
+                speakerName: "Alba Docent",
+                timestamp: new Date(),
+              },
+            ];
+          });
+        },
+        onAgentTranscriptFinal: (text) => {
+          if (!text?.trim()) return;
+          setIsChatThinking(false);
+          setChatMessages((prev) => {
+            const filtered = prev.filter((m) => m.id !== partialAgentMsgIdRef.current);
+            return [
+              ...filtered,
+              {
+                id: `agent-${Date.now()}`,
+                role: "agent",
+                text,
+                isStreaming: false,
+                speakerName: "Alba Docent",
+                timestamp: new Date(),
+              },
+            ];
+          });
+          partialAgentMsgIdRef.current = `agent-partial-${Date.now()}`;
+        },
+        onAgentSpeakingStart: () => {
+          setAgentStatus("speaking");
+        },
+        onAgentSpeakingEnd: (interrupted) => {
+          if (interrupted) {
+            audioPlayerRef.current?.flush();
+          }
+          setAgentStatus("listening");
+        },
+        onAgentAudio: (base64) => {
+          audioPlayerRef.current?.playChunk(base64);
+        },
+        onToolCall: (tool) => {
+          console.log("[AssemblyAI] Executing tool call:", tool.name, tool.arguments);
+          // Requirement A: Trigger artifact loading skeleton during visual transition
+          setIsArtifactLoading(true);
+
+          if (tool.name === "show_map") {
+            const routeId = (tool.arguments.routeId as string) || "entrance";
+            setActiveArtifact("map");
+            setActiveMapRoute(routeId);
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                id: `tool-${Date.now()}`,
+                role: "tool",
+                toolName: "show_map",
+                label: `Gallery Map: ${routeId}`,
+                artifactType: "map",
+                params: tool.arguments,
+                timestamp: new Date(),
+              },
+            ]);
+            agent.sendToolResult(tool.callId, { success: true, destination: routeId });
+          } else if (tool.name === "show_hotspots") {
+            const hotspotId = (tool.arguments.hotspotId as any) || "cypress";
+            setActiveArtifact("hotspots");
+            setActiveHotspotId(hotspotId);
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                id: `tool-${Date.now()}`,
+                role: "tool",
+                toolName: "show_hotspots",
+                label: `Detail Zoom: ${hotspotId}`,
+                artifactType: "hotspots",
+                params: tool.arguments,
+                timestamp: new Date(),
+              },
+            ]);
+            agent.sendToolResult(tool.callId, { success: true, activeHotspot: hotspotId });
+          } else if (tool.name === "show_info" || tool.name === "show_artwork_info") {
+            setActiveArtifact("info");
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                id: `tool-${Date.now()}`,
+                role: "tool",
+                toolName: "show_info",
+                label: "Artwork Information",
+                artifactType: "info",
+                params: tool.arguments,
+                timestamp: new Date(),
+              },
+            ]);
+            agent.sendToolResult(tool.callId, { success: true, artwork: "The Starry Night" });
+          } else if (tool.name === "show_comparison") {
+            setActiveArtifact("comparison");
+            agent.sendToolResult(tool.callId, { success: true });
+          } else if (tool.name === "show_timeline") {
+            setActiveArtifact("timeline");
+            agent.sendToolResult(tool.callId, { success: true });
+          } else {
+            agent.sendToolResult(tool.callId, { success: true });
+          }
+
+          // Shimmer skeleton matches the target artifact for 450ms then smoothly cross-fades into content
+          setTimeout(() => {
+            setIsArtifactLoading(false);
+          }, 450);
+        },
+        onError: (code, message) => {
+          console.warn("[AssemblyAI] Agent error:", code, message);
+        },
+        onEnded: () => {
+          console.log("[AssemblyAI] Voice agent session ended.");
+        },
+      });
+
+      agentRef.current = agent;
+    } catch (err) {
+      console.warn("[AssemblyAI] Agent connection skipped or failed:", err);
+    }
   };
 
   const handleConfirmEndTour = async () => {
