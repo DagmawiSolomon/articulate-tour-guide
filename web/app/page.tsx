@@ -17,8 +17,6 @@ import {
   Mic01Icon,
   Cancel01Icon,
   CallDisabled02Icon,
-  PauseIcon,
-  PlayIcon,
   MessageSquareIcon,
   MapIcon,
 } from "@hugeicons/core-free-icons";
@@ -61,11 +59,22 @@ const THINKING_EMOTIONS: ExpressionId[] = [
   "confused",
 ];
 
+/** Idle expression cycle when mic is off — patient ➜ glance ➜ drowsy ➜ curious ➜ repeat */
+const MUTED_EMOTIONS: ExpressionId[] = [
+  "muted",
+  "muted",
+  "muted-glance",
+  "muted",
+  "muted-drowsy",
+  "muted",
+  "muted-glance",
+  "muted",
+];
+
 export default function Home() {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isTourActive, setIsTourActive] = React.useState(false);
   const [visitorName, setVisitorName] = React.useState("Visitor");
-  const [isPaused, setIsPaused] = React.useState(false);
   const [isEndDialogOpen, setIsEndDialogOpen] = React.useState(false);
   const [isExhibitInfoOpen, setIsExhibitInfoOpen] = React.useState(false);
   const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("neutral");
@@ -78,15 +87,6 @@ export default function Home() {
   const [originMapRoute, setOriginMapRoute] = React.useState<string>("entrance");
   const [activeMapRoute, setActiveMapRoute] = React.useState<string>("entrance");
   const [activeHotspotId, setActiveHotspotId] = React.useState<"cypress" | "star" | "steeple" | "vortex" | "moon" | undefined>(undefined);
-  const [hatPlacement, setHatPlacement] = React.useState({
-    x: 3.5,
-    y: -17,
-    scale: 0.65,
-    rotate: -2,
-  });
-  const [blobScale, setBlobScale] = React.useState<number>(0.85);
-  const [blobOffsetY, setBlobOffsetY] = React.useState<number>(0);
-  const [isHatControlsOpen, setIsHatControlsOpen] = React.useState(false);
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
   // Will be wired to real events once voice is connected.
   const [isArtifactLoading, setIsArtifactLoading] = React.useState(false);
@@ -117,14 +117,14 @@ export default function Home() {
       return;
     }
 
-    if (isPaused) {
-      setActiveExpressionId("neutral");
-      return;
-    }
-
     if (isMuted) {
       setActiveExpressionId("muted");
-      return;
+      let mutedIdx = 0;
+      const mutedInterval = setInterval(() => {
+        mutedIdx = (mutedIdx + 1) % MUTED_EMOTIONS.length;
+        setActiveExpressionId(MUTED_EMOTIONS[mutedIdx]);
+      }, 3500); // slower cadence — idle, languid waiting
+      return () => clearInterval(mutedInterval);
     }
 
     let emotionIdx = 0;
@@ -151,7 +151,7 @@ export default function Home() {
     return () => {
       if (emotionInterval) clearInterval(emotionInterval);
     };
-  }, [isTourActive, agentStatus, isMuted, isPaused]);
+  }, [isTourActive, agentStatus, isMuted]);
 
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
 
@@ -231,7 +231,6 @@ export default function Home() {
     setSelectedArtwork(null);
     setMapNavigation({ startId: "entrance", destinationId: "", currentNodeId: null });
     setMapViewport(null);
-    setIsPaused(false);
     setIsMuted(true);
     setAgentStatus("listening");
     setActiveExpressionId("listening");
@@ -254,7 +253,6 @@ export default function Home() {
 
     // Reset back to pre-tour state
     setIsTourActive(false);
-    setIsPaused(false);
     setIsExpanded(false);
     setActiveArtifact("info");
     setActiveExpressionId("neutral");
@@ -265,36 +263,7 @@ export default function Home() {
     setActiveMapRoute("entrance");
   };
 
-  const togglePause = React.useCallback(() => {
-    setIsPaused((prev) => {
-      const next = !prev;
-      if (next) {
-        playToggle();
-        setActiveExpressionId("neutral");
-        if (mediaStreamRef.current) {
-          mediaStreamRef.current.getAudioTracks().forEach((track) => {
-            track.enabled = false;
-          });
-        }
-      } else {
-        playCallStart();
-        setActiveExpressionId("listening");
-        if (mediaStreamRef.current && !isMuted) {
-          mediaStreamRef.current.getAudioTracks().forEach((track) => {
-            track.enabled = true;
-          });
-        }
-      }
-      return next;
-    });
-  }, [isMuted]);
-
-  const isListening = isTourActive && !isMuted && !isPaused && activeExpressionId === "listening";
-
-
-  // Bottom cradle notch with a comfortable 10px margin framing the dock
-  const bottomDockNotchPath =
-    "M 0 44.5 C 16 44.5 24 38 28 28 C 32 16 40 6.5 54 6.5 H 202 C 216 6.5 224 16 228 28 C 232 38 240 44.5 256 44.5";
+  const isListening = isTourActive && !isMuted && activeExpressionId === "listening";
 
   // Original top-right inverted border radius (outer edge of circle matches top and right borders)
   const btnRadius = tuning.closeSize / 2;
@@ -374,38 +343,15 @@ export default function Home() {
   );
 
   const micControl = (
-    <Button
+    <button
       type="button"
       onClick={toggleMic}
-      disabled
       aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
       title={isMuted ? "Unmute microphone" : "Mute microphone"}
-      variant="outline"
-      className={`size-9 rounded-full p-0 border border-border cursor-pointer transition-all active:scale-95 flex items-center justify-center ${
-        isMuted
-          ? "bg-muted text-secondary-text hover:bg-soft hover:text-foreground"
-          : "bg-card hover:bg-muted text-foreground"
-      }`}
+      className="call-group-mic-btn size-9 rounded-full border border-border/80 bg-card hover:bg-muted text-foreground flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0 shadow-xs"
     >
       <HugeIcon icon={isMuted ? MicOff01Icon : Mic01Icon} size={16} />
-    </Button>
-  );
-
-  const pauseControl = (
-    <Button
-      type="button"
-      onClick={togglePause}
-      aria-label={isPaused ? "Resume tour" : "Pause tour"}
-      title={isPaused ? "Resume tour" : "Pause tour"}
-      className="call-group-pause-btn size-9 rounded-full p-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-none shrink-0"
-    >
-      <HugeIcon
-        icon={isPaused ? PlayIcon : PauseIcon}
-        size={15}
-        color="#ffffff"
-        className="text-white shrink-0"
-      />
-    </Button>
+    </button>
   );
 
   const endControl = (
@@ -443,28 +389,20 @@ export default function Home() {
   };
 
   const isEffectivelyMuted = isTourActive && isMuted;
-  const statusLabel = isPaused
-    ? "Paused"
-    : isEffectivelyMuted
-    ? "Muted"
-    : agentStatus;
-  const areDotsActive = isTourActive && !isMuted && !isPaused;
+  const statusLabel = isEffectivelyMuted ? "Muted" : agentStatus;
+  const areDotsActive = isTourActive && !isMuted;
 
   const statusIndicator = (
     <button
       type="button"
       onClick={() => {
         playTactileTap();
-        if (isPaused) {
-          togglePause();
-          return;
-        }
         setAgentStatus((prev) =>
           prev === "listening" ? "thinking" : prev === "thinking" ? "speaking" : "listening"
         );
       }}
       className="h-7 px-2 flex items-center gap-1.5 text-xs font-medium text-[#72706b] hover:text-[#1f1e1b] transition-colors cursor-pointer select-none bg-transparent border-0 tracking-[-0.1px]"
-      title={isPaused ? "Click to resume tour" : "Click to advance conversational status"}
+      title="Click to advance conversational status"
     >
       <span className="capitalize font-medium text-[#72706b]">
         {statusLabel}
@@ -477,19 +415,21 @@ export default function Home() {
     </button>
   );
 
-  // Call group: horizontal dock at bottom with map, chat & mic on the left, divider, and pause & end on the right
+  // Call group: horizontal dock at bottom with artifact controls on the left, white space in between, and mic & end controls on the right
   const callGroup = (
     <div
-      className="call-group-container flex h-[52px] w-[236px] items-center justify-center gap-1.5 rounded-full border border-border bg-[#fafafa] px-2 shadow-xs transition-all duration-300"
+      className="call-group-container flex h-[52px] w-[236px] items-center justify-between rounded-full border border-border bg-[#fafafa] px-2 shadow-xs transition-all duration-300"
       role="group"
       aria-label="Tour controls"
     >
-      {mapControl}
-      {chatControl}
-      {micControl}
-      <span className="call-group-divider h-5 w-px shrink-0 bg-border mx-0.5" aria-hidden="true" />
-      {pauseControl}
-      {endControl}
+      <div className="flex items-center gap-1.5">
+        {mapControl}
+        {chatControl}
+      </div>
+      <div className="flex items-center gap-1.5">
+        {micControl}
+        {endControl}
+      </div>
     </div>
   );
 
@@ -678,9 +618,6 @@ export default function Home() {
                 <button
                   type="button"
                   className="guide-avatar absolute z-20 border-0 bg-transparent p-0 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-                  style={!isExpanded ? {
-                    transform: `translateX(-50%) translateY(${blobOffsetY}px) scale(${blobScale})`,
-                  } : undefined}
                   onClick={handleToggleExpanded}
                   aria-label={isExpanded ? "Close card" : "Open card"}
                   aria-expanded={isExpanded}
@@ -691,7 +628,6 @@ export default function Home() {
                     isListening={isListening}
                     isMuted={isTourActive && isMuted}
                     shape={0.11}
-                    hatPlacement={hatPlacement}
                     className="relative flex items-center justify-center"
                   />
                 </button>
@@ -739,181 +675,6 @@ export default function Home() {
             </a>
           </div>
         </footer>
-
-        {/* Floating Avatar & Hat Controls (Live preview / tuning) */}
-        <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2 font-sans select-none pointer-events-auto">
-          {isHatControlsOpen && (
-            <div className="w-84 max-h-[85vh] overflow-y-auto rounded-2xl border border-border/80 bg-white/95 p-4 shadow-xl backdrop-blur-md text-xs flex flex-col gap-3.5">
-              <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
-                <span className="font-semibold text-foreground flex items-center gap-1.5 text-sm">
-                  <span>🎨</span> Avatar & Hat Tuning
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsHatControlsOpen(false)}
-                  className="text-secondary-text hover:text-foreground text-xs p-1 rounded-md cursor-pointer"
-                  title="Close controls"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* ── Blob Avatar Controls ── */}
-              <div className="flex flex-col gap-2 p-2.5 rounded-xl bg-zinc-50 border border-border/60">
-                <span className="font-semibold text-foreground text-[11px] uppercase tracking-wider text-secondary-text">
-                  Blob Avatar
-                </span>
-
-                {/* Blob Scale */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-secondary-text font-medium text-[11px]">
-                    <span>Blob Scale</span>
-                    <span className="font-mono text-foreground font-semibold">
-                      {blobScale.toFixed(2)}x ({Math.round(480 * blobScale)}px)
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.4"
-                    max="1.5"
-                    step="0.01"
-                    value={blobScale}
-                    onChange={(e) => setBlobScale(parseFloat(e.target.value))}
-                    className="h-1.5 w-full cursor-pointer accent-foreground"
-                  />
-                </div>
-
-                {/* Blob Y Offset */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-secondary-text font-medium text-[11px]">
-                    <span>Blob Y Offset</span>
-                    <span className="font-mono text-foreground font-semibold">
-                      {blobOffsetY > 0 ? `+${blobOffsetY}` : blobOffsetY}px
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-120"
-                    max="120"
-                    step="1"
-                    value={blobOffsetY}
-                    onChange={(e) => setBlobOffsetY(parseInt(e.target.value, 10))}
-                    className="h-1.5 w-full cursor-pointer accent-foreground"
-                  />
-                </div>
-              </div>
-
-              {/* ── Docent Hat Controls ── */}
-              <div className="flex flex-col gap-2 p-2.5 rounded-xl bg-zinc-50 border border-border/60">
-                <span className="font-semibold text-foreground text-[11px] uppercase tracking-wider text-secondary-text">
-                  Docent Hat
-                </span>
-
-                {/* X Offset */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-secondary-text font-medium text-[11px]">
-                    <span>X Offset</span>
-                    <span className="font-mono text-foreground font-semibold">{hatPlacement.x}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-30"
-                    max="40"
-                    step="0.5"
-                    value={hatPlacement.x}
-                    onChange={(e) => setHatPlacement((prev) => ({ ...prev, x: parseFloat(e.target.value) }))}
-                    className="h-1.5 w-full cursor-pointer accent-foreground"
-                  />
-                </div>
-
-                {/* Y Offset */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-secondary-text font-medium text-[11px]">
-                    <span>Y Offset</span>
-                    <span className="font-mono text-foreground font-semibold">{hatPlacement.y}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-60"
-                    max="10"
-                    step="0.5"
-                    value={hatPlacement.y}
-                    onChange={(e) => setHatPlacement((prev) => ({ ...prev, y: parseFloat(e.target.value) }))}
-                    className="h-1.5 w-full cursor-pointer accent-foreground"
-                  />
-                </div>
-
-                {/* Hat Scale */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-secondary-text font-medium text-[11px]">
-                    <span>Hat Scale</span>
-                    <span className="font-mono text-foreground font-semibold">{hatPlacement.scale.toFixed(2)}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.3"
-                    max="1.2"
-                    step="0.01"
-                    value={hatPlacement.scale}
-                    onChange={(e) => setHatPlacement((prev) => ({ ...prev, scale: parseFloat(e.target.value) }))}
-                    className="h-1.5 w-full cursor-pointer accent-foreground"
-                  />
-                </div>
-
-                {/* Rotation */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-secondary-text font-medium text-[11px]">
-                    <span>Rotate</span>
-                    <span className="font-mono text-foreground font-semibold">{hatPlacement.rotate}°</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-45"
-                    max="45"
-                    step="1"
-                    value={hatPlacement.rotate}
-                    onChange={(e) => setHatPlacement((prev) => ({ ...prev, rotate: parseInt(e.target.value, 10) }))}
-                    className="h-1.5 w-full cursor-pointer accent-foreground"
-                  />
-                </div>
-              </div>
-
-              {/* Code Snippet & Reset */}
-              <div className="pt-2 border-t border-border/50 flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-secondary-text">Current values:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBlobScale(0.85);
-                      setBlobOffsetY(0);
-                      setHatPlacement({ x: 3.5, y: -17, scale: 0.65, rotate: -2 });
-                    }}
-                    className="font-medium text-foreground underline underline-offset-2 hover:opacity-80 cursor-pointer"
-                  >
-                    Reset defaults
-                  </button>
-                </div>
-                <code className="p-1.5 bg-zinc-100 rounded text-[10px] font-mono text-foreground select-all break-all leading-relaxed">
-                  blob: scale({blobScale.toFixed(2)}) translateY({blobOffsetY}px)<br />
-                  hat: translate({hatPlacement.x}, {hatPlacement.y}) scale({hatPlacement.scale}) rotate({hatPlacement.rotate}°)
-                </code>
-              </div>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => {
-              playTactileTap();
-              setIsHatControlsOpen((prev) => !prev);
-            }}
-            className="flex items-center gap-1.5 rounded-full bg-[#fafafa] hover:bg-zinc-100 text-foreground border border-border/80 px-3 py-1.5 text-xs font-medium shadow-md transition-all active:scale-95 cursor-pointer"
-          >
-            <span>🎨</span>
-            <span>{isHatControlsOpen ? "Hide Tuning" : "Tune Blob & Hat"}</span>
-          </button>
-        </div>
       </div>
 
       <Dialog open={isExhibitInfoOpen} onOpenChange={setIsExhibitInfoOpen}>
