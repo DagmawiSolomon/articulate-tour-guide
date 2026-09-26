@@ -14,6 +14,9 @@
 export function createAudioPlayer() {
   let ctx: AudioContext | null = null;
   let nextStartTime = 0;
+  const activeSources = new Set<AudioBufferSourceNode>();
+  let completionTimer: NodeJS.Timeout | null = null;
+  let currentGeneration = 0;
 
   const SAMPLE_RATE = 24000;
 
@@ -31,33 +34,33 @@ export function createAudioPlayer() {
    */
   function playChunk(base64: string) {
     if (!base64 || typeof base64 !== "string") {
-      console.warn("playChunk received invalid or missing base64 string:", base64);
       return;
     }
 
+    const chunkGeneration = currentGeneration;
     const audioCtx = getContext();
 
     // Decode base64 → Uint8Array
     // AssemblyAI may use URL-safe base64 or include newlines/prefixes.
     let cleanBase64 = base64
-      .replace(/^data:.*,/, '')
-      .replace(/-/g, '+')
-      .replace(/_/g, '/')
-      .replace(/\s/g, '');
-      
+      .replace(/^data:.*,/, "")
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .replace(/\s/g, "");
+
     // Add missing padding if needed
     const padLen = cleanBase64.length % 4;
     if (padLen > 0) {
-      cleanBase64 += '='.repeat(4 - padLen);
+      cleanBase64 += "=".repeat(4 - padLen);
     }
-    
+
     let binary = "";
     try {
       binary = atob(cleanBase64);
-    } catch (err) {
-      console.error("Failed to decode base64 chunk. Length:", base64.length, "Prefix:", base64.substring(0, 50));
+    } catch {
       return;
     }
+
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
       bytes[i] = binary.charCodeAt(i);
@@ -70,6 +73,11 @@ export function createAudioPlayer() {
       float32[i] = pcm16[i] / 32768;
     }
 
+    // If flushed while decoding, drop immediately
+    if (chunkGeneration !== currentGeneration) {
+      return;
+    }
+
     // Create AudioBuffer and schedule it
     const buffer = audioCtx.createBuffer(1, float32.length, SAMPLE_RATE);
     buffer.copyToChannel(float32, 0);
@@ -78,6 +86,11 @@ export function createAudioPlayer() {
     source.buffer = buffer;
     source.connect(audioCtx.destination);
 
+    activeSources.add(source);
+    source.onended = () => {
+      activeSources.delete(source);
+    };
+
     const now = audioCtx.currentTime;
     const startAt = Math.max(now, nextStartTime);
     source.start(startAt);
@@ -85,15 +98,56 @@ export function createAudioPlayer() {
   }
 
   /**
-   * Stop playback immediately and clear the queue.
-   * Call this on barge-in (when user interrupts the agent).
+   * Schedule a callback when all queued audio buffers have finished playing through the speakers.
+   */
+  function onPlaybackComplete(callback: () => void) {
+    if (completionTimer) {
+      clearTimeout(completionTimer);
+      completionTimer = null;
+    }
+
+    if (!ctx || ctx.state === "closed" || activeSources.size === 0 || ctx.currentTime >= nextStartTime) {
+      callback();
+      return;
+    }
+
+    const remainingMs = Math.max(0, (nextStartTime - ctx.currentTime) * 1000);
+    const scheduledGeneration = currentGeneration;
+
+    completionTimer = setTimeout(() => {
+      completionTimer = null;
+      if (scheduledGeneration === currentGeneration) {
+        callback();
+      }
+    }, remainingMs);
+  }
+
+  /**
+   * Stop playback immediately and clear all buffers and scheduled timers.
+   * Call this on barge-in or when swapping agents mid-tour.
    */
   function flush() {
-    if (ctx) {
-      ctx.close();
-      ctx = null;
-      nextStartTime = 0;
+    currentGeneration++;
+    if (completionTimer) {
+      clearTimeout(completionTimer);
+      completionTimer = null;
     }
+
+    for (const source of activeSources) {
+      try {
+        source.stop();
+        source.disconnect();
+      } catch {}
+    }
+    activeSources.clear();
+
+    if (ctx && ctx.state !== "closed") {
+      try {
+        ctx.close();
+      } catch {}
+      ctx = null;
+    }
+    nextStartTime = 0;
   }
 
   /**
@@ -107,7 +161,23 @@ export function createAudioPlayer() {
     }
   }
 
-  return { playChunk, flush, resume };
+  return {
+    playChunk,
+    flush,
+    resume,
+    onPlaybackComplete,
+    get isPlaying() {
+      return Boolean(
+        ctx &&
+          ctx.state === "running" &&
+          (activeSources.size > 0 || ctx.currentTime < nextStartTime)
+      );
+    },
+    get remainingSeconds() {
+      if (!ctx || ctx.state === "closed") return 0;
+      return Math.max(0, nextStartTime - ctx.currentTime);
+    },
+  };
 }
 
 export type AudioPlayer = ReturnType<typeof createAudioPlayer>;
