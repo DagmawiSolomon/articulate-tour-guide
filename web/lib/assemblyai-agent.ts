@@ -240,6 +240,7 @@ export async function createVoiceAgent(
   let audioCtx: AudioContext | null = null;
   let micSource: MediaStreamAudioSourceNode | null = null;
   let processor: AudioWorkletNode | null = null;
+  let dummySink: MediaStreamAudioDestinationNode | null = null;
   let workletUrl: string | null = null;
 
   const workletCode = `
@@ -272,9 +273,20 @@ registerProcessor('pcm-processor', PcmProcessor);
   async function startAudio(stream: MediaStream) {
     if (audioCtx) return; // already streaming
 
-    // Voice Agent API defaults to PCM 24kHz mono
-    const ctx = new AudioContext({ sampleRate: 24000 });
+    const AudioCtxClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtxClass();
     audioCtx = ctx;
+
+    if (ctx.state === "suspended") {
+      try {
+        await ctx.resume();
+      } catch (err) {
+        console.warn("Could not resume mic AudioContext:", err);
+      }
+    }
+
     micSource = ctx.createMediaStreamSource(stream);
     
     if (!workletUrl) {
@@ -336,13 +348,19 @@ registerProcessor('pcm-processor', PcmProcessor);
     };
 
     micSource.connect(processor);
-    processor.connect(audioCtx.destination);
+    // Connect to a virtual null sink to clock the worklet without outputting to physical speakers
+    dummySink = ctx.createMediaStreamDestination();
+    processor.connect(dummySink);
   }
 
   function stopAudio() {
     if (processor) {
       processor.disconnect();
       processor = null;
+    }
+    if (dummySink) {
+      dummySink.disconnect?.();
+      dummySink = null;
     }
     if (micSource) {
       micSource.disconnect();

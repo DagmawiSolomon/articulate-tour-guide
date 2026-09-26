@@ -251,7 +251,7 @@ export default function Home() {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       }
       agentRef.current?.end();
-      audioPlayerRef.current?.flush();
+      audioPlayerRef.current?.close();
     };
   }, []);
 
@@ -592,9 +592,12 @@ export default function Home() {
       try {
         const agent = await createVoiceAgent(callbacks, { isMuted: activeMuted });
         agentRef.current = agent;
-    } catch (err) {
-      console.warn("[AssemblyAI] Agent connection skipped or failed:", err);
-    }
+        if (!activeMuted && mediaStreamRef.current) {
+          agent.startAudio(mediaStreamRef.current);
+        }
+      } catch (err) {
+        console.warn("[AssemblyAI] Agent connection skipped or failed:", err);
+      }
   };
 
   const handleConfirmEndTour = async () => {
@@ -605,7 +608,7 @@ export default function Home() {
     stopMic();
     agentRef.current?.end();
     agentRef.current = null;
-    audioPlayerRef.current?.flush();
+    audioPlayerRef.current?.close();
     audioPlayerRef.current = null;
 
     greetingPhaseRef.current = "idle";
