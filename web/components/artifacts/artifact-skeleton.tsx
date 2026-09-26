@@ -49,6 +49,15 @@ function InfoSkeleton() {
           {/* Title */}
           <Shimmer className="h-6 sm:h-7 w-3/4" />
 
+          {/* Summary lines */}
+          <div className="space-y-1.5 pt-0.5">
+            <Shimmer className="h-2.5 w-full" />
+            <Shimmer className="h-2.5 w-5/6" />
+            <Shimmer className="h-2.5 w-4/6" />
+          </div>
+
+          <Shimmer className="h-px w-full rounded-none my-1" />
+
           {/* Key-Value Pairs */}
           <div className="space-y-2 pt-0.5">
             <div className="flex justify-between items-center pb-1 border-b border-border/30">
@@ -68,15 +77,6 @@ function InfoSkeleton() {
               <Shimmer className="h-3 w-32" />
             </div>
           </div>
-
-          <Shimmer className="h-px w-full rounded-none my-1" />
-
-          {/* Summary lines */}
-          <div className="space-y-1.5 pt-0.5">
-            <Shimmer className="h-2.5 w-full" />
-            <Shimmer className="h-2.5 w-5/6" />
-            <Shimmer className="h-2.5 w-4/6" />
-          </div>
         </div>
       </div>
     </div>
@@ -86,7 +86,7 @@ function InfoSkeleton() {
 /* ── Map ──────────────────────────────────────────────── */
 function MapSkeleton() {
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-2xl bg-[#f4f5f7]">
+    <div className="relative h-full w-full overflow-hidden rounded-2xl bg-[#fafafa]">
       <div
         className="absolute inset-0 bg-center bg-contain bg-no-repeat"
         style={{ backgroundImage: "url('/museum-floorplan-base.png')" }}
