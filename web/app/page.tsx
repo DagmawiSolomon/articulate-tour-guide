@@ -19,12 +19,13 @@ import {
   CallDisabled02Icon,
   PauseIcon,
   PlayIcon,
+  MessageSquareIcon,
+  MapIcon,
 } from "@hugeicons/core-free-icons";
 import { ArticulateAvatar } from "@/components/avatar/articulate-avatar";
 import {
   type ExpressionId,
 } from "@/components/avatar/avatar-expressions";
-import { SettingsDialog } from "@/components/layout/settings-dialog";
 import { Footer } from "@/components/layout/footer";
 import { ArtifactStage, type ArtifactType, type ChatMessage } from "@/components/artifacts/artifact-stage";
 import type { ExhibitArtworkInfo, ExhibitNavigationState } from "@/components/artifacts/exhibit-floor-map-view";
@@ -77,6 +78,15 @@ export default function Home() {
   const [originMapRoute, setOriginMapRoute] = React.useState<string>("entrance");
   const [activeMapRoute, setActiveMapRoute] = React.useState<string>("entrance");
   const [activeHotspotId, setActiveHotspotId] = React.useState<"cypress" | "star" | "steeple" | "vortex" | "moon" | undefined>(undefined);
+  const [hatPlacement, setHatPlacement] = React.useState({
+    x: 3.5,
+    y: -17,
+    scale: 0.65,
+    rotate: -2,
+  });
+  const [blobScale, setBlobScale] = React.useState<number>(0.85);
+  const [blobOffsetY, setBlobOffsetY] = React.useState<number>(0);
+  const [isHatControlsOpen, setIsHatControlsOpen] = React.useState(false);
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
   // Will be wired to real events once voice is connected.
   const [isArtifactLoading, setIsArtifactLoading] = React.useState(false);
@@ -315,6 +325,54 @@ export default function Home() {
   const cornerNotchPath = `M ${s1x} ${yTop} A ${shoulderR} ${shoulderR} 0 0 1 ${t1x} ${t1y} A ${cradleRadius} ${cradleRadius} 0 0 0 ${t2x} ${t2y} A ${shoulderR} ${shoulderR} 0 0 1 ${xRight} ${s2y}`;
   const cornerNotchMask = `${cornerNotchPath} L ${cornerS + 4} ${s2y} L ${cornerS + 4} -4 L ${s1x} -4 Z`;
 
+  const mapControl = (
+    <button
+      type="button"
+      onClick={() => {
+        playTactileTap();
+        if (isExpanded && activeArtifact === "map") {
+          setIsExpanded(false);
+          playStageClose();
+        } else {
+          setActiveArtifact("map");
+          if (!isExpanded) {
+            setIsExpanded(true);
+            playStageOpen();
+          }
+        }
+      }}
+      aria-label={isExpanded && activeArtifact === "map" ? "Close map" : "Open map"}
+      title={isExpanded && activeArtifact === "map" ? "Close map" : "Open map"}
+      className="call-group-map-btn size-9 rounded-full border border-border/80 bg-card hover:bg-muted text-foreground flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0 shadow-xs"
+    >
+      <HugeiconsIcon icon={MapIcon} size={16} />
+    </button>
+  );
+
+  const chatControl = (
+    <button
+      type="button"
+      onClick={() => {
+        playTactileTap();
+        if (isExpanded && activeArtifact === "chat") {
+          setIsExpanded(false);
+          playStageClose();
+        } else {
+          setActiveArtifact("chat");
+          if (!isExpanded) {
+            setIsExpanded(true);
+            playStageOpen();
+          }
+        }
+      }}
+      aria-label={isExpanded && activeArtifact === "chat" ? "Close transcript" : "Open transcript"}
+      title={isExpanded && activeArtifact === "chat" ? "Close transcript" : "Open transcript"}
+      className="call-group-chat-btn size-9 rounded-full border border-border/80 bg-card hover:bg-muted text-foreground flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0 shadow-xs"
+    >
+      <HugeiconsIcon icon={MessageSquareIcon} size={16} />
+    </button>
+  );
+
   const micControl = (
     <Button
       type="button"
@@ -419,14 +477,15 @@ export default function Home() {
     </button>
   );
 
-  // Call group: horizontal dock at bottom with settings & mic on the left, divider, and pause & end on the right
+  // Call group: horizontal dock at bottom with map, chat & mic on the left, divider, and pause & end on the right
   const callGroup = (
     <div
-      className="call-group-container flex h-[52px] w-[192px] items-center justify-center gap-1.5 rounded-full border border-border bg-[#fafafa] px-2 shadow-xs transition-all duration-300"
+      className="call-group-container flex h-[52px] w-[236px] items-center justify-center gap-1.5 rounded-full border border-border bg-[#fafafa] px-2 shadow-xs transition-all duration-300"
       role="group"
       aria-label="Tour controls"
     >
-      <SettingsDialog />
+      {mapControl}
+      {chatControl}
       {micControl}
       <span className="call-group-divider h-5 w-px shrink-0 bg-border mx-0.5" aria-hidden="true" />
       {pauseControl}
@@ -434,9 +493,9 @@ export default function Home() {
     </div>
   );
 
-  // Concentric cradle notch with balanced 10px margin around the 192x52px dock capsule
+  // Concentric cradle notch with balanced 10px margin around the 236x52px dock capsule
   const dockPath =
-    "M 0 67.5 C 13 67.5 16 56 16 41.5 A 36 36 0 0 1 52 5.5 H 192 A 36 36 0 0 1 228 41.5 C 228 56 231 67.5 244 67.5";
+    "M 0 67.5 C 13 67.5 16 56 16 41.5 A 36 36 0 0 1 52 5.5 H 236 A 36 36 0 0 1 272 41.5 C 272 56 275 67.5 288 67.5";
 
   return (
     <div className="relative h-dvh min-h-[480px] w-full flex overflow-hidden bg-white">
@@ -597,17 +656,17 @@ export default function Home() {
                   {activeArtifact !== "summary" && (
                     <div
                       className="absolute -bottom-px left-1/2 -translate-x-1/2 z-20 pointer-events-none"
-                      style={{ width: 244, height: 68 }}
+                      style={{ width: 288, height: 68 }}
                       aria-hidden="true"
                     >
                       <svg
-                        viewBox="0 0 244 68"
-                        width="244"
+                        viewBox="0 0 288 68"
+                        width="288"
                         height="68"
                         fill="none"
                         className="overflow-visible"
                       >
-                        <path d={`${dockPath} L 244 72 L 0 72 Z`} className="fill-background" />
+                        <path d={`${dockPath} L 288 72 L 0 72 Z`} className="fill-background" />
                         <path d={dockPath} className="stroke-border" strokeWidth="1" />
                       </svg>
                     </div>
@@ -619,6 +678,9 @@ export default function Home() {
                 <button
                   type="button"
                   className="guide-avatar absolute z-20 border-0 bg-transparent p-0 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+                  style={!isExpanded ? {
+                    transform: `translateX(-50%) translateY(${blobOffsetY}px) scale(${blobScale})`,
+                  } : undefined}
                   onClick={handleToggleExpanded}
                   aria-label={isExpanded ? "Close card" : "Open card"}
                   aria-expanded={isExpanded}
@@ -628,6 +690,8 @@ export default function Home() {
                     size={480}
                     isListening={isListening}
                     isMuted={isTourActive && isMuted}
+                    shape={0.11}
+                    hatPlacement={hatPlacement}
                     className="relative flex items-center justify-center"
                   />
                 </button>
@@ -675,6 +739,181 @@ export default function Home() {
             </a>
           </div>
         </footer>
+
+        {/* Floating Avatar & Hat Controls (Live preview / tuning) */}
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2 font-sans select-none pointer-events-auto">
+          {isHatControlsOpen && (
+            <div className="w-84 max-h-[85vh] overflow-y-auto rounded-2xl border border-border/80 bg-white/95 p-4 shadow-xl backdrop-blur-md text-xs flex flex-col gap-3.5">
+              <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
+                <span className="font-semibold text-foreground flex items-center gap-1.5 text-sm">
+                  <span>🎨</span> Avatar & Hat Tuning
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsHatControlsOpen(false)}
+                  className="text-secondary-text hover:text-foreground text-xs p-1 rounded-md cursor-pointer"
+                  title="Close controls"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* ── Blob Avatar Controls ── */}
+              <div className="flex flex-col gap-2 p-2.5 rounded-xl bg-zinc-50 border border-border/60">
+                <span className="font-semibold text-foreground text-[11px] uppercase tracking-wider text-secondary-text">
+                  Blob Avatar
+                </span>
+
+                {/* Blob Scale */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between text-secondary-text font-medium text-[11px]">
+                    <span>Blob Scale</span>
+                    <span className="font-mono text-foreground font-semibold">
+                      {blobScale.toFixed(2)}x ({Math.round(480 * blobScale)}px)
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.4"
+                    max="1.5"
+                    step="0.01"
+                    value={blobScale}
+                    onChange={(e) => setBlobScale(parseFloat(e.target.value))}
+                    className="h-1.5 w-full cursor-pointer accent-foreground"
+                  />
+                </div>
+
+                {/* Blob Y Offset */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between text-secondary-text font-medium text-[11px]">
+                    <span>Blob Y Offset</span>
+                    <span className="font-mono text-foreground font-semibold">
+                      {blobOffsetY > 0 ? `+${blobOffsetY}` : blobOffsetY}px
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-120"
+                    max="120"
+                    step="1"
+                    value={blobOffsetY}
+                    onChange={(e) => setBlobOffsetY(parseInt(e.target.value, 10))}
+                    className="h-1.5 w-full cursor-pointer accent-foreground"
+                  />
+                </div>
+              </div>
+
+              {/* ── Docent Hat Controls ── */}
+              <div className="flex flex-col gap-2 p-2.5 rounded-xl bg-zinc-50 border border-border/60">
+                <span className="font-semibold text-foreground text-[11px] uppercase tracking-wider text-secondary-text">
+                  Docent Hat
+                </span>
+
+                {/* X Offset */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between text-secondary-text font-medium text-[11px]">
+                    <span>X Offset</span>
+                    <span className="font-mono text-foreground font-semibold">{hatPlacement.x}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-30"
+                    max="40"
+                    step="0.5"
+                    value={hatPlacement.x}
+                    onChange={(e) => setHatPlacement((prev) => ({ ...prev, x: parseFloat(e.target.value) }))}
+                    className="h-1.5 w-full cursor-pointer accent-foreground"
+                  />
+                </div>
+
+                {/* Y Offset */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between text-secondary-text font-medium text-[11px]">
+                    <span>Y Offset</span>
+                    <span className="font-mono text-foreground font-semibold">{hatPlacement.y}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-60"
+                    max="10"
+                    step="0.5"
+                    value={hatPlacement.y}
+                    onChange={(e) => setHatPlacement((prev) => ({ ...prev, y: parseFloat(e.target.value) }))}
+                    className="h-1.5 w-full cursor-pointer accent-foreground"
+                  />
+                </div>
+
+                {/* Hat Scale */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between text-secondary-text font-medium text-[11px]">
+                    <span>Hat Scale</span>
+                    <span className="font-mono text-foreground font-semibold">{hatPlacement.scale.toFixed(2)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.3"
+                    max="1.2"
+                    step="0.01"
+                    value={hatPlacement.scale}
+                    onChange={(e) => setHatPlacement((prev) => ({ ...prev, scale: parseFloat(e.target.value) }))}
+                    className="h-1.5 w-full cursor-pointer accent-foreground"
+                  />
+                </div>
+
+                {/* Rotation */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between text-secondary-text font-medium text-[11px]">
+                    <span>Rotate</span>
+                    <span className="font-mono text-foreground font-semibold">{hatPlacement.rotate}°</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-45"
+                    max="45"
+                    step="1"
+                    value={hatPlacement.rotate}
+                    onChange={(e) => setHatPlacement((prev) => ({ ...prev, rotate: parseInt(e.target.value, 10) }))}
+                    className="h-1.5 w-full cursor-pointer accent-foreground"
+                  />
+                </div>
+              </div>
+
+              {/* Code Snippet & Reset */}
+              <div className="pt-2 border-t border-border/50 flex flex-col gap-1.5">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-secondary-text">Current values:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBlobScale(0.85);
+                      setBlobOffsetY(0);
+                      setHatPlacement({ x: 3.5, y: -17, scale: 0.65, rotate: -2 });
+                    }}
+                    className="font-medium text-foreground underline underline-offset-2 hover:opacity-80 cursor-pointer"
+                  >
+                    Reset defaults
+                  </button>
+                </div>
+                <code className="p-1.5 bg-zinc-100 rounded text-[10px] font-mono text-foreground select-all break-all leading-relaxed">
+                  blob: scale({blobScale.toFixed(2)}) translateY({blobOffsetY}px)<br />
+                  hat: translate({hatPlacement.x}, {hatPlacement.y}) scale({hatPlacement.scale}) rotate({hatPlacement.rotate}°)
+                </code>
+              </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              playTactileTap();
+              setIsHatControlsOpen((prev) => !prev);
+            }}
+            className="flex items-center gap-1.5 rounded-full bg-[#fafafa] hover:bg-zinc-100 text-foreground border border-border/80 px-3 py-1.5 text-xs font-medium shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            <span>🎨</span>
+            <span>{isHatControlsOpen ? "Hide Tuning" : "Tune Blob & Hat"}</span>
+          </button>
+        </div>
       </div>
 
       <Dialog open={isExhibitInfoOpen} onOpenChange={setIsExhibitInfoOpen}>
