@@ -22,7 +22,10 @@ export function createAudioPlayer() {
 
   function getContext(): AudioContext {
     if (!ctx || ctx.state === "closed") {
-      ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
+      const AudioCtxClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      ctx = new AudioCtxClass();
       nextStartTime = 0;
     }
     return ctx;
@@ -39,6 +42,10 @@ export function createAudioPlayer() {
 
     const chunkGeneration = currentGeneration;
     const audioCtx = getContext();
+
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
 
     // Decode base64 → Uint8Array
     // AssemblyAI may use URL-safe base64 or include newlines/prefixes.
@@ -66,8 +73,12 @@ export function createAudioPlayer() {
       bytes[i] = binary.charCodeAt(i);
     }
 
+    // Ensure even byte length for 16-bit PCM
+    const evenLength = bytes.length - (bytes.length % 2);
+    if (evenLength <= 0) return;
+
     // PCM 16-bit signed int (little-endian) → Float32
-    const pcm16 = new Int16Array(bytes.buffer);
+    const pcm16 = new Int16Array(bytes.buffer, bytes.byteOffset, evenLength / 2);
     const float32 = new Float32Array(pcm16.length);
     for (let i = 0; i < pcm16.length; i++) {
       float32[i] = pcm16[i] / 32768;
@@ -78,7 +89,7 @@ export function createAudioPlayer() {
       return;
     }
 
-    // Create AudioBuffer and schedule it
+    // Create AudioBuffer and schedule it (resampled automatically to hardware rate)
     const buffer = audioCtx.createBuffer(1, float32.length, SAMPLE_RATE);
     buffer.copyToChannel(float32, 0);
 
@@ -123,8 +134,8 @@ export function createAudioPlayer() {
   }
 
   /**
-   * Stop playback immediately and clear all buffers and scheduled timers.
-   * Call this on barge-in or when swapping agents mid-tour.
+   * Stop playback immediately and clear all scheduled buffers.
+   * Preserves AudioContext so subsequent playback retains user-gesture authorization.
    */
   function flush() {
     currentGeneration++;
@@ -140,14 +151,20 @@ export function createAudioPlayer() {
       } catch {}
     }
     activeSources.clear();
+    nextStartTime = 0;
+  }
 
+  /**
+   * Permanently closes the AudioContext on session end/unmount.
+   */
+  function close() {
+    flush();
     if (ctx && ctx.state !== "closed") {
       try {
         ctx.close();
       } catch {}
       ctx = null;
     }
-    nextStartTime = 0;
   }
 
   /**
@@ -164,6 +181,7 @@ export function createAudioPlayer() {
   return {
     playChunk,
     flush,
+    close,
     resume,
     onPlaybackComplete,
     get isPlaying() {
