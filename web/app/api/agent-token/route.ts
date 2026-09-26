@@ -10,9 +10,15 @@ import { NextResponse } from "next/server";
  * Token is valid for 120 seconds (redemption window) — enough for the
  * browser to open the WS. Once session.ready fires the token is consumed.
  */
-export async function GET() {
+export async function GET(request: Request) {
   const apiKey = process.env.ASSEMBLYAI_API_KEY;
-  const agentId = process.env.ASSEMBLYAI_AGENT_ID;
+  const { searchParams } = new URL(request.url);
+  const isMutedParam = searchParams.get("muted");
+  const isMuted = isMutedParam === "true" || isMutedParam === null;
+
+  const agentId = isMuted
+    ? (process.env.ASSEMBLYAI_AGENT_ID || "agent_95e1824252314c4b8b4bd14db16f5776")
+    : (process.env.ASSEMBLYAI_AGENT_ID_UNMUTED || "agent_6c0abfa11b004a48aa14f07a1f6896dd");
 
   if (!apiKey) {
     return NextResponse.json(
