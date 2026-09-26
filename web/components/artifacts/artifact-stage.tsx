@@ -73,7 +73,13 @@ export function ArtifactStage({
           <ArtifactSkeleton artifactType={artifactType} />
         ) : (
           <>
-            {artifactType === "info" && <ArtworkInfoCard {...(selectedArtwork ?? {})} onReturnToMap={selectedArtwork && mapDisplay === "exhibition" ? () => onSelectArtifact?.("map") : undefined} />}
+            {artifactType === "info" && (
+              <ArtworkInfoCard
+                {...(selectedArtwork ?? {})}
+                onReturnToMap={onSelectArtifact ? () => onSelectArtifact("map") : undefined}
+                onStartTour={onSelectArtifact ? () => onSelectArtifact("chat") : undefined}
+              />
+            )}
             {artifactType === "map" && (mapDisplay === "exhibition" ? <ExhibitFloorMapView onSelectArtwork={onSelectArtwork} navigationState={mapNavigation} onNavigationStateChange={onMapNavigationChange} initialViewport={mapViewport} onViewportChange={onMapViewportChange} /> : <GalleryMapView originRouteId={originMapRouteId} activeRouteId={mapRouteId} />)}
             {artifactType === "comparison" && <ComparisonView />}
             {artifactType === "timeline" && <TimelineView />}

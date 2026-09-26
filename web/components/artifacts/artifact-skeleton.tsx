@@ -77,6 +77,15 @@ function InfoSkeleton() {
               <Shimmer className="h-3 w-32" />
             </div>
           </div>
+
+          {/* CTA Buttons */}
+          <div className="mt-5">
+            <Shimmer className="h-px w-full rounded-none mb-4" />
+            <div className="flex items-center gap-2.5">
+              <Shimmer className="h-9 w-24 rounded-full" />
+              <Shimmer className="h-9 w-32 rounded-full" />
+            </div>
+          </div>
         </div>
       </div>
     </div>
