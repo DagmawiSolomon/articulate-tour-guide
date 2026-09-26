@@ -234,7 +234,7 @@ React.useEffect(() => {
   const FLOORPLAN_BOUNDS: [number, number, number, number] = [-0.017, -0.009, 0.017, 0.009];
 
   return (
-    <div className="w-full h-full relative select-none rounded-2xl overflow-hidden">
+    <div className="w-full h-full relative select-none rounded-2xl overflow-hidden bg-[#fafafa]">
       <Map
         initialCenter={[-0.0028, -0.0066]}
         initialZoom={14.6}

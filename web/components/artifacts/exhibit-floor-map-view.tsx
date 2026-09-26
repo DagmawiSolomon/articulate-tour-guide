@@ -96,7 +96,7 @@ const places: Place[] = [
 const mapStyle: MapLibreGL.StyleSpecification = {
   version:8,
   sources:{},
-  layers:[{ id:"exhibit-background",type:"background",paint:{"background-color":"#f4f5f7"} }],
+  layers:[{ id:"exhibit-background",type:"background",paint:{"background-color":"#fafafa"} }],
 };
 
 function addFloorLayers(map: MapLibreGL.Map) {
@@ -236,8 +236,8 @@ export function ExhibitFloorMapView({
   const routeDestination=places.find((place)=>place.id===navigationState.destinationId);
 
   return (
-    <div className="relative h-full min-h-0 w-full overflow-hidden rounded-2xl bg-[#f4f5f7]">
-      <div className="relative h-full min-h-0 w-full overflow-hidden rounded-2xl bg-[#f4f5f7]">
+    <div className="relative h-full min-h-0 w-full overflow-hidden rounded-2xl bg-[#fafafa]">
+      <div className="relative h-full min-h-0 w-full overflow-hidden rounded-2xl bg-[#fafafa]">
       <Map
         style={mapStyle}
         initialCenter={mapViewport.center}
@@ -274,7 +274,7 @@ export function ExhibitFloorMapView({
               <MapMarker key={amenity.id} longitude={longitude} latitude={latitude} anchor="center">
                 <div aria-label={amenity.label} title={amenity.label} className="flex items-center gap-1.5 px-1 py-0.5 text-left text-[#172027]">
                   <AmenityIcon kind={amenity.kind} className="size-[21px] shrink-0 stroke-[2.1px]" />
-                  <span className="whitespace-nowrap bg-[#f4f5f7]/95 px-0.5 text-[10px] font-medium leading-tight">{amenity.label}</span>
+                  <span className="whitespace-nowrap bg-[#fafafa]/95 px-0.5 text-[10px] font-medium leading-tight">{amenity.label}</span>
                 </div>
               </MapMarker>
             );
