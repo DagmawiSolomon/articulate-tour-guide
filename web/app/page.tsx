@@ -28,6 +28,8 @@ import { Footer } from "@/components/layout/footer";
 import { ArtifactStage, type ArtifactType, type ChatMessage } from "@/components/artifacts/artifact-stage";
 import type { ExhibitArtworkInfo, ExhibitNavigationState } from "@/components/artifacts/exhibit-floor-map-view";
 import type { MapViewport } from "@/components/ui/map";
+import { searchCuratorialArchives } from "@/lib/archive-retrieval";
+import { TURNING_POINTS_ARTWORKS, TURNING_POINTS_WINGS } from "@/lib/turning-points-data";
 import {
   initSounds,
   playCallStart,
@@ -39,7 +41,7 @@ import {
   playTactileTap,
   playToggle,
 } from "@/lib/sounds";
-import { createVoiceAgent, type VoiceAgent } from "@/lib/assemblyai-agent";
+import { createVoiceAgent, type VoiceAgent, type VoiceAgentCallbacks } from "@/lib/assemblyai-agent";
 import { createAudioPlayer, type AudioPlayer } from "@/lib/assemblyai-audio";
 import { BayerDitherBackground } from "@/components/ui/bayer-dither-background";
 import { useMicAudioLevel } from "@/hooks/use-mic-audio-level";
@@ -88,7 +90,7 @@ export default function Home() {
   const [isExhibitInfoOpen, setIsExhibitInfoOpen] = React.useState(false);
   const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("neutral");
   const [agentStatus, setAgentStatus] = React.useState<AgentStatus>("listening");
-  const [isMuted, setIsMuted] = React.useState(true);
+  const [isMuted, setIsMuted] = React.useState(false);
   const [activeArtifact, setActiveArtifact] = React.useState<ArtifactType>("info");
   const [selectedArtwork, setSelectedArtwork] = React.useState<ExhibitArtworkInfo | null>(null);
   const [mapNavigation, setMapNavigation] = React.useState<ExhibitNavigationState>({ startId: "entrance", destinationId: "", currentNodeId: null });
@@ -96,6 +98,8 @@ export default function Home() {
   const [originMapRoute, setOriginMapRoute] = React.useState<string>("entrance");
   const [activeMapRoute, setActiveMapRoute] = React.useState<string>("entrance");
   const [activeHotspotId, setActiveHotspotId] = React.useState<"cypress" | "star" | "steeple" | "vortex" | "moon" | undefined>(undefined);
+  const [activeArtworkId, setActiveArtworkId] = React.useState<string>("masaccio-holy-trinity");
+  const [comparisonPairId, setComparisonPairId] = React.useState<string>("comparison-perspective");
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
   // Will be wired to real events once voice is connected.
   const [isArtifactLoading, setIsArtifactLoading] = React.useState(false);
@@ -109,6 +113,12 @@ export default function Home() {
   // Voice Agent + audio player refs
   const agentRef = React.useRef<VoiceAgent | null>(null);
   const audioPlayerRef = React.useRef<AudioPlayer | null>(null);
+  const agentCallbacksRef = React.useRef<VoiceAgentCallbacks | null>(null);
+
+  // Greeting lifecycle refs
+  const greetingPhaseRef = React.useRef<"idle" | "greeting" | "done">("idle");
+  const hasUserInteractedRef = React.useRef<boolean>(false);
+  const isTogglingMicRef = React.useRef<boolean>(false);
 
   // Fixed card geometry.
   const tuning = {
@@ -210,22 +220,27 @@ export default function Home() {
     } catch (err) {
       console.warn("Microphone access error or denied:", err);
       setIsMuted(true);
-      if (err instanceof Error && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
-        alert("Microphone access was denied. Please allow microphone access in your browser settings to speak with the guide.");
-      } else {
-        alert("Could not access the microphone. Please check your system settings.");
-      }
     }
     return null;
   }, []);
 
   const toggleMic = React.useCallback(async () => {
-    if (isMuted) {
-      playUnmute();
-      await startMic();
-    } else {
-      playMute();
-      stopMic();
+    if (isTogglingMicRef.current) return;
+    isTogglingMicRef.current = true;
+
+    try {
+      if (isMuted) {
+        playUnmute();
+        const stream = await startMic();
+        if (stream && agentRef.current) {
+          agentRef.current.startAudio(stream);
+        }
+      } else {
+        playMute();
+        stopMic();
+      }
+    } finally {
+      isTogglingMicRef.current = false;
     }
   }, [isMuted, startMic, stopMic]);
 
@@ -243,17 +258,22 @@ export default function Home() {
   const handleStartTour = async () => {
     playCallStart();
     setIsTourActive(true);
-    setIsExpanded(true);
+    // Alba starts large in the center! Stage expands only after greeting or manual action
+    setIsExpanded(false);
     setActiveArtifact("map");
     setSelectedArtwork(null);
     setMapNavigation({ startId: "entrance", destinationId: "", currentNodeId: null });
     setMapViewport(null);
     setAgentStatus("listening");
-    setActiveExpressionId("listening");
+    setActiveExpressionId(isMuted ? "muted" : "listening");
     setChatMessages([]);
     setIsChatThinking(false);
     setOriginMapRoute("entrance");
     setActiveMapRoute("entrance");
+
+    // Initialize greeting lifecycle refs
+    greetingPhaseRef.current = "greeting";
+    hasUserInteractedRef.current = false;
 
     // 1. Initialize audio player for voice responses
     if (!audioPlayerRef.current) {
@@ -261,20 +281,34 @@ export default function Home() {
     }
     await audioPlayerRef.current.resume();
 
-    // 2. Start local microphone
-    const stream = await startMic();
+    // 2. Respect user microphone setting:
+    // If user is unmuted, start microphone before connecting agent
+    let activeMuted = isMuted;
+    if (!isMuted) {
+      const stream = await startMic();
+      if (!stream) {
+        // If mic permission failed/denied, fallback to muted
+        activeMuted = true;
+      }
+    }
 
     // 3. Connect Voice Agent session
-    try {
-      const agent = await createVoiceAgent({
-        onReady: (sessionId) => {
-          console.log("[AssemblyAI] Tour session ready:", sessionId);
-          if (mediaStreamRef.current) {
-            agent.startAudio(mediaStreamRef.current);
-          }
+    const callbacks: VoiceAgentCallbacks = {
+      onReady: (sessionId) => {
+        console.log("[AssemblyAI] Tour session ready:", sessionId);
+        if (mediaStreamRef.current) {
+          agentRef.current?.startAudio(mediaStreamRef.current);
+        }
+      },
+        onUserSpeakingStart: () => {
+          hasUserInteractedRef.current = true;
+          greetingPhaseRef.current = "done";
+          setAgentStatus("listening");
         },
         onTranscriptPartial: (text) => {
           if (!text) return;
+          hasUserInteractedRef.current = true;
+          greetingPhaseRef.current = "done";
           setChatMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === partialMsgIdRef.current);
             if (idx >= 0) {
@@ -302,6 +336,8 @@ export default function Home() {
         },
         onTranscriptFinal: (text) => {
           if (!text?.trim()) return;
+          hasUserInteractedRef.current = true;
+          greetingPhaseRef.current = "done";
           setChatMessages((prev) => {
             const filtered = prev.filter((m) => m.id !== partialMsgIdRef.current);
             return [
@@ -323,6 +359,7 @@ export default function Home() {
           if (!text) return;
           setIsChatThinking(false);
           setAgentStatus("speaking");
+
           setChatMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === partialAgentMsgIdRef.current);
             if (idx >= 0) {
@@ -375,19 +412,36 @@ export default function Home() {
         onAgentSpeakingEnd: (interrupted) => {
           if (interrupted) {
             audioPlayerRef.current?.flush();
+            setAgentStatus("listening");
+            greetingPhaseRef.current = "done";
+          } else {
+            // Wait for audio player to finish draining queued audio chunks in speakers
+            audioPlayerRef.current?.onPlaybackComplete(() => {
+              setAgentStatus("listening");
+              if (greetingPhaseRef.current === "greeting" && !hasUserInteractedRef.current) {
+                greetingPhaseRef.current = "done";
+                setIsExpanded((prev) => {
+                  if (!prev) {
+                    setActiveArtifact("map");
+                    playStageOpen();
+                    return true;
+                  }
+                  return prev;
+                });
+              }
+            });
           }
-          setAgentStatus("listening");
         },
         onAgentAudio: (base64) => {
           audioPlayerRef.current?.playChunk(base64);
         },
         onToolCall: (tool) => {
           console.log("[AssemblyAI] Executing tool call:", tool.name, tool.arguments);
-          // Requirement A: Trigger artifact loading skeleton during visual transition
+          // Trigger artifact loading skeleton during visual transition
           setIsArtifactLoading(true);
 
           if (tool.name === "show_map") {
-            const routeId = (tool.arguments.routeId as string) || "entrance";
+            const routeId = (tool.arguments.routeId as string) || "rotunda";
             setActiveArtifact("map");
             setActiveMapRoute(routeId);
             setChatMessages((prev) => [
@@ -396,53 +450,129 @@ export default function Home() {
                 id: `tool-${Date.now()}`,
                 role: "tool",
                 toolName: "show_map",
-                label: `Gallery Map: ${routeId}`,
+                label: `Gallery Floor Plan: ${routeId}`,
                 artifactType: "map",
                 params: tool.arguments,
                 timestamp: new Date(),
               },
             ]);
-            agent.sendToolResult(tool.callId, { success: true, destination: routeId });
+            agentRef.current?.sendToolResult(tool.callId, { success: true, destination: routeId });
           } else if (tool.name === "show_hotspots") {
-            const hotspotId = (tool.arguments.hotspotId as any) || "cypress";
+            const artId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
+            const hotspotId = (tool.arguments.hotspotId as any) || "vortex";
+            setActiveArtworkId(artId);
             setActiveArtifact("hotspots");
             setActiveHotspotId(hotspotId);
+            const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
             setChatMessages((prev) => [
               ...prev,
               {
                 id: `tool-${Date.now()}`,
                 role: "tool",
                 toolName: "show_hotspots",
-                label: `Detail Zoom: ${hotspotId}`,
+                label: `Detail Zoom: ${hotspotId} (${artwork.title})`,
                 artifactType: "hotspots",
                 params: tool.arguments,
                 timestamp: new Date(),
               },
             ]);
-            agent.sendToolResult(tool.callId, { success: true, activeHotspot: hotspotId });
+            agentRef.current?.sendToolResult(tool.callId, { success: true, activeHotspot: hotspotId, artwork: artwork.title });
           } else if (tool.name === "show_info" || tool.name === "show_artwork_info") {
+            const artId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
+            const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+            setActiveArtworkId(artId);
             setActiveArtifact("info");
+            setSelectedArtwork({
+              title: artwork.title,
+              imageSrc: artwork.imageSrc,
+              summary: artwork.summary,
+              metadata: [
+                { label: "Artist", value: artwork.artist },
+                { label: "Year", value: artwork.year },
+                { label: "Location", value: artwork.locationCreated },
+                { label: "Pivot", value: artwork.historicalPivot },
+              ],
+            });
             setChatMessages((prev) => [
               ...prev,
               {
                 id: `tool-${Date.now()}`,
                 role: "tool",
                 toolName: "show_info",
-                label: "Artwork Information",
+                label: `Artwork: ${artwork.title}`,
                 artifactType: "info",
                 params: tool.arguments,
                 timestamp: new Date(),
               },
             ]);
-            agent.sendToolResult(tool.callId, { success: true, artwork: "The Starry Night" });
+            agentRef.current?.sendToolResult(tool.callId, { success: true, artwork: artwork.title });
           } else if (tool.name === "show_comparison") {
+            const pairId = (tool.arguments.pairId as string) || "comparison-perspective";
+            setComparisonPairId(pairId);
             setActiveArtifact("comparison");
-            agent.sendToolResult(tool.callId, { success: true });
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                id: `tool-${Date.now()}`,
+                role: "tool",
+                toolName: "show_comparison",
+                label: `Epoch Comparison: ${pairId === "comparison-cubism" ? "Academic Nude vs. Cubist Fracture" : "Medieval Icon vs. Renaissance Depth"}`,
+                artifactType: "comparison",
+                params: tool.arguments,
+                timestamp: new Date(),
+              },
+            ]);
+            agentRef.current?.sendToolResult(tool.callId, { success: true, pair: pairId });
           } else if (tool.name === "show_timeline") {
             setActiveArtifact("timeline");
-            agent.sendToolResult(tool.callId, { success: true });
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                id: `tool-${Date.now()}`,
+                role: "tool",
+                toolName: "show_timeline",
+                label: "Timeline of Artistic Turning Points",
+                artifactType: "timeline",
+                params: tool.arguments,
+                timestamp: new Date(),
+              },
+            ]);
+            agentRef.current?.sendToolResult(tool.callId, { success: true });
+          } else if (tool.name === "consult_archives") {
+            const query = (tool.arguments.query as string) || "";
+            const category = tool.arguments.category as string | undefined;
+            const result = searchCuratorialArchives(query, category);
+            if (result) {
+              setChatMessages((prev) => [
+                ...prev,
+                {
+                  id: `tool-${Date.now()}`,
+                  role: "tool",
+                  toolName: "consult_archives",
+                  label: `Archival Source: ${result.authorOrInstitution} (${result.year})`,
+                  artifactType: "info",
+                  detail: `"${result.excerpt}" — Finding: ${result.finding}`,
+                  params: tool.arguments,
+                  timestamp: new Date(),
+                },
+              ]);
+              agentRef.current?.sendToolResult(tool.callId, {
+                success: true,
+                source: result.authorOrInstitution,
+                title: result.title,
+                year: result.year,
+                archiveRef: result.archiveRef,
+                finding: result.finding,
+                excerpt: result.excerpt,
+              });
+            } else {
+              agentRef.current?.sendToolResult(tool.callId, {
+                success: false,
+                message: "No specific archival document found for this query in current records.",
+              });
+            }
           } else {
-            agent.sendToolResult(tool.callId, { success: true });
+            agentRef.current?.sendToolResult(tool.callId, { success: true });
           }
 
           // Shimmer skeleton matches the target artifact for 450ms then smoothly cross-fades into content
@@ -456,9 +586,12 @@ export default function Home() {
         onEnded: () => {
           console.log("[AssemblyAI] Voice agent session ended.");
         },
-      });
+      };
 
-      agentRef.current = agent;
+      agentCallbacksRef.current = callbacks;
+      try {
+        const agent = await createVoiceAgent(callbacks, { isMuted: activeMuted });
+        agentRef.current = agent;
     } catch (err) {
       console.warn("[AssemblyAI] Agent connection skipped or failed:", err);
     }
@@ -474,6 +607,9 @@ export default function Home() {
     agentRef.current = null;
     audioPlayerRef.current?.flush();
     audioPlayerRef.current = null;
+
+    greetingPhaseRef.current = "idle";
+    hasUserInteractedRef.current = false;
 
     // Reset back to pre-tour state
     setIsTourActive(false);
@@ -523,6 +659,7 @@ export default function Home() {
       type="button"
       onClick={() => {
         playTactileTap();
+        hasUserInteractedRef.current = true;
         if (isExpanded && activeArtifact === "map") {
           setIsExpanded(false);
           playStageClose();
@@ -547,6 +684,7 @@ export default function Home() {
       type="button"
       onClick={() => {
         playTactileTap();
+        hasUserInteractedRef.current = true;
         if (isExpanded && activeArtifact === "chat") {
           setIsExpanded(false);
           playStageClose();
@@ -599,11 +737,11 @@ export default function Home() {
   );
 
   const handleToggleExpanded = () => {
+    hasUserInteractedRef.current = true;
     setIsExpanded((prev) => {
       const next = !prev;
       if (next) {
         playStageOpen();
-        // Default to chat tab when opening the card
         setActiveArtifact("map");
       } else {
         playStageClose();
@@ -787,7 +925,13 @@ export default function Home() {
                       onMapNavigationChange={setMapNavigation}
                       mapViewport={mapViewport ?? undefined}
                       onMapViewportChange={setMapViewport}
+                      comparisonPairId={comparisonPairId}
+                      artworkId={activeArtworkId}
                       onSelectArtwork={(artwork) => {
+                        hasUserInteractedRef.current = true;
+                        if (artwork.id) {
+                          setActiveArtworkId(artwork.id);
+                        }
                         setSelectedArtwork(artwork);
                         setActiveArtifact("info");
                         setIsExpanded(true);
@@ -801,6 +945,7 @@ export default function Home() {
                       isChatThinking={isChatThinking}
                       summaryData={summaryData}
                       onSelectArtifact={(type, params) => {
+                        hasUserInteractedRef.current = true;
                         setActiveArtifact(type);
                         if (params?.routeId) setActiveMapRoute(params.routeId as any);
                         if (params?.hotspotId) setActiveHotspotId(params.hotspotId as any);
@@ -948,7 +1093,7 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>End tour?</DialogTitle>
             <DialogDescription>
-              Are you sure you want to end your tour? This will disconnect your conversation session with Mr. Triangle.
+              Are you sure you want to end your tour? This will disconnect your conversation session with Alba.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
