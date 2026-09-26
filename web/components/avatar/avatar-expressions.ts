@@ -30,7 +30,7 @@ export interface ExpressionConfig {
 }
 
 /** Helper to construct precise Blobatar eye poses with rock-solid body (bdy = 0) */
-function makePose(p: Partial<Expression["p"]>): Expression {
+export function makePose(p: Partial<Expression["p"]>): Expression {
   return {
     p: {
       esx: 1,
@@ -52,6 +52,20 @@ function makePose(p: Partial<Expression["p"]>): Expression {
     vars: poseVars,
     bake: bakePose,
   };
+}
+
+/** Dynamically enhance an expression with live microphone audio energy */
+export function makeAudioPerkedPose(baseExpression: Expression, audioLevel: number): Expression {
+  const p = baseExpression.p;
+  // Non-linear response so natural speaking triggers responsive eye perks
+  const boost = Math.min(1, Math.pow(Math.max(0, audioLevel), 0.7) * 1.6);
+  return makePose({
+    ...p,
+    esx: (p.esx ?? 1) + boost * 0.32,
+    esy: (p.esy ?? 1) + boost * 0.62, // eyes pop prominently wide and tall when the visitor speaks
+    edy: (p.edy ?? 0) - boost * 2.8,  // lifted alert attention
+    edx: (p.edx ?? 0) * (1 - boost * 0.5), // focused convergence straight at visitor
+  });
 }
 
 // Thinking expression wrapped to ensure zero body movement
@@ -88,14 +102,14 @@ export const EXPRESSIONS_CATALOG: ExpressionConfig[] = [
     id: "speaking",
     label: "Speaking",
     expression: makePose({
-      esx: 1.08,
-      esy: 0.98,   // natural, friendly open eyes looking at the visitor
-      tilt: 2,
-      edy: -0.6,
-      edx: 0.35,
+      esx: 1.16,
+      esy: 1.22,   // bright, engaged eyes talking directly with visitor
+      tilt: 3,
+      edy: -1.4,
+      edx: 0.22,
       esx2: 0.04,
       esy2: 0.02,
-      tilt2: -5,
+      tilt2: -6,
     }),
   },
   {
@@ -131,11 +145,11 @@ export const EXPRESSIONS_CATALOG: ExpressionConfig[] = [
     id: "muted",
     label: "Muted",
     expression: makePose({
-      esx: 1.02,
-      esy: 0.88,   // gentle, relaxed, attentive eye shape
-      tilt: 6,     // subtle inquisitive/attentive angle
-      tilt2: -3,
-      edy: 0.8,    // resting slightly lower, calm and patient
+      esx: 0.95,
+      esy: 0.85,   // soft, relaxed round eyes — maintains natural portrait capsule shape
+      tilt: 2,
+      tilt2: -2,
+      edy: 0.8,    // resting slightly lower, calm and observant
       edx: 0.15,
     }),
   },
@@ -143,22 +157,22 @@ export const EXPRESSIONS_CATALOG: ExpressionConfig[] = [
     id: "muted-glance",
     label: "Muted — Glancing",
     expression: makePose({
-      esx: 0.98,
-      esy: 0.84,   // slightly narrow — distracted gaze
-      tilt: 3,
-      edy: 0.3,
-      edx: 2.6,    // eyes wander to the side
-      tilt2: -6,
+      esx: 0.95,
+      esy: 0.82,
+      tilt: 2,
+      edy: 0.5,
+      edx: 2.2,    // gentle glance to the side
+      tilt2: -4,
     }),
   },
   {
     id: "muted-drowsy",
     label: "Muted — Drowsy",
     expression: makePose({
-      esx: 1.12,
-      esy: 0.48,   // heavy lids, losing attention
-      tilt: 2,
-      edy: 1.4,    // eyes droop downward
+      esx: 0.98,
+      esy: 0.78,   // relaxed, calm resting gaze (retains vertical capsule anatomy)
+      tilt: 1,
+      edy: 1.2,
       edx: 0.1,
       tilt2: -1,
     }),

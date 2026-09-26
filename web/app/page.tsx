@@ -42,6 +42,7 @@ import {
 import type { VoiceAgent } from "@/lib/assemblyai-agent";
 import type { AudioPlayer } from "@/lib/assemblyai-audio";
 import { BayerDitherBackground } from "@/components/ui/bayer-dither-background";
+import { useMicAudioLevel } from "@/hooks/use-mic-audio-level";
 
 type AgentStatus = "listening" | "thinking" | "speaking";
 
@@ -57,6 +58,14 @@ const THINKING_EMOTIONS: ExpressionId[] = [
   "thinking",
   "focused",
   "confused",
+];
+
+const SPEAKING_EMOTIONS: ExpressionId[] = [
+  "speaking",
+  "happy",
+  "speaking",
+  "excited",
+  "interested",
 ];
 
 /** Idle expression cycle when mic is off — patient ➜ glance ➜ drowsy ➜ curious ➜ repeat */
@@ -132,6 +141,10 @@ export default function Home() {
 
     if (agentStatus === "speaking") {
       setActiveExpressionId("speaking");
+      emotionInterval = setInterval(() => {
+        emotionIdx = (emotionIdx + 1) % SPEAKING_EMOTIONS.length;
+        setActiveExpressionId(SPEAKING_EMOTIONS[emotionIdx]);
+      }, 2000);
     } else if (agentStatus === "thinking") {
       setActiveExpressionId("thinking");
       emotionInterval = setInterval(() => {
@@ -154,6 +167,8 @@ export default function Home() {
   }, [isTourActive, agentStatus, isMuted]);
 
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
+  const [micStream, setMicStream] = React.useState<MediaStream | null>(null);
+  const audioLevel = useMicAudioLevel(micStream, isTourActive && !isMuted);
 
   const stopMic = React.useCallback(() => {
     // Stop sending audio to the agent (keep WS open)
@@ -164,6 +179,7 @@ export default function Home() {
       });
       mediaStreamRef.current = null;
     }
+    setMicStream(null);
     setIsMuted(true);
   }, []);
 
@@ -175,7 +191,7 @@ export default function Home() {
           mediaStreamRef.current = null;
         }
         // Echo cancellation on, noiseSuppression off (Voice Agent API handles
-        // server-side noise suppression â€” stacking client-side adds artifacts)
+        // server-side noise suppression — stacking client-side adds artifacts)
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: true },
         });
@@ -187,6 +203,7 @@ export default function Home() {
         await audioPlayerRef.current?.resume();
         // Start streaming audio to the agent
         agentRef.current?.startAudio(stream);
+        setMicStream(stream);
         setIsMuted(false);
         return stream;
       }
@@ -223,7 +240,7 @@ export default function Home() {
     };
   }, []);
 
-  const handleStartTour = () => {
+  const handleStartTour = async () => {
     playCallStart();
     setIsTourActive(true);
     setIsExpanded(true);
@@ -231,13 +248,13 @@ export default function Home() {
     setSelectedArtwork(null);
     setMapNavigation({ startId: "entrance", destinationId: "", currentNodeId: null });
     setMapViewport(null);
-    setIsMuted(true);
     setAgentStatus("listening");
     setActiveExpressionId("listening");
     setChatMessages([]);
     setIsChatThinking(false);
     setOriginMapRoute("entrance");
     setActiveMapRoute("entrance");
+    await startMic();
   };
 
   const handleConfirmEndTour = async () => {
@@ -393,16 +410,8 @@ export default function Home() {
   const areDotsActive = isTourActive && !isMuted;
 
   const statusIndicator = (
-    <button
-      type="button"
-      onClick={() => {
-        playTactileTap();
-        setAgentStatus((prev) =>
-          prev === "listening" ? "thinking" : prev === "thinking" ? "speaking" : "listening"
-        );
-      }}
-      className="h-7 px-2 flex items-center gap-1.5 text-xs font-medium text-[#72706b] hover:text-[#1f1e1b] transition-colors cursor-pointer select-none bg-transparent border-0 tracking-[-0.1px]"
-      title="Click to advance conversational status"
+    <div
+      className="h-7 px-2 flex items-center gap-1.5 text-xs font-medium text-[#72706b] select-none tracking-[-0.1px]"
     >
       <span className="capitalize font-medium text-[#72706b]">
         {statusLabel}
@@ -412,13 +421,13 @@ export default function Home() {
         <span className={`size-1.5 rounded-full bg-[#72706b] ${areDotsActive ? "animate-bounce [animation-delay:-0.15s]" : "opacity-60"}`} />
         <span className={`size-1.5 rounded-full bg-[#72706b] ${areDotsActive ? "animate-bounce" : "opacity-60"}`} />
       </span>
-    </button>
+    </div>
   );
 
-  // Call group: horizontal dock at bottom with artifact controls on the left, white space in between, and mic & end controls on the right
+  // Call group: horizontal dock at bottom with artifact controls on the left, divider, and mic & end controls on the right
   const callGroup = (
     <div
-      className="call-group-container flex h-[52px] w-[236px] items-center justify-between rounded-full border border-border bg-[#fafafa] px-2 shadow-xs transition-all duration-300"
+      className="call-group-container flex h-[52px] w-[196px] items-center justify-between rounded-full border border-border bg-[#fafafa] px-2 shadow-xs transition-all duration-300"
       role="group"
       aria-label="Tour controls"
     >
@@ -426,6 +435,7 @@ export default function Home() {
         {mapControl}
         {chatControl}
       </div>
+      <hr className="call-group-divider h-4 w-px border-0 bg-border shrink-0 my-auto" aria-hidden="true" />
       <div className="flex items-center gap-1.5">
         {micControl}
         {endControl}
@@ -433,9 +443,9 @@ export default function Home() {
     </div>
   );
 
-  // Concentric cradle notch with balanced 10px margin around the 236x52px dock capsule
+  // Concentric cradle notch with balanced 10px margin around the 196x52px dock capsule
   const dockPath =
-    "M 0 67.5 C 13 67.5 16 56 16 41.5 A 36 36 0 0 1 52 5.5 H 236 A 36 36 0 0 1 272 41.5 C 272 56 275 67.5 288 67.5";
+    "M 0 67.5 C 13 67.5 16 56 16 41.5 A 36 36 0 0 1 52 5.5 H 196 A 36 36 0 0 1 232 41.5 C 232 56 235 67.5 248 67.5";
 
   return (
     <div className="relative h-dvh min-h-[480px] w-full flex overflow-hidden bg-white">
@@ -596,17 +606,17 @@ export default function Home() {
                   {activeArtifact !== "summary" && (
                     <div
                       className="absolute -bottom-px left-1/2 -translate-x-1/2 z-20 pointer-events-none"
-                      style={{ width: 288, height: 68 }}
+                      style={{ width: 248, height: 68 }}
                       aria-hidden="true"
                     >
                       <svg
-                        viewBox="0 0 288 68"
-                        width="288"
+                        viewBox="0 0 248 68"
+                        width="248"
                         height="68"
                         fill="none"
                         className="overflow-visible"
                       >
-                        <path d={`${dockPath} L 288 72 L 0 72 Z`} className="fill-background" />
+                        <path d={`${dockPath} L 248 72 L 0 72 Z`} className="fill-background" />
                         <path d={dockPath} className="stroke-border" strokeWidth="1" />
                       </svg>
                     </div>
@@ -627,6 +637,8 @@ export default function Home() {
                     size={480}
                     isListening={isListening}
                     isMuted={isTourActive && isMuted}
+                    isSpeaking={agentStatus === "speaking"}
+                    audioLevel={audioLevel}
                     shape={0.11}
                     className="relative flex items-center justify-center"
                   />

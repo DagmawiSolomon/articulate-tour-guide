@@ -5,6 +5,7 @@ import { Blobatar } from "blobatar/react";
 import { type Expression } from "blobatar/expression";
 import {
   EXPRESSIONS_CATALOG,
+  makeAudioPerkedPose,
   type ExpressionId,
 } from "./avatar-expressions";
 
@@ -22,8 +23,12 @@ export interface ArticulateAvatarProps {
   onClick?: () => void;
   /** Whether conversational state is currently listening (triggers eye flutter blink) */
   isListening?: boolean;
-  /** Whether the microphone is muted (triggers subtle attentive head tilt) */
+  /** Whether the microphone is muted (triggers peaceful slumber pose and posture) */
   isMuted?: boolean;
+  /** Whether the docent/agent is currently speaking (triggers speaking vocal cadence) */
+  isSpeaking?: boolean;
+  /** Real-time microphone audio level (0 to 1) when person speaks */
+  audioLevel?: number;
   /** Custom class names for the outer wrapper */
   className?: string;
   /** Optional blob shape trait override (default: 0.11 for round) */
@@ -41,6 +46,8 @@ export function ArticulateAvatar({
   onClick,
   isListening = false,
   isMuted = false,
+  isSpeaking = false,
+  audioLevel = 0,
   className,
   shape = 0.11,
   seedName = "Articulate",
@@ -49,10 +56,21 @@ export function ArticulateAvatar({
     EXPRESSIONS_CATALOG.find((e) => e.id === expressionId) ??
     EXPRESSIONS_CATALOG[0];
 
-  const resolvedExpression = customExpression ?? currentConfig.expression;
+  const resolvedExpression = React.useMemo(() => {
+    if (customExpression) return customExpression;
+    if (isMuted) return currentConfig.expression;
+
+    // Dynamically perk eyes and posture when the visitor speaks into the mic
+    if (audioLevel > 0.02) {
+      return makeAudioPerkedPose(currentConfig.expression, audioLevel);
+    }
+    return currentConfig.expression;
+  }, [customExpression, currentConfig, audioLevel, isMuted]);
+
   const isShy = expressionId === "shy";
   const currentSize = isDocked ? 64 : size;
 
+  const isReactingToVoice = !isMuted && audioLevel > 0.012;
 
   return (
     <div
@@ -67,10 +85,21 @@ export function ArticulateAvatar({
     >
       {/* Main Avatar Container */}
       <div
-        className={`relative rounded-full flex items-center justify-center ${
+        className={`relative rounded-full flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isListening ? "avatar-listening" : ""
-        } ${isMuted ? "avatar-muted" : ""}`}
-        style={{ width: currentSize, height: currentSize }}
+        } ${isSpeaking ? "avatar-speaking" : ""} ${
+          isMuted ? "avatar-muted opacity-60 filter contrast-[0.92] scale-[0.96] translate-y-1.5" : "opacity-100"
+        }`}
+        style={{
+          width: currentSize,
+          height: currentSize,
+          transform: isReactingToVoice
+            ? `scale(${1 - audioLevel * 0.08}, ${1 + audioLevel * 0.16}) translateY(-${Math.round(audioLevel * 22)}px)`
+            : undefined,
+          transition: isReactingToVoice
+            ? "transform 45ms ease-out"
+            : "transform 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 500ms ease",
+        }}
       >
         {/* Layer 1: Base Blobatar */}
         <div className="absolute inset-0">
