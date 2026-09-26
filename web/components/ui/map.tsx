@@ -28,7 +28,7 @@ export const blankMapStyle: MapLibreGL.StyleSpecification = {
     {
       id: "background",
       type: "background",
-      paint: { "background-color": "#f8f7f2" },
+      paint: { "background-color": "#fafafa" },
     },
   ],
 };

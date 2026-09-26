@@ -7,7 +7,7 @@
   </defs>
 
   <!-- Background Canvas -->
-  <rect width="920" height="450" fill="#f8f7f2" />
+  <rect width="920" height="450" fill="#fafafa" />
 
   <!-- ── Street Entrance / Exit Labels ───────────────────────── -->
   <!-- 54 Street Exit (Top) -->
