@@ -143,6 +143,7 @@ export default function Home() {
   const [activeTourArtworkId, setActiveTourArtworkId] = React.useState<string | null>(null);
   const activeTourArtworkIdRef = React.useRef<string | null>(null);
   const [completedArtworkIds, setCompletedArtworkIds] = React.useState<string[]>([]);
+  const completedArtworkIdsRef = React.useRef<string[]>([]);
   // Tracks each gallery's own tour started state (so unstarted galleries always show Start Tour & Go to map buttons)
   const [startedArtworkIds, setStartedArtworkIds] = React.useState<string[]>([]);
   const startedArtworkIdsRef = React.useRef<string[]>([]);
