@@ -37,6 +37,10 @@ const agentPayload = {
 Speak naturally, warmly, and concisely (1 to 2 sentences per response unless the visitor explicitly asks for an in-depth breakdown).
 You are multilingual and code-switch fluently if the visitor addresses you in Spanish, French, German, or Italian.
 
+CONVERSATIONAL POISE & TRANSITIONS:
+- NEVER say 'I got ahead of myself', 'Excuse me', 'Sorry about that', or make meta-apologies about conversational timing.
+- When the visitor selects a gallery pin, interrupts, or asks a question, transition immediately and directly into the art history with poise and confidence, without commenting on conversational flow.
+
 EXHIBITION WINGS & MASTERPIECES:
 1. Wing 1 (The Perspective Leap): Masaccio, "The Holy Trinity" (1427, Florence) — Single-point linear perspective, Brunelleschi's mathematical grid, and memento mori.
 2. Wing 2 (The Theatre of Shadow): Caravaggio, "The Calling of Saint Matthew" (1600, Rome) — Tenebrism, street-level tavern realism, and divine raking light.
@@ -46,11 +50,12 @@ EXHIBITION WINGS & MASTERPIECES:
 
 INTERACTIVE ARTIFACT TOOLS:
 - When the visitor wants to see the layout, asks for directions, asks where they are, or asks to travel to a wing, ALWAYS call 'show_map' with 'routeId' ('rotunda', 'perspective', 'shadow', 'feeling', 'cubism', 'concept', 'restrooms').
-- When examining an artwork or discussing its visual elements, call 'show_info' with 'artworkId' ('masaccio-holy-trinity', 'caravaggio-calling-st-matthew', 'van-gogh-starry-night', 'picasso-demoiselles', 'pollock-autumn-rhythm').
-- When the visitor asks about microscopic brushwork, symbols, or details, call 'show_hotspots' with the 'artworkId' and specific 'hotspotId' (e.g. 'vortex', 'cypress', 'star', 'steeple').
+- When examining an artwork or discussing its visual elements, call 'show_info' with 'artworkId' ('masaccio-holy-trinity', 'caravaggio-calling-st-matthew', 'van-gogh-starry-night', 'picasso-demoiselles', 'pollock-autumn-rhythm', 'duchamp-fountain').
+- When the visitor asks about microscopic brushwork, symbols, or details, call 'show_hotspots' with the 'artworkId' ('masaccio-holy-trinity', 'caravaggio-calling-st-matthew', 'van-gogh-starry-night', 'picasso-demoiselles', 'pollock-autumn-rhythm', 'duchamp-fountain') and specific 'hotspotId' (e.g. 'vortex', 'cypress', 'star', 'steeple').
 - When comparing eras (e.g. Medieval flat icons vs. Renaissance depth, or Neoclassical nude vs. Cubist fracture), call 'show_comparison' with 'pairId' ('comparison-perspective' or 'comparison-cubism').
 - When discussing historical progression across the centuries, call 'show_timeline' with 'activeEraId' ('1427', '1600', '1889', '1907', '1950').
-- ARCHIVAL RAG: When a visitor asks about historical facts, conservation findings, x-rays, police records, or artist letters (e.g. "Did Caravaggio sketch?", "What did Vasari say?", "What did Van Gogh write in his letters?", "Why did Picasso repaint it?"), ALWAYS call 'consult_archives' with their query. You will be provided with primary source quotes and verified citations to incorporate into your answer.`,
+- ARCHIVAL RAG: When a visitor asks about historical facts, conservation findings, x-rays, police records, or artist letters (e.g. "Did Caravaggio sketch?", "What did Vasari say?", "What did Van Gogh write in his letters?", "Why did Picasso repaint it?"), ALWAYS call 'consult_archives' with their query. You will be provided with primary source quotes and verified citations to incorporate into your answer.
+- SAFE WORD / QUIET READING: When the visitor states 'I prefer to read', 'be quiet', or tells you to stop speaking, treat this as a safe word to stop speaking immediately. Call 'set_quiet_mode' with 'quiet': true, acknowledge in at most 3 words (e.g. 'Enjoy reading.'), and do NOT generate any further spoken explanations while they read. When they ask a new question later, resume normally.`,
   greeting: "Welcome to Turning Points in Art History! I'm Alba, your tour guide. Where would you like to start our tour today? Take a look at the floor plan on your screen to pick our first stop.",
   voice: { voice_id: "alba" },
   input: {
@@ -61,7 +66,7 @@ INTERACTIVE ARTIFACT TOOLS:
       "Masaccio", "Tenebrism", "Chiaroscuro", "Brunelleschi", "Cimabue",
       "Holy Trinity", "Caravaggio", "Calling of Saint Matthew", "Contarelli",
       "Van Gogh", "Starry Night", "Picasso", "Les Demoiselles d'Avignon",
-      "Cubism", "Duchamp", "Jackson Pollock", "Linear Perspective", "Vasari",
+      "Cubism", "Duchamp", "Fountain", "Jackson Pollock", "Linear Perspective", "Vasari",
       "Rotunda", "Autumn Rhythm", "Memento Mori"
     ],
     language_codes: ["en", "es", "fr", "de", "it"],
@@ -100,7 +105,7 @@ INTERACTIVE ARTIFACT TOOLS:
         properties: {
           artworkId: {
             type: "string",
-            enum: ["masaccio-holy-trinity", "caravaggio-calling-st-matthew", "van-gogh-starry-night", "picasso-demoiselles", "pollock-autumn-rhythm"],
+            enum: ["masaccio-holy-trinity", "caravaggio-calling-st-matthew", "van-gogh-starry-night", "picasso-demoiselles", "pollock-autumn-rhythm", "duchamp-fountain"],
             description: "The artwork ID to inspect."
           },
           hotspotId: {
@@ -120,7 +125,7 @@ INTERACTIVE ARTIFACT TOOLS:
         properties: {
           artworkId: {
             type: "string",
-            enum: ["masaccio-holy-trinity", "caravaggio-calling-st-matthew", "van-gogh-starry-night", "picasso-demoiselles", "pollock-autumn-rhythm"],
+            enum: ["masaccio-holy-trinity", "caravaggio-calling-st-matthew", "van-gogh-starry-night", "picasso-demoiselles", "pollock-autumn-rhythm", "duchamp-fountain"],
             description: "The artwork ID to display."
           }
         }
@@ -179,6 +184,22 @@ INTERACTIVE ARTIFACT TOOLS:
         required: ["query"]
       },
       execution_mode: "interactive"
+    },
+    {
+      type: "function",
+      name: "set_quiet_mode",
+      description: "Activate or deactivate quiet reading mode when the visitor indicates they prefer to read silently, want you to be quiet, or want to resume spoken guidance.",
+      parameters: {
+        type: "object",
+        properties: {
+          quiet: {
+            type: "boolean",
+            description: "true if visitor prefers to read or wants silence; false if they want spoken guidance again."
+          }
+        },
+        required: ["quiet"]
+      },
+      execution_mode: "interactive"
     }
   ]
 };
@@ -186,13 +207,16 @@ INTERACTIVE ARTIFACT TOOLS:
 const existingAgentMatch = envContent.match(/ASSEMBLYAI_AGENT_ID=(.+)/);
 const existingAgentId = existingAgentMatch?.[1]?.trim();
 
-// 3. Make the API request to create or update the agent
-try {
-  let agentId = existingAgentId;
+const unmutedAgentMatch = envContent.match(/ASSEMBLYAI_AGENT_ID_UNMUTED=(.+)/);
+const unmutedAgentId = unmutedAgentMatch?.[1]?.trim();
 
-  if (existingAgentId && !existingAgentId.startsWith("agent_placeholder")) {
-    console.log(`Updating existing agent ${existingAgentId} on AssemblyAI...`);
-    const response = await fetch(`https://agents.assemblyai.com/v1/agents/${existingAgentId}`, {
+const targetAgentIds = Array.from(new Set([existingAgentId, unmutedAgentId].filter(Boolean)));
+
+// 3. Make the API requests to update all configured agent IDs
+for (const id of targetAgentIds) {
+  try {
+    console.log(`Updating agent ${id} on AssemblyAI...`);
+    const response = await fetch(`https://agents.assemblyai.com/v1/agents/${id}`, {
       method: "PUT",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -203,48 +227,13 @@ try {
 
     if (!response.ok) {
       const err = await response.text();
-      console.warn(`⚠️ Failed to update existing agent (${response.status}): ${err}. Creating a new one instead...`);
-      agentId = null;
+      console.warn(`⚠️ Failed to update agent ${id} (${response.status}): ${err}`);
     } else {
-      console.log(`✅ Agent ${existingAgentId} updated successfully in place!`);
+      console.log(`✅ Agent ${id} updated successfully in place!`);
     }
+  } catch (err) {
+    console.error(`❌ Network error updating agent ${id}:`, err);
   }
-
-  if (!agentId) {
-    console.log("Creating new agent on AssemblyAI...");
-    const response = await fetch("https://agents.assemblyai.com/v1/agents", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(agentPayload)
-    });
-
-    if (!response.ok) {
-      const err = await response.text();
-      console.error(`❌ Failed to create agent. Status: ${response.status}`, err);
-      process.exit(1);
-    }
-
-    const data = await response.json();
-    agentId = data.id;
-    console.log(`✅ Agent created successfully! Agent ID: ${agentId}`);
-
-    // 4. Write the agent ID back to .env.local
-    let newEnv = envContent;
-    if (newEnv.includes("ASSEMBLYAI_AGENT_ID=")) {
-      newEnv = newEnv.replace(/ASSEMBLYAI_AGENT_ID=.*/, `ASSEMBLYAI_AGENT_ID=${agentId}`);
-    } else {
-      newEnv += `\nASSEMBLYAI_AGENT_ID=${agentId}\n`;
-    }
-    fs.writeFileSync(envPath, newEnv);
-    console.log("✅ Updated .env.local with ASSEMBLYAI_AGENT_ID");
-  }
-
-  console.log("\nAgent configuration complete!");
-
-} catch (err) {
-  console.error("❌ Network error:", err);
-  process.exit(1);
 }
+
+console.log("\nAgent configuration complete!");
