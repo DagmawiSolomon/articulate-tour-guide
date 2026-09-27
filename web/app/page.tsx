@@ -927,6 +927,7 @@ export default function Home() {
         },
         onEnded: () => {
           console.log("[AssemblyAI] Voice agent session ended.");
+          void handleConfirmEndTour();
         },
       };
 

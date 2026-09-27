@@ -230,7 +230,11 @@ export async function createVoiceAgent(
   };
 
   ws.onclose = (event) => {
+    const wasActive = isConnected;
     isConnected = false;
+    if (wasActive) {
+      callbacks.onEnded?.();
+    }
     if (!event.wasClean) {
       // Network drop — session preserved for 30s, could session.resume here
       callbacks.onError?.("disconnected", `Connection closed unexpectedly (${event.code})`);
