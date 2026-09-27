@@ -136,6 +136,18 @@ export default function Home() {
   // Quiet / Reading Mode: when true, visitor prefers to read and Alba remains silent
   const [isQuietMode, setIsQuietMode] = React.useState<boolean>(false);
   const isQuietModeRef = React.useRef<boolean>(false);
+  // Guest location tracking: begins at entrance and updates as galleries/artworks are visited
+  const [guestLocationId, setGuestLocationId] = React.useState<string>("entrance");
+  const guestLocationRef = React.useRef<string>("entrance");
+  // Active tour stop (blue ring) and completed stops (green ring) on the floor map
+  const [activeTourArtworkId, setActiveTourArtworkId] = React.useState<string | null>(null);
+  const activeTourArtworkIdRef = React.useRef<string | null>(null);
+  const [completedArtworkIds, setCompletedArtworkIds] = React.useState<string[]>([]);
+  const completedArtworkIdsRef = React.useRef<string[]>([]);
+  // Tracks if visitor has selected/started a gallery tour (to hide Start tour & Go back to map CTA buttons)
+  const [hasSelectedGallery, setHasSelectedGallery] = React.useState<boolean>(false);
+  // When start tour is clicked, card collapses for fullscreen Alba explanation, then auto-uncollapses
+  const shouldUncollapseAfterSpeechRef = React.useRef<boolean>(false);
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
   // Will be wired to real events once voice is connected.
   const [isArtifactLoading, setIsArtifactLoading] = React.useState(false);
@@ -304,6 +316,70 @@ export default function Home() {
     };
   }, []);
 
+  const handleStartTourWithArtwork = React.useCallback((overrideArtworkId?: string) => {
+    hasUserInteractedRef.current = true;
+    muteWarningSentRef.current = true;
+    greetingPhaseRef.current = "done";
+
+    const rawId = overrideArtworkId || selectedArtwork?.id || activeArtworkId || "masaccio-holy-trinity";
+    const resolvedId = resolveArtworkId(rawId);
+    const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+    const artPlaceId = `art:${targetArtwork.id}`;
+
+    // 1. Update navigation: path is drawn from guest's current location to this artwork
+    setMapNavigation({
+      startId: guestLocationRef.current,
+      destinationId: artPlaceId,
+      currentNodeId: null,
+    });
+    guestLocationRef.current = artPlaceId;
+    setGuestLocationId(artPlaceId);
+
+    // Track active tour stop for blue ring
+    setActiveTourArtworkId(targetArtwork.id);
+    activeTourArtworkIdRef.current = targetArtwork.id;
+
+    setActiveArtworkId(targetArtwork.id);
+    setSelectedArtwork({
+      id: targetArtwork.id,
+      title: targetArtwork.title,
+      imageSrc: targetArtwork.imageSrc,
+      summary: targetArtwork.summary,
+      metadata: [
+        { label: "Artist", value: targetArtwork.artist },
+        { label: "Date", value: targetArtwork.year },
+      ],
+    });
+
+    if (targetArtwork.wingId && WING_ROUTE_MAP[targetArtwork.wingId]) {
+      setActiveMapRoute(WING_ROUTE_MAP[targetArtwork.wingId]);
+    }
+
+    // 2. Gallery selected: show card on gallery selection, hiding Start tour & Go back to map buttons
+    setHasSelectedGallery(true);
+    setActiveArtifact("info");
+    setIsExpanded(true);
+
+    // 3. Post visitor confirmation to transcript
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: `visitor-confirm-${Date.now()}`,
+        role: "visitor",
+        text: `Let's go with this: ${targetArtwork.title}`,
+        isPartial: false,
+        timestamp: new Date(),
+      },
+    ]);
+
+    // 4. Trigger Alba's direct explanation
+    audioPlayerRef.current?.flush();
+    setAgentStatus("thinking");
+    agentRef.current?.triggerReply(
+      `The visitor confirmed: "Let's go with this first!" to start their tour with ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist}. Welcome them enthusiastically to this opening stop of the exhibition and give a vivid, engaging 2-sentence curatorial breakdown of why this masterpiece is our first revolutionary milestone. Speak with poise and dive straight into the artwork without any apologies.`
+    );
+  }, [selectedArtwork, activeArtworkId]);
+
   const handleStartTour = async () => {
     playCallStart();
     setIsTourActive(true);
@@ -328,6 +404,10 @@ export default function Home() {
     isMutedRef.current = isMuted;
     isQuietModeRef.current = false;
     setIsQuietMode(false);
+    guestLocationRef.current = "entrance";
+    setGuestLocationId("entrance");
+    setHasSelectedGallery(false);
+    shouldUncollapseAfterSpeechRef.current = false;
 
     // 1. Initialize audio player for voice responses
     if (!audioPlayerRef.current) {
@@ -411,6 +491,30 @@ export default function Home() {
           if (!text?.trim()) return;
           hasUserInteractedRef.current = true;
           greetingPhaseRef.current = "done";
+
+          // Vocal confirmation: "let's go with this first", "start tour", etc. triggers the start-tour flow
+          const vocalConfirmRegex = /\b(let'?s go with (this|that)|let'?s (start|begin|do this)( first)?|start (here|the tour|tour|with this)|confirm( this( gallery)?)?|yes,? let'?s (start|go)|take me to|let'?s visit)\b/i;
+          
+          const lowerText = text.toLowerCase();
+          let matchedArtId: string | undefined = undefined;
+          if (lowerText.includes("fountain") || lowerText.includes("duchamp") || lowerText.includes("urinal")) {
+            matchedArtId = "duchamp-fountain";
+          } else if (lowerText.includes("masaccio") || lowerText.includes("trinity")) {
+            matchedArtId = "masaccio-holy-trinity";
+          } else if (lowerText.includes("caravaggio") || lowerText.includes("matthew")) {
+            matchedArtId = "caravaggio-calling-st-matthew";
+          } else if (lowerText.includes("van gogh") || lowerText.includes("starry")) {
+            matchedArtId = "van-gogh-starry-night";
+          } else if (lowerText.includes("picasso") || lowerText.includes("demoiselles") || lowerText.includes("avignon")) {
+            matchedArtId = "picasso-demoiselles";
+          } else if (lowerText.includes("pollock") || lowerText.includes("autumn rhythm")) {
+            matchedArtId = "pollock-autumn-rhythm";
+          }
+
+          if (vocalConfirmRegex.test(text) || (matchedArtId && /\b(start|begin|go|visit|tour)\b/i.test(text))) {
+            handleStartTourWithArtwork(matchedArtId);
+            return;
+          }
 
           const quietRegex = /\b(prefer to read|rather read|want to read|be quiet|stop talking|stop speaking|stay quiet|quiet mode|silent mode|silence please|shut up|hush)\b/i;
           const resumeRegex = /\b(speak again|talk again|unmute alba|resume speaking|turn off quiet mode|exit reading mode|disable quiet mode)\b/i;
@@ -506,6 +610,7 @@ export default function Home() {
             audioPlayerRef.current?.flush();
             setAgentStatus("listening");
             greetingPhaseRef.current = "done";
+            shouldUncollapseAfterSpeechRef.current = false;
           } else {
             // Decoupled mute warning: if base greeting just finished transmitting and visitor is still muted
             if (isInitialGreetingTurn && greetingPhaseRef.current === "greeting") {
@@ -515,6 +620,20 @@ export default function Home() {
                   "Notice that the visitor's microphone is currently muted. In one concise, friendly sentence, remind them that their microphone is muted and they can tap the mic button whenever they want to speak or ask questions."
                 );
               }
+            }
+
+            if (isQuietModeRef.current && activeTourArtworkIdRef.current) {
+              const finishedId = activeTourArtworkIdRef.current;
+              setCompletedArtworkIds((prev) => {
+                if (!prev.includes(finishedId)) {
+                  const next = [...prev, finishedId];
+                  completedArtworkIdsRef.current = next;
+                  return next;
+                }
+                return prev;
+              });
+              setActiveTourArtworkId((prev) => (prev === finishedId ? null : prev));
+              activeTourArtworkIdRef.current = null;
             }
 
             // Wait for audio player to finish draining queued audio chunks in speakers
@@ -530,6 +649,28 @@ export default function Home() {
                   }
                   return prev;
                 });
+              }
+
+              // Track completed artwork state when Alba finishes the tour explanation
+              if (activeTourArtworkIdRef.current) {
+                const finishedId = activeTourArtworkIdRef.current;
+                setCompletedArtworkIds((prev) => {
+                  if (!prev.includes(finishedId)) {
+                    const next = [...prev, finishedId];
+                    completedArtworkIdsRef.current = next;
+                    return next;
+                  }
+                  return prev;
+                });
+                setActiveTourArtworkId((prev) => (prev === finishedId ? null : prev));
+                activeTourArtworkIdRef.current = null;
+              }
+
+              // If card was collapsed for Alba's explanation, uncollapse it automatically when done!
+              if (shouldUncollapseAfterSpeechRef.current) {
+                shouldUncollapseAfterSpeechRef.current = false;
+                setIsExpanded(true);
+                playStageOpen();
               }
             });
           }
@@ -548,6 +689,27 @@ export default function Home() {
             const routeId = (tool.arguments.routeId as string) || "rotunda";
             setActiveArtifact("map");
             setActiveMapRoute(routeId);
+
+            const routeDestinationMap: Record<string, string> = {
+              perspective: "art:masaccio-holy-trinity",
+              shadow: "art:caravaggio-calling-st-matthew",
+              feeling: "art:van-gogh-starry-night",
+              cubism: "art:picasso-demoiselles",
+              concept: "art:pollock-autumn-rhythm",
+              rotunda: "art:duchamp-fountain",
+              restrooms: "facility:restrooms",
+            };
+            const destId = routeDestinationMap[routeId] || "";
+            if (destId) {
+              setMapNavigation({
+                startId: guestLocationRef.current,
+                destinationId: destId,
+                currentNodeId: null,
+              });
+              guestLocationRef.current = destId;
+              setGuestLocationId(destId);
+            }
+
             setChatMessages((prev) => [
               ...prev,
               {
@@ -566,14 +728,17 @@ export default function Home() {
             const artId = resolveArtworkId(rawId);
             const hotspotId = (tool.arguments.hotspotId as any) || "vortex";
             const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+            const artPlaceId = `art:${artwork.id}`;
             setActiveArtworkId(artwork.id);
             setActiveArtifact("hotspots");
             setActiveHotspotId(hotspotId);
             setMapNavigation({
-              startId: "entrance",
-              destinationId: `art:${artwork.id}`,
+              startId: guestLocationRef.current,
+              destinationId: artPlaceId,
               currentNodeId: null,
             });
+            guestLocationRef.current = artPlaceId;
+            setGuestLocationId(artPlaceId);
             if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
               setActiveMapRoute(WING_ROUTE_MAP[artwork.wingId]);
             }
@@ -594,6 +759,7 @@ export default function Home() {
             const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
             const artId = resolveArtworkId(rawId);
             const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+            const artPlaceId = `art:${artwork.id}`;
             setActiveArtworkId(artwork.id);
             setActiveArtifact("info");
             setSelectedArtwork({
@@ -603,19 +769,23 @@ export default function Home() {
               summary: artwork.summary,
               metadata: [
                 { label: "Artist", value: artwork.artist },
-                { label: "Year", value: artwork.year },
-                { label: "Location", value: artwork.locationCreated },
-                { label: "Pivot", value: artwork.historicalPivot },
+                { label: "Date", value: artwork.year },
               ],
             });
             setMapNavigation({
-              startId: "entrance",
-              destinationId: `art:${artwork.id}`,
+              startId: guestLocationRef.current,
+              destinationId: artPlaceId,
               currentNodeId: null,
             });
+            guestLocationRef.current = artPlaceId;
+            setGuestLocationId(artPlaceId);
+            setActiveTourArtworkId(artwork.id);
+            activeTourArtworkIdRef.current = artwork.id;
             if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
               setActiveMapRoute(WING_ROUTE_MAP[artwork.wingId]);
             }
+            setHasSelectedGallery(true);
+            setIsExpanded(true);
             setChatMessages((prev) => [
               ...prev,
               {
@@ -765,6 +935,15 @@ export default function Home() {
     muteWarningSentRef.current = false;
     isQuietModeRef.current = false;
     setIsQuietMode(false);
+    guestLocationRef.current = "entrance";
+    setGuestLocationId("entrance");
+    setHasSelectedGallery(false);
+    shouldUncollapseAfterSpeechRef.current = false;
+    setActiveTourArtworkId(null);
+    activeTourArtworkIdRef.current = null;
+    setCompletedArtworkIds([]);
+    completedArtworkIdsRef.current = [];
+    setMapNavigation({ startId: "entrance", destinationId: "", currentNodeId: null });
 
     // Reset back to pre-tour state
     setIsTourActive(false);
@@ -893,6 +1072,7 @@ export default function Home() {
 
   const handleToggleExpanded = () => {
     hasUserInteractedRef.current = true;
+    shouldUncollapseAfterSpeechRef.current = false; // User manually interacted, cancel auto-uncollapse
     setIsExpanded((prev) => {
       const next = !prev;
       if (next) {
@@ -1086,13 +1266,19 @@ export default function Home() {
                       onMapViewportChange={setMapViewport}
                       comparisonPairId={comparisonPairId}
                       artworkId={activeArtworkId}
+                      showTourActions={!hasSelectedGallery}
+                      activeTourArtworkId={activeTourArtworkId}
+                      completedArtworkIds={completedArtworkIds}
+                      onStartTour={() => handleStartTourWithArtwork()}
                       onSelectArtwork={(artwork) => {
                         hasUserInteractedRef.current = true;
                         const rawId = artwork.id || activeArtworkId || "masaccio-holy-trinity";
                         const resolvedId = resolveArtworkId(rawId);
                         const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
 
-                        // 1. Synchronize state
+                        // Note: Do NOT update mapNavigation or guestLocationRef here!
+                        // The floor map navigation & route only update when the tour starts or user vocally confirms.
+
                         setActiveArtworkId(targetArtwork.id);
                         setSelectedArtwork({
                           id: targetArtwork.id,
@@ -1101,25 +1287,20 @@ export default function Home() {
                           summary: targetArtwork.summary,
                           metadata: [
                             { label: "Artist", value: targetArtwork.artist },
-                            { label: "Year", value: targetArtwork.year },
-                            { label: "Location", value: targetArtwork.locationCreated },
-                            { label: "Pivot", value: targetArtwork.historicalPivot },
+                            { label: "Date", value: targetArtwork.year },
                           ],
-                        });
-                        setMapNavigation({
-                          startId: "entrance",
-                          destinationId: `art:${targetArtwork.id}`,
-                          currentNodeId: null,
                         });
                         if (targetArtwork.wingId && WING_ROUTE_MAP[targetArtwork.wingId]) {
                           setActiveMapRoute(WING_ROUTE_MAP[targetArtwork.wingId]);
                         }
 
+                        // When user selects the circle, show card with Start tour and Go to map buttons (do not start tour yet)
+                        setHasSelectedGallery(false);
                         setActiveArtifact("info");
                         setIsExpanded(true);
                         playTactileTap();
 
-                        // 2. Start explaining once clicked if tour is active and visitor is not in quiet reading mode
+                        // Friendly minor voice explanation of the clicked gallery stop
                         if (isTourActive) {
                           hasUserInteractedRef.current = true;
                           muteWarningSentRef.current = true;
@@ -1132,14 +1313,14 @@ export default function Home() {
                               {
                                 id: `visitor-nav-${Date.now()}`,
                                 role: "visitor",
-                                text: `[Selected ${targetArtwork.title} on gallery map]`,
+                                text: `[Previewing ${targetArtwork.title} on gallery map]`,
                                 isPartial: false,
                                 timestamp: new Date(),
                               },
                             ]);
                             setAgentStatus("thinking");
                             agentRef.current?.triggerReply(
-                              `Directly introduce ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} to the visitor in 1 to 2 vivid sentences highlighting its revolutionary impact. Speak with poise and dive straight into the artwork without any conversational apologies.`
+                              `The visitor clicked on ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} on the floor map. In one friendly, brief sentence, give a warm teaser of why this masterpiece is exciting, and invite them to tap 'Start tour' or ask any questions to begin here. Speak with poise and no apologies.`
                             );
                           } else {
                             setChatMessages((prev) => [

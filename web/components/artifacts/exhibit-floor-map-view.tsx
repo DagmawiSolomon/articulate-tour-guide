@@ -25,6 +25,8 @@ interface ExhibitFloorMapViewProps {
   onNavigationStateChange?: (state: ExhibitNavigationState) => void;
   initialViewport?: MapViewport;
   onViewportChange?: (viewport: MapViewport) => void;
+  activeTourArtworkId?: string | null;
+  completedArtworkIds?: string[];
 }
 
 type Point = [number, number];
@@ -233,7 +235,7 @@ function buildRoute(state:ExhibitNavigationState): Point[] {
 function artworkInfo(work:ExhibitWork): ExhibitArtworkInfo {
   return {
     id:work.id,title:work.title,imageSrc:work.image,summary:work.description,
-    metadata:[{label:"Artist",value:work.artist},{label:"Date",value:work.year},{label:"Wing",value:work.room}],
+    metadata:[{label:"Artist",value:work.artist},{label:"Date",value:work.year}],
   };
 }
 
@@ -259,6 +261,8 @@ export function ExhibitFloorMapView({
   onNavigationStateChange: controlledNavigationChange,
   initialViewport,
   onViewportChange,
+  activeTourArtworkId,
+  completedArtworkIds,
 }:ExhibitFloorMapViewProps) {
   const [mapInstance,setMapInstance]=React.useState<MapLibreGL.Map|null>(null);
   const [internalNavigation,setInternalNavigation]=React.useState<ExhibitNavigationState>({startId:"entrance",destinationId:"",currentNodeId:null});
@@ -319,9 +323,17 @@ export function ExhibitFloorMapView({
       >
         {works.map((work)=>{
           const [longitude,latitude]=toCoordinate(work.x,work.y);
+          const isActive = activeTourArtworkId === work.id;
+          const isCompleted = completedArtworkIds?.includes(work.id);
+          const ringClasses = isActive
+            ? "border-white ring-[3px] ring-blue-500"
+            : isCompleted
+            ? "border-white ring-[3px] ring-emerald-500"
+            : "border-white ring-1 ring-[#333a37]";
+
           return <MapMarker key={work.id} longitude={longitude} latitude={latitude} anchor="center">
-            <button type="button" aria-label={`Open ${work.title} by ${work.artist}, ${work.year}`} title={work.title} onClick={()=>onSelectArtwork?.(artworkInfo(work))} className="group flex size-[62px] items-center justify-center rounded-full border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#20211f]">
-              <span className="block size-[58px] overflow-hidden rounded-full border-[3px] border-white bg-white shadow-[0_2px_10px_rgba(0,0,0,0.25)] ring-1 ring-[#333a37] transition-transform group-hover:scale-110 group-focus-visible:scale-110">
+            <button type="button" aria-label={`Open ${work.title} by ${work.artist}, ${work.year}`} title={work.title} onClick={()=>onSelectArtwork?.(artworkInfo(work))} className="group relative flex size-[62px] items-center justify-center rounded-full border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#20211f]">
+              <span className={`block size-[58px] overflow-hidden rounded-full border-[3px] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.25)] transition-transform group-hover:scale-110 group-focus-visible:scale-110 ${ringClasses}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}<img src={work.image} alt="" className="h-full w-full object-cover" />
               </span>
             </button>

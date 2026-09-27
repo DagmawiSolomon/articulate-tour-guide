@@ -52,7 +52,11 @@ interface ArtifactStageProps {
   summaryData?: any;
   /** Callback to switch or open an artifact */
   onSelectArtifact?: (type: ArtifactType, params?: Record<string, any>) => void;
+  showTourActions?: boolean;
+  onStartTour?: () => void;
   onResetTour?: () => void;
+  activeTourArtworkId?: string | null;
+  completedArtworkIds?: string[];
 }
 
 export function ArtifactStage({
@@ -74,8 +78,12 @@ export function ArtifactStage({
   chatMessages = [],
   isChatThinking = false,
   summaryData = null,
+  showTourActions = true,
   onSelectArtifact,
+  onStartTour,
   onResetTour,
+  activeTourArtworkId,
+  completedArtworkIds,
 }: ArtifactStageProps) {
   // If an artworkId is provided, get its specific hotspot and image info
   const targetArtwork = artworkId ? TURNING_POINTS_ARTWORKS[artworkId] : null;
@@ -89,7 +97,11 @@ export function ArtifactStage({
       */}
       <div key={artifactType} className="artifact-animate-in w-full h-full">
         {isLoading ? (
-          <ArtifactSkeleton artifactType={artifactType} />
+          <ArtifactSkeleton
+            artifactType={artifactType}
+            showTourActions={showTourActions}
+            isImageExpanded={!showTourActions}
+          />
         ) : (
           <>
             {artifactType === "info" && (
@@ -100,13 +112,12 @@ export function ArtifactStage({
                   summary: targetArtwork.summary,
                   metadata: [
                     { label: "Artist", value: targetArtwork.artist },
-                    { label: "Year", value: targetArtwork.year },
-                    { label: "Location", value: targetArtwork.locationCreated },
-                    { label: "Medium", value: targetArtwork.medium },
+                    { label: "Date", value: targetArtwork.year },
                   ],
                 } : {}))}
+                showTourActions={showTourActions}
                 onReturnToMap={onSelectArtifact ? () => onSelectArtifact("map") : undefined}
-                onStartTour={onSelectArtifact ? () => onSelectArtifact("chat") : undefined}
+                onStartTour={onStartTour ?? (onSelectArtifact ? () => onSelectArtifact("chat") : undefined)}
               />
             )}
             {artifactType === "map" && (
@@ -117,6 +128,8 @@ export function ArtifactStage({
                   onNavigationStateChange={onMapNavigationChange}
                   initialViewport={mapViewport}
                   onViewportChange={onMapViewportChange}
+                  activeTourArtworkId={activeTourArtworkId}
+                  completedArtworkIds={completedArtworkIds}
                 />
               ) : (
                 <GalleryMapView originRouteId={originMapRouteId} activeRouteId={mapRouteId} />

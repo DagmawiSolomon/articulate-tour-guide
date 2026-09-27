@@ -18,6 +18,7 @@ export interface ArtworkInfoCardProps {
   imageSrc?: string;
   summary?: string;
   metadata?: ArtworkMetadataField[];
+  showTourActions?: boolean;
   onReturnToMap?: () => void;
   onStartTour?: () => void;
 }
@@ -25,8 +26,6 @@ export interface ArtworkInfoCardProps {
 const DEFAULT_METADATA: ArtworkMetadataField[] = [
   { label: "Artist", value: ARTWORK_DATA.artist },
   { label: "Date", value: ARTWORK_DATA.year },
-  { label: "Medium", value: ARTWORK_DATA.medium },
-  { label: "Dimensions", value: ARTWORK_DATA.dimensions },
 ];
 
 export function ArtworkInfoCard({
@@ -34,10 +33,18 @@ export function ArtworkInfoCard({
   imageSrc = ARTWORK_DATA.imageSrc,
   summary = ARTWORK_DATA.summary,
   metadata,
+  showTourActions = true,
   onReturnToMap,
   onStartTour,
 }: ArtworkInfoCardProps) {
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  // When tour has started (showTourActions is false), the painting slides to expand.
+  // When user selects a gallery circle on the map (showTourActions is true), show the card with buttons.
+  const [isExpanded, setIsExpanded] = React.useState(!showTourActions);
+
+  // Sync when tour state or artwork changes
+  React.useEffect(() => {
+    setIsExpanded(!showTourActions);
+  }, [showTourActions, imageSrc]);
 
   // Keyboard navigation: Escape key exits expanded image view
   React.useEffect(() => {
@@ -76,7 +83,7 @@ export function ArtworkInfoCard({
       <div
         className={`relative flex flex-col lg:flex-row items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] bg-card ${
           isExpanded
-            ? "w-full h-full max-w-4xl border-none shadow-none"
+            ? "w-full h-full max-w-5xl border-none shadow-none bg-transparent"
             : "w-full max-w-[780px] rounded-2xl border border-border/70 shadow-xs overflow-hidden"
         }`}
       >
@@ -84,7 +91,7 @@ export function ArtworkInfoCard({
         <div
           className={`relative overflow-hidden group transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
             isExpanded
-              ? "w-full h-[90%] lg:h-full rounded-2xl border-none bg-transparent"
+              ? "w-full h-full rounded-2xl border-none bg-transparent flex items-center justify-center"
               : "w-full lg:w-1/2 h-[320px] sm:h-[360px] lg:h-[380px] border-b lg:border-b-0 lg:border-r border-border/50 bg-muted/20 cursor-pointer"
           }`}
           onClick={!isExpanded ? toggleExpand : undefined}
@@ -96,8 +103,8 @@ export function ArtworkInfoCard({
             fill
             sizes="(max-width: 1024px) 100vw, 100vw"
             priority
-            className={`transition-all duration-500 ${
-              isExpanded ? "object-contain" : "object-cover"
+            className={`transition-all duration-500 drop-shadow-sm ${
+              isExpanded ? "object-contain p-2 sm:p-4" : "object-cover"
             }`}
           />
 
@@ -111,8 +118,8 @@ export function ArtworkInfoCard({
             className={`absolute z-20 size-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer backdrop-blur-md border border-white/10 shadow-sm active:scale-95 ${
               isExpanded ? "top-3 right-3" : "bottom-3 right-3 opacity-70 group-hover:opacity-100"
             }`}
-            aria-label={isExpanded ? "Collapse image" : "Expand image"}
-            title={isExpanded ? "Collapse image (Esc)" : "Expand image"}
+            aria-label={isExpanded ? "Show curatorial details" : "Expand painting"}
+            title={isExpanded ? "Show curatorial details (Esc)" : "Expand painting"}
           >
             {isExpanded ? (
               <HugeIcon icon={Cancel01Icon} size={14} />
@@ -143,7 +150,7 @@ export function ArtworkInfoCard({
 
             <Separator className="my-3.5 bg-border/50" />
 
-            {/* Dynamic Key-Value Pairs without uppercase, keeping previous scheme */}
+            {/* Author (Artist) */}
             <div className="space-y-2">
               {activeMetadata.map((item) => (
                 <div
@@ -161,20 +168,36 @@ export function ArtworkInfoCard({
             </div>
 
             {/* Horizontal rule above CTA buttons */}
-            {(onStartTour || onReturnToMap) && (
+            {showTourActions && (onStartTour || onReturnToMap) && (
               <div className="mt-5">
                 <Separator className="mb-4 bg-border/60" />
                 <div className="flex flex-wrap items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      playTactileTap();
-                      onStartTour?.();
-                    }}
-                    className="inline-flex min-h-9 items-center justify-center rounded-full bg-button-bg px-5 py-2 text-xs font-medium text-white transition-all hover:bg-primary/90 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer shadow-xs"
-                  >
-                    Start tour
-                  </button>
+                  {onStartTour && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playTactileTap();
+                        onStartTour();
+                      }}
+                      className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-5 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
+                      style={{ background: "var(--ink)", color: "#fff" }}
+                    >
+                      Start tour
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M5 12h14m-6-6l6 6-6 6" />
+                      </svg>
+                    </button>
+                  )}
                   {onReturnToMap && (
                     <button
                       type="button"
@@ -182,9 +205,10 @@ export function ArtworkInfoCard({
                         playTactileTap();
                         onReturnToMap();
                       }}
-                      className="inline-flex min-h-9 items-center justify-center rounded-full border border-border bg-transparent px-4 py-2 text-xs font-medium text-foreground transition-all hover:bg-muted active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer"
+                      className="inline-flex min-h-9 items-center justify-center rounded-full px-5 py-2 text-xs font-medium cursor-pointer transition-colors hover:bg-zinc-200 border-0"
+                      style={{ background: "#f4f4f5", color: "#1f1e1b" }}
                     >
-                      Go back to map
+                      Go to map
                     </button>
                   )}
                 </div>

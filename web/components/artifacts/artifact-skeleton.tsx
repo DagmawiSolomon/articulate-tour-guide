@@ -17,6 +17,8 @@ import { type ArtifactType } from "./artifact-stage";
 
 interface ArtifactSkeletonProps {
   artifactType: ArtifactType;
+  showTourActions?: boolean;
+  isImageExpanded?: boolean;
 }
 
 function Shimmer({ className }: { className?: string }) {
@@ -35,7 +37,17 @@ function Shimmer({ className }: { className?: string }) {
 
 
 /* ── Info ──────────────────────────────────────────────── */
-function InfoSkeleton() {
+function InfoSkeleton({ showTourActions = true, isImageExpanded = false }: { showTourActions?: boolean; isImageExpanded?: boolean }) {
+  if (isImageExpanded) {
+    return (
+      <div className="w-full h-full flex items-center justify-center p-2 sm:p-4 overflow-hidden">
+        <div className="relative w-full h-full max-w-5xl rounded-2xl border border-border/70 shadow-xs overflow-hidden bg-muted/20">
+          <Shimmer className="w-full h-full rounded-none" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full flex items-center justify-center p-2 sm:p-4 overflow-hidden">
       <div className="relative w-full max-w-[780px] rounded-2xl border border-border/70 shadow-xs flex flex-col lg:flex-row overflow-hidden">
@@ -68,24 +80,18 @@ function InfoSkeleton() {
               <Shimmer className="h-3 w-12" />
               <Shimmer className="h-3 w-20" />
             </div>
-            <div className="flex justify-between items-center pb-1 border-b border-border/30">
-              <Shimmer className="h-3 w-16" />
-              <Shimmer className="h-3 w-24" />
-            </div>
-            <div className="flex justify-between items-center">
-              <Shimmer className="h-3 w-20" />
-              <Shimmer className="h-3 w-32" />
-            </div>
           </div>
 
           {/* CTA Buttons */}
-          <div className="mt-5">
-            <Shimmer className="h-px w-full rounded-none mb-4" />
-            <div className="flex items-center gap-2.5">
-              <Shimmer className="h-9 w-24 rounded-full" />
-              <Shimmer className="h-9 w-32 rounded-full" />
+          {showTourActions && (
+            <div className="mt-5">
+              <Shimmer className="h-px w-full rounded-none mb-4" />
+              <div className="flex items-center gap-2.5">
+                <Shimmer className="h-9 w-24 rounded-full" />
+                <Shimmer className="h-9 w-32 rounded-full" />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -400,10 +406,10 @@ function SummarySkeleton() {
 
 /* ── Export ───────────────────────────────────────────── */
 
-export function ArtifactSkeleton({ artifactType }: ArtifactSkeletonProps) {
+export function ArtifactSkeleton({ artifactType, showTourActions, isImageExpanded }: ArtifactSkeletonProps) {
   return (
     <div className="artifact-animate-in w-full h-full" aria-label="Loading artifact" aria-busy="true">
-      {artifactType === "info"       && <InfoSkeleton />}
+      {artifactType === "info"       && <InfoSkeleton showTourActions={showTourActions} isImageExpanded={isImageExpanded} />}
       {artifactType === "map"        && <MapSkeleton />}
       {artifactType === "comparison" && <ComparisonSkeleton />}
       {artifactType === "timeline"   && <TimelineSkeleton />}
