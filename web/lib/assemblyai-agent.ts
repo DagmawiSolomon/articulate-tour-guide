@@ -56,6 +56,8 @@ export type VoiceAgent = {
   stopAudio: () => void;
   /** Send the result of a tool call back to the agent */
   sendToolResult: (callId: string, result: unknown, isError?: boolean) => void;
+  /** Ask the agent to generate a reply right now, optionally with one-shot instructions */
+  triggerReply: (instructions?: string) => void;
   /** End the session cleanly — stops billing immediately */
   end: () => void;
   /** Whether the WebSocket is currently open */
@@ -377,6 +379,17 @@ registerProcessor('pcm-processor', PcmProcessor);
     flushPendingTools();
   }
 
+  function triggerReply(instructions?: string) {
+    if (isConnected && ws.readyState === WebSocket.OPEN) {
+      ws.send(
+        JSON.stringify({
+          type: "reply.create",
+          ...(instructions ? { instructions } : {}),
+        })
+      );
+    }
+  }
+
   function end() {
     stopAudio();
     ws.onmessage = null;
@@ -401,6 +414,7 @@ registerProcessor('pcm-processor', PcmProcessor);
     startAudio,
     stopAudio,
     sendToolResult,
+    triggerReply,
     end,
     get connected() {
       return isConnected;

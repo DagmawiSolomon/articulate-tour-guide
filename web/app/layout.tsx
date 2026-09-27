@@ -25,7 +25,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Articulate",
-  description: "Multimodal Voice AI Museum Docent",
+  description: "Multimodal Voice AI Museum Tour Guide",
 };
 
 export default function RootLayout({

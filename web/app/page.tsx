@@ -115,10 +115,13 @@ export default function Home() {
   const audioPlayerRef = React.useRef<AudioPlayer | null>(null);
   const agentCallbacksRef = React.useRef<VoiceAgentCallbacks | null>(null);
 
-  // Greeting lifecycle refs
+  // Greeting & reply lifecycle refs
   const greetingPhaseRef = React.useRef<"idle" | "greeting" | "done">("idle");
   const hasUserInteractedRef = React.useRef<boolean>(false);
   const isTogglingMicRef = React.useRef<boolean>(false);
+  const isMutedRef = React.useRef<boolean>(false);
+  const replyIndexRef = React.useRef<number>(0);
+  const muteWarningSentRef = React.useRef<boolean>(false);
 
   // Fixed card geometry.
   const tuning = {
@@ -181,6 +184,7 @@ export default function Home() {
   const audioLevel = useMicAudioLevel(micStream, isTourActive && !isMuted);
 
   const stopMic = React.useCallback(() => {
+    isMutedRef.current = true;
     // Stop sending audio to the agent (keep WS open)
     agentRef.current?.stopAudio();
     if (mediaStreamRef.current) {
@@ -214,11 +218,13 @@ export default function Home() {
         // Start streaming audio to the agent
         agentRef.current?.startAudio(stream);
         setMicStream(stream);
+        isMutedRef.current = false;
         setIsMuted(false);
         return stream;
       }
     } catch (err) {
       console.warn("Microphone access error or denied:", err);
+      isMutedRef.current = true;
       setIsMuted(true);
     }
     return null;
@@ -231,18 +237,25 @@ export default function Home() {
     try {
       if (isMuted) {
         playUnmute();
+        isMutedRef.current = false;
+        // If the agent was speaking the separate mute reminder, flush it immediately on unmute
+        if (muteWarningSentRef.current && agentStatus === "speaking") {
+          audioPlayerRef.current?.flush();
+          setAgentStatus("listening");
+        }
         const stream = await startMic();
         if (stream && agentRef.current) {
           agentRef.current.startAudio(stream);
         }
       } else {
         playMute();
+        isMutedRef.current = true;
         stopMic();
       }
     } finally {
       isTogglingMicRef.current = false;
     }
-  }, [isMuted, startMic, stopMic]);
+  }, [isMuted, agentStatus, startMic, stopMic]);
 
   React.useEffect(() => {
     initSounds();
@@ -272,8 +285,11 @@ export default function Home() {
     setActiveMapRoute("entrance");
 
     // Initialize greeting lifecycle refs
+    replyIndexRef.current = 0;
+    muteWarningSentRef.current = false;
     greetingPhaseRef.current = "greeting";
     hasUserInteractedRef.current = false;
+    isMutedRef.current = isMuted;
 
     // 1. Initialize audio player for voice responses
     if (!audioPlayerRef.current) {
@@ -291,6 +307,7 @@ export default function Home() {
         activeMuted = true;
       }
     }
+    isMutedRef.current = activeMuted;
 
     // 3. Connect Voice Agent session
     const callbacks: VoiceAgentCallbacks = {
@@ -381,7 +398,7 @@ export default function Home() {
                 role: "agent",
                 text,
                 isStreaming: true,
-                speakerName: "Alba Docent",
+                speakerName: "Alba Tour Guide",
                 timestamp: new Date(),
               },
             ];
@@ -399,7 +416,7 @@ export default function Home() {
                 role: "agent",
                 text,
                 isStreaming: false,
-                speakerName: "Alba Docent",
+                speakerName: "Alba Tour Guide",
                 timestamp: new Date(),
               },
             ];
@@ -410,11 +427,24 @@ export default function Home() {
           setAgentStatus("speaking");
         },
         onAgentSpeakingEnd: (interrupted) => {
+          replyIndexRef.current += 1;
+          const isInitialGreetingTurn = replyIndexRef.current === 1;
+
           if (interrupted) {
             audioPlayerRef.current?.flush();
             setAgentStatus("listening");
             greetingPhaseRef.current = "done";
           } else {
+            // Decoupled mute warning: if base greeting just finished transmitting and visitor is still muted
+            if (isInitialGreetingTurn && greetingPhaseRef.current === "greeting") {
+              if (isMutedRef.current && !hasUserInteractedRef.current && !muteWarningSentRef.current) {
+                muteWarningSentRef.current = true;
+                agentRef.current?.triggerReply(
+                  "Notice that the visitor's microphone is currently muted. In one concise, friendly sentence, remind them that their microphone is muted and they can tap the mic button whenever they want to speak or ask questions."
+                );
+              }
+            }
+
             // Wait for audio player to finish draining queued audio chunks in speakers
             audioPlayerRef.current?.onPlaybackComplete(() => {
               setAgentStatus("listening");
@@ -613,6 +643,8 @@ export default function Home() {
 
     greetingPhaseRef.current = "idle";
     hasUserInteractedRef.current = false;
+    replyIndexRef.current = 0;
+    muteWarningSentRef.current = false;
 
     // Reset back to pre-tour state
     setIsTourActive(false);

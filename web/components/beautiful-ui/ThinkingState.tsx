@@ -46,7 +46,7 @@ const VARIANTS: Record<
     ],
   },
   Reasoning: {
-    active: "Synthesizing Docent Insights…",
+    active: "Synthesizing Tour Guide Insights…",
     done: "Context synthesized",
     rows: [
       { primary: "Visitor inquired about foreground landscape elements." },
