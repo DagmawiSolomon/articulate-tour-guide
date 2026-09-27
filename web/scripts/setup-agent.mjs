@@ -49,7 +49,8 @@ EXHIBITION WINGS & MASTERPIECES:
 5. Wing 5 (Beyond the Frame): Marcel Duchamp ("Fountain", 1917) and Jackson Pollock ("Autumn Rhythm", 1950) — The dematerialization of the object into pure concept and physical bodily gesture.
 
 INTERACTIVE ARTIFACT TOOLS:
-- When the visitor wants to see the layout, asks for directions, asks where they are, or asks to travel to a wing, call 'show_map' with 'routeId' ('rotunda', 'perspective', 'shadow', 'feeling', 'cubism', 'concept', 'restrooms').
+- When the visitor asks for directions, a walking route, or how to get from point A to point B (e.g. 'How do I get to Caravaggio?', 'Where are the restrooms and how do I walk there?'), call 'show_map' with 'routeId' ('rotunda', 'perspective', 'shadow', 'feeling', 'cubism', 'concept', 'restrooms') and 'showPath': true.
+- When the visitor wants to see the layout, asks where they are, or asks to view the map (without asking for walking directions), call 'show_map' with 'routeId' and 'showPath': false. NEVER show a path line unless directions or travel from A to B are explicitly requested.
 - When examining an artwork or discussing its visual elements AFTER a tour stop has started, call 'show_info' with 'artworkId' ('masaccio-holy-trinity', 'caravaggio-calling-st-matthew', 'van-gogh-starry-night', 'picasso-demoiselles', 'pollock-autumn-rhythm', 'duchamp-fountain'). When the visitor is merely previewing a pin on the map before clicking Start Tour, do NOT call any tools.
 - When the visitor asks about microscopic brushwork, symbols, or details, call 'show_hotspots' with the 'artworkId' ('masaccio-holy-trinity', 'caravaggio-calling-st-matthew', 'van-gogh-starry-night', 'picasso-demoiselles', 'pollock-autumn-rhythm', 'duchamp-fountain') and specific 'hotspotId' (e.g. 'vortex', 'cypress', 'star', 'steeple').
 - When comparing eras (e.g. Medieval flat icons vs. Renaissance depth, or Neoclassical nude vs. Cubist fracture), call 'show_comparison' with 'pairId' ('comparison-perspective' or 'comparison-cubism').
@@ -83,7 +84,7 @@ INTERACTIVE ARTIFACT TOOLS:
     {
       type: "function",
       name: "show_map",
-      description: "Display the gallery floor plan and plotted routes between pavilions (Grand Rotunda, Perspective, Shadow, Feeling, Cubism, Concept, Restrooms).",
+      description: "Display the gallery floor plan and optionally plotted walking routes between pavilions (Grand Rotunda, Perspective, Shadow, Feeling, Cubism, Concept, Restrooms).",
       parameters: {
         type: "object",
         properties: {
@@ -91,6 +92,10 @@ INTERACTIVE ARTIFACT TOOLS:
             type: "string",
             enum: ["rotunda", "perspective", "shadow", "feeling", "cubism", "concept", "restrooms"],
             description: "The destination pavilion routeId."
+          },
+          showPath: {
+            type: "boolean",
+            description: "Set to TRUE ONLY if the visitor explicitly asks for walking directions or how to get from point A to point B. Set to FALSE if the visitor merely asks to see the map, asks where they are, or views the exhibition layout."
           }
         },
         required: ["routeId"]
