@@ -27,10 +27,12 @@ import {
 } from "@/components/avatar/avatar-expressions";
 import { Footer } from "@/components/layout/footer";
 import { ArtifactStage, type ArtifactType, type ChatMessage } from "@/components/artifacts/artifact-stage";
+import { ImmersiveArtworkView } from "@/components/artifacts/immersive-artwork-view";
 import type { ExhibitArtworkInfo, ExhibitNavigationState } from "@/components/artifacts/exhibit-floor-map-view";
 import type { MapViewport } from "@/components/ui/map";
 import { searchCuratorialArchives } from "@/lib/archive-retrieval";
 import { TURNING_POINTS_ARTWORKS, TURNING_POINTS_WINGS } from "@/lib/turning-points-data";
+import type { DetailHotspot } from "@/lib/demo-tour-data";
 
 const WING_ROUTE_MAP: Record<string, string> = {
   "wing-perspective": "perspective",
@@ -378,7 +380,7 @@ export default function Home() {
       }
       return prev;
     });
-    setActiveArtifact("info");
+    setActiveArtifact("artwork-view");
     setIsExpanded(true);
 
     // 3. Post visitor confirmation to transcript
@@ -401,6 +403,25 @@ export default function Home() {
     );
   }, [selectedArtwork, activeArtworkId]);
 
+  const handleAskAboutDetail = React.useCallback((hotspot: DetailHotspot) => {
+    const artworkId = resolveArtworkId(selectedArtwork?.id || activeArtworkId);
+    const artwork = TURNING_POINTS_ARTWORKS[artworkId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+    const visitorQuestion = `Tell me about the ${hotspot.name} in ${artwork.title}.`;
+
+    bargeIn();
+    hasUserInteractedRef.current = true;
+    greetingPhaseRef.current = "done";
+    muteWarningSentRef.current = true;
+    setChatMessages((previous) => [
+      ...previous,
+      { id: `visitor-detail-${Date.now()}`, role: "visitor", text: visitorQuestion, isPartial: false, timestamp: new Date() },
+    ]);
+    setIsChatThinking(true);
+    setAgentStatus("thinking");
+    agentRef.current?.triggerReply(
+      `The visitor selected the detail "${hotspot.name}" in ${artwork.title} by ${artwork.artist} (${artwork.year}) and asked: "${visitorQuestion}". Explain this specific detail using this curated context: ${hotspot.insight}. Relate it to the artwork and its historical significance. Speak directly and concisely, and do not claim to see anything beyond the selected detail and the supplied context.`
+    );
+  }, [selectedArtwork, activeArtworkId, bargeIn]);
   const handleStartTour = async () => {
     playCallStart();
     setIsTourActive(true);
@@ -1226,7 +1247,7 @@ export default function Home() {
           ) : (
             /* Active Tour Stage */
             <div className="guide-stage relative w-full h-full max-h-[min(90vh,860px)] 2xl:max-h-[940px]" data-expanded={isExpanded}>
-              <div className={`guide-card-layer absolute inset-0 ${activeArtifact !== 'summary' ? 'md:left-24' : ''}`} inert={!isExpanded} aria-hidden={!isExpanded}>
+              <div className={`guide-card-layer absolute inset-0 ${activeArtifact === 'artwork-view' ? 'md:-left-24' : activeArtifact !== 'summary' ? 'md:left-24' : ''}`} inert={!isExpanded} aria-hidden={!isExpanded}>
                 <div className="guide-card relative flex h-full w-full items-center justify-center overflow-visible rounded-2xl border border-[#e5e7e6] bg-[#fafafa] shadow-xs">
 
                   {/* Top-Right Original Inverted Corner Notch: Houses the close button (kept exactly as requested) */}
@@ -1282,7 +1303,7 @@ export default function Home() {
 
                   {/* Artifact Stage - clean canvas utilizing the entire newly formed card as working area */}
                   <div
-                    className={`w-full h-full overflow-hidden ${activeArtifact === "map" || activeArtifact === "summary"
+                    className={`w-full h-full overflow-hidden ${activeArtifact === "map" || activeArtifact === "summary" || activeArtifact === "artwork-view"
                         ? "p-0 rounded-2xl"
                         : "pt-14 pb-16 px-3 md:p-5 md:pb-16 md:pr-14"
                       }`}
@@ -1301,6 +1322,7 @@ export default function Home() {
                       activeTourArtworkId={activeTourArtworkId}
                       completedArtworkIds={completedArtworkIds}
                       onStartTour={() => handleStartTourWithArtwork()}
+                      onViewArtworkFullscreen={() => setActiveArtifact("artwork-view")}
                       onSelectArtwork={(artwork) => {
                         hasUserInteractedRef.current = true;
                         const rawId = artwork.id || activeArtworkId || "masaccio-holy-trinity";
@@ -1527,6 +1549,16 @@ export default function Home() {
         </footer>
       </div>
 
+      {isTourActive && activeArtifact === "artwork-view" && (
+        <ImmersiveArtworkView
+          artwork={selectedArtwork}
+          hotspots={TURNING_POINTS_ARTWORKS[resolveArtworkId(selectedArtwork?.id || activeArtworkId)]?.hotspots ?? []}
+          onAskAboutDetail={handleAskAboutDetail}
+          avatar={<ArticulateAvatar expressionId={activeExpressionId} size={112} isListening={isListening} isMuted={isMuted} isSpeaking={agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
+          controls={callGroup}
+          onBackToDetails={() => setActiveArtifact("info")}
+        />
+      )}
       <Dialog open={isExhibitInfoOpen} onOpenChange={setIsExhibitInfoOpen}>
         <DialogContent showCloseButton={false} className="grid max-h-[calc(100dvh-2rem)] w-full grid-cols-1 gap-0 overflow-y-auto rounded-none border-0 bg-white p-0 sm:h-[460px] sm:max-w-[760px] sm:grid-cols-[0.72fr_1fr] sm:overflow-hidden">
           <button
