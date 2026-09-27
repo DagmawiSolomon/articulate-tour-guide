@@ -143,9 +143,9 @@ export default function Home() {
   const [activeTourArtworkId, setActiveTourArtworkId] = React.useState<string | null>(null);
   const activeTourArtworkIdRef = React.useRef<string | null>(null);
   const [completedArtworkIds, setCompletedArtworkIds] = React.useState<string[]>([]);
-  const completedArtworkIdsRef = React.useRef<string[]>([]);
-  // Tracks if visitor has selected/started a gallery tour (to hide Start tour & Go back to map CTA buttons)
-  const [hasSelectedGallery, setHasSelectedGallery] = React.useState<boolean>(false);
+  // Tracks each gallery's own tour started state (so unstarted galleries always show Start Tour & Go to map buttons)
+  const [startedArtworkIds, setStartedArtworkIds] = React.useState<string[]>([]);
+  const startedArtworkIdsRef = React.useRef<string[]>([]);
   // When start tour is clicked, card collapses for fullscreen Alba explanation, then auto-uncollapses
   const shouldUncollapseAfterSpeechRef = React.useRef<boolean>(false);
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
@@ -367,8 +367,15 @@ export default function Home() {
       setActiveMapRoute(WING_ROUTE_MAP[targetArtwork.wingId]);
     }
 
-    // 2. Gallery selected: show card on gallery selection, hiding Start tour & Go back to map buttons
-    setHasSelectedGallery(true);
+    // 2. Mark this specific gallery as tour-started (hiding its Start tour & Go back buttons)
+    setStartedArtworkIds((prev) => {
+      if (!prev.includes(targetArtwork.id)) {
+        const next = [...prev, targetArtwork.id];
+        startedArtworkIdsRef.current = next;
+        return next;
+      }
+      return prev;
+    });
     setActiveArtifact("info");
     setIsExpanded(true);
 
@@ -418,7 +425,8 @@ export default function Home() {
     setIsQuietMode(false);
     guestLocationRef.current = "entrance";
     setGuestLocationId("entrance");
-    setHasSelectedGallery(false);
+    setStartedArtworkIds([]);
+    startedArtworkIdsRef.current = [];
     shouldUncollapseAfterSpeechRef.current = false;
 
     // 1. Initialize audio player for voice responses
@@ -793,7 +801,7 @@ export default function Home() {
             const artPlaceId = `art:${artwork.id}`;
             guestLocationRef.current = artPlaceId;
             setGuestLocationId(artPlaceId);
-            if (hasSelectedGallery) {
+            if (startedArtworkIdsRef.current.includes(artwork.id)) {
               setActiveTourArtworkId(artwork.id);
               activeTourArtworkIdRef.current = artwork.id;
             }
@@ -952,7 +960,8 @@ export default function Home() {
     setIsQuietMode(false);
     guestLocationRef.current = "entrance";
     setGuestLocationId("entrance");
-    setHasSelectedGallery(false);
+    setStartedArtworkIds([]);
+    startedArtworkIdsRef.current = [];
     shouldUncollapseAfterSpeechRef.current = false;
     setActiveTourArtworkId(null);
     activeTourArtworkIdRef.current = null;
@@ -1285,7 +1294,7 @@ export default function Home() {
                       onMapViewportChange={setMapViewport}
                       comparisonPairId={comparisonPairId}
                       artworkId={activeArtworkId}
-                      showTourActions={!hasSelectedGallery}
+                      showTourActions={!startedArtworkIds.includes(activeArtworkId)}
                       activeTourArtworkId={activeTourArtworkId}
                       completedArtworkIds={completedArtworkIds}
                       onStartTour={() => handleStartTourWithArtwork()}
@@ -1295,6 +1304,13 @@ export default function Home() {
                         const resolvedId = resolveArtworkId(rawId);
                         const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
                         const isSameGallery = targetArtwork.id === activeArtworkId;
+
+                        // Ensure no route line is plotted when simply viewing/selecting a gallery
+                        setMapNavigation((prev) => ({
+                          ...prev,
+                          destinationId: "",
+                          currentNodeId: null,
+                        }));
 
                         setActiveArtworkId(targetArtwork.id);
                         setSelectedArtwork({
@@ -1315,10 +1331,14 @@ export default function Home() {
                         setIsExpanded(true);
                         playTactileTap();
 
-                        if (!hasSelectedGallery) {
-                          // FIRST CLICK / INITIAL PREVIEW:
-                          // Keep hasSelectedGallery false so 'Start tour' and 'Go to map' buttons are displayed!
-                          setHasSelectedGallery(false);
+                        const isTourStartedForThisArtwork = startedArtworkIds.includes(targetArtwork.id);
+
+                        if (!isTourStartedForThisArtwork) {
+                          // TOUR HAS NOT STARTED FOR THIS SPECIFIC GALLERY:
+                          // 'Start tour' and 'Go to map' buttons WILL be displayed!
+                          if (isTourActive && !isSameGallery && activeTourArtworkId) {
+                            bargeIn();
+                          }
 
                           if (isTourActive) {
                             muteWarningSentRef.current = true;
@@ -1353,9 +1373,8 @@ export default function Home() {
                             }
                           }
                         } else {
-                          // TOUR IS UNDERWAY (visitor previously confirmed starting a gallery tour):
-                          // If visiting a different gallery, stop previous narration and start new stop.
-                          // If touching the same gallery, keep narration going seamlessly.
+                          // TOUR HAS ALREADY STARTED FOR THIS GALLERY:
+                          // Uncollapsed image is shown (no Start tour buttons).
                           if (!isSameGallery) {
                             bargeIn();
                             setActiveTourArtworkId(targetArtwork.id);
@@ -1394,6 +1413,7 @@ export default function Home() {
                               }
                             }
                           }
+                          // If same gallery: narration continues without interruption!
                         }
                       }}
                       mapRouteId={activeMapRoute}
