@@ -1173,7 +1173,7 @@ export default function Home() {
             /* ── Start Tour Landing ── */
             <div className="flex min-h-full w-full flex-col items-center bg-white font-sans">
               <div
-                className="landing-hero-image relative w-full shrink-0 overflow-hidden bg-[#172d3c]"
+                className="landing-hero-image relative w-full shrink-0 overflow-hidden bg-zinc-100"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
