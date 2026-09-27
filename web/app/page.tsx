@@ -337,12 +337,13 @@ export default function Home() {
     const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
     const artPlaceId = `art:${targetArtwork.id}`;
 
-    // 1. Update navigation: path is drawn from guest's current location to this artwork
-    setMapNavigation({
-      startId: guestLocationRef.current,
-      destinationId: artPlaceId,
+    // 1. Update guest location without drawing a route line (path only shown when user explicitly asks for directions)
+    setMapNavigation((prev) => ({
+      ...prev,
+      startId: artPlaceId,
+      destinationId: "",
       currentNodeId: null,
-    });
+    }));
     guestLocationRef.current = artPlaceId;
     setGuestLocationId(artPlaceId);
 
@@ -699,6 +700,7 @@ export default function Home() {
 
           if (tool.name === "show_map") {
             const routeId = (tool.arguments.routeId as string) || "rotunda";
+            const showPath = Boolean(tool.arguments.showPath);
             setActiveArtifact("map");
             setActiveMapRoute(routeId);
 
@@ -712,8 +714,8 @@ export default function Home() {
               restrooms: "facility:restrooms",
             };
             const destId = routeDestinationMap[routeId] || "";
-            // Only update map navigation route if the visitor has already started the tour or specifically asked for navigation
-            if (destId && hasSelectedGallery) {
+            // ONLY plot a walking route path if the user explicitly requested directions from A to B (showPath: true)
+            if (showPath && destId) {
               setMapNavigation({
                 startId: guestLocationRef.current,
                 destinationId: destId,
@@ -721,6 +723,13 @@ export default function Home() {
               });
               guestLocationRef.current = destId;
               setGuestLocationId(destId);
+            } else {
+              // Otherwise just show the floor plan without drawing any path line
+              setMapNavigation((prev) => ({
+                ...prev,
+                destinationId: "",
+                currentNodeId: null,
+              }));
             }
 
             setChatMessages((prev) => [
@@ -745,11 +754,7 @@ export default function Home() {
             setActiveArtworkId(artwork.id);
             setActiveArtifact("hotspots");
             setActiveHotspotId(hotspotId);
-            setMapNavigation({
-              startId: guestLocationRef.current,
-              destinationId: artPlaceId,
-              currentNodeId: null,
-            });
+            // Track guest location without triggering an unrequested path route line
             guestLocationRef.current = artPlaceId;
             setGuestLocationId(artPlaceId);
             if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
@@ -784,16 +789,11 @@ export default function Home() {
                 { label: "Date", value: artwork.year },
               ],
             });
-            // Only update map navigation route and active tour stop if tour was actually confirmed/started
+            // Update guest location and active tour stop without drawing a path route line
+            const artPlaceId = `art:${artwork.id}`;
+            guestLocationRef.current = artPlaceId;
+            setGuestLocationId(artPlaceId);
             if (hasSelectedGallery) {
-              const artPlaceId = `art:${artwork.id}`;
-              setMapNavigation({
-                startId: guestLocationRef.current,
-                destinationId: artPlaceId,
-                currentNodeId: null,
-              });
-              guestLocationRef.current = artPlaceId;
-              setGuestLocationId(artPlaceId);
               setActiveTourArtworkId(artwork.id);
               activeTourArtworkIdRef.current = artwork.id;
             }
@@ -1008,7 +1008,7 @@ export default function Home() {
       type="button"
       onClick={() => {
         playTactileTap();
-        bargeIn();
+        // Do NOT call bargeIn() here so narration continues while viewing the map
         hasUserInteractedRef.current = true;
         if (isExpanded && activeArtifact === "map") {
           setIsExpanded(false);
@@ -1034,7 +1034,7 @@ export default function Home() {
       type="button"
       onClick={() => {
         playTactileTap();
-        bargeIn();
+        // Do NOT call bargeIn() here so narration continues while reading transcriptions
         hasUserInteractedRef.current = true;
         if (isExpanded && activeArtifact === "chat") {
           setIsExpanded(false);
@@ -1088,9 +1088,9 @@ export default function Home() {
   );
 
   const handleToggleExpanded = () => {
-    bargeIn();
+    // Toggling stage expansion should not cut off narration
     hasUserInteractedRef.current = true;
-    shouldUncollapseAfterSpeechRef.current = false; // User manually interacted, cancel auto-uncollapse
+    shouldUncollapseAfterSpeechRef.current = false;
     setIsExpanded((prev) => {
       const next = !prev;
       if (next) {
@@ -1247,8 +1247,8 @@ export default function Home() {
                     type="button"
                     onClick={() => {
                       playStageClose();
-                      bargeIn();
                       if (activeArtifact === "summary") {
+                        bargeIn();
                         window.location.reload();
                       } else {
                         setIsExpanded(false);
@@ -1290,14 +1290,11 @@ export default function Home() {
                       completedArtworkIds={completedArtworkIds}
                       onStartTour={() => handleStartTourWithArtwork()}
                       onSelectArtwork={(artwork) => {
-                        bargeIn();
                         hasUserInteractedRef.current = true;
                         const rawId = artwork.id || activeArtworkId || "masaccio-holy-trinity";
                         const resolvedId = resolveArtworkId(rawId);
                         const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
-
-                        // Note: Do NOT update mapNavigation or guestLocationRef here!
-                        // The floor map navigation & route only update when the tour starts or user vocally confirms.
+                        const isSameGallery = targetArtwork.id === activeArtworkId;
 
                         setActiveArtworkId(targetArtwork.id);
                         setSelectedArtwork({
@@ -1314,44 +1311,88 @@ export default function Home() {
                           setActiveMapRoute(WING_ROUTE_MAP[targetArtwork.wingId]);
                         }
 
-                        // When user selects the circle, show card with Start tour and Go to map buttons (do not start tour yet)
-                        setHasSelectedGallery(false);
                         setActiveArtifact("info");
                         setIsExpanded(true);
                         playTactileTap();
 
-                        // Friendly minor voice explanation of the clicked gallery stop
-                        if (isTourActive) {
-                          hasUserInteractedRef.current = true;
-                          muteWarningSentRef.current = true;
-                          greetingPhaseRef.current = "done";
+                        if (!hasSelectedGallery) {
+                          // FIRST CLICK / INITIAL PREVIEW:
+                          // Keep hasSelectedGallery false so 'Start tour' and 'Go to map' buttons are displayed!
+                          setHasSelectedGallery(false);
 
-                          if (!isQuietModeRef.current) {
-                            setChatMessages((prev) => [
-                              ...prev,
-                              {
-                                id: `visitor-nav-${Date.now()}`,
-                                role: "visitor",
-                                text: `[Previewing ${targetArtwork.title} on gallery map]`,
-                                isPartial: false,
-                                timestamp: new Date(),
-                              },
-                            ]);
-                            setAgentStatus("thinking");
-                            agentRef.current?.triggerReply(
-                              `The visitor clicked on ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} on the floor map. In one friendly, brief sentence, give a warm teaser of why this masterpiece is exciting, and invite them to tap 'Start tour' or ask any questions to begin here. Speak with poise and no apologies. CRITICAL: Do NOT call any tools. Do not call show_info, show_map, or any other tool. Speak ONLY the single-sentence spoken teaser.`
-                            );
-                          } else {
-                            setChatMessages((prev) => [
-                              ...prev,
-                              {
-                                id: `visitor-nav-${Date.now()}`,
-                                role: "visitor",
-                                text: `[Viewing ${targetArtwork.title} in Quiet Reading Mode]`,
-                                isPartial: false,
-                                timestamp: new Date(),
-                              },
-                            ]);
+                          if (isTourActive) {
+                            muteWarningSentRef.current = true;
+                            greetingPhaseRef.current = "done";
+
+                            if (!isQuietModeRef.current) {
+                              setChatMessages((prev) => [
+                                ...prev,
+                                {
+                                  id: `visitor-nav-${Date.now()}`,
+                                  role: "visitor",
+                                  text: `[Previewing ${targetArtwork.title} on gallery map]`,
+                                  isPartial: false,
+                                  timestamp: new Date(),
+                                },
+                              ]);
+                              setAgentStatus("thinking");
+                              agentRef.current?.triggerReply(
+                                `The visitor clicked on ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} on the floor map. In one friendly, brief sentence, give a warm teaser of why this masterpiece is exciting, and invite them to tap 'Start tour' or ask any questions to begin here. Speak with poise and no apologies. CRITICAL: Do NOT call any tools. Do not call show_info, show_map, or any other tool. Speak ONLY the single-sentence spoken teaser.`
+                              );
+                            } else {
+                              setChatMessages((prev) => [
+                                ...prev,
+                                {
+                                  id: `visitor-nav-${Date.now()}`,
+                                  role: "visitor",
+                                  text: `[Viewing ${targetArtwork.title} in Quiet Reading Mode]`,
+                                  isPartial: false,
+                                  timestamp: new Date(),
+                                },
+                              ]);
+                            }
+                          }
+                        } else {
+                          // TOUR IS UNDERWAY (visitor previously confirmed starting a gallery tour):
+                          // If visiting a different gallery, stop previous narration and start new stop.
+                          // If touching the same gallery, keep narration going seamlessly.
+                          if (!isSameGallery) {
+                            bargeIn();
+                            setActiveTourArtworkId(targetArtwork.id);
+                            activeTourArtworkIdRef.current = targetArtwork.id;
+
+                            if (isTourActive) {
+                              muteWarningSentRef.current = true;
+                              greetingPhaseRef.current = "done";
+
+                              if (!isQuietModeRef.current) {
+                                setChatMessages((prev) => [
+                                  ...prev,
+                                  {
+                                    id: `visitor-nav-${Date.now()}`,
+                                    role: "visitor",
+                                    text: `[Visiting ${targetArtwork.title}]`,
+                                    isPartial: false,
+                                    timestamp: new Date(),
+                                  },
+                                ]);
+                                setAgentStatus("thinking");
+                                agentRef.current?.triggerReply(
+                                  `The visitor moved to ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist}. Welcome them to this gallery stop and deliver a vivid, engaging 2-sentence curatorial breakdown of why this masterpiece is a key revolutionary turning point. Speak with poise and dive straight into the artwork without apologies.`
+                                );
+                              } else {
+                                setChatMessages((prev) => [
+                                  ...prev,
+                                  {
+                                    id: `visitor-nav-${Date.now()}`,
+                                    role: "visitor",
+                                    text: `[Viewing ${targetArtwork.title} in Quiet Reading Mode]`,
+                                    isPartial: false,
+                                    timestamp: new Date(),
+                                  },
+                                ]);
+                              }
+                            }
                           }
                         }
                       }}
@@ -1364,7 +1405,10 @@ export default function Home() {
                       summaryData={summaryData}
                       onSelectArtifact={(type, params) => {
                         hasUserInteractedRef.current = true;
-                        bargeIn();
+                        // Going to maps, transcriptions, or returning to current info does NOT stop narration
+                        if (type !== "map" && type !== "chat" && type !== "info") {
+                          bargeIn();
+                        }
                         setActiveArtifact(type);
                         if (params?.routeId) setActiveMapRoute(params.routeId as any);
                         if (params?.hotspotId) setActiveHotspotId(params.hotspotId as any);
