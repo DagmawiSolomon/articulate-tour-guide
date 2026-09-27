@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { HugeIcon } from "@/components/ui/hugeicon";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -456,193 +457,223 @@ export default function Home() {
           agentRef.current?.startAudio(mediaStreamRef.current);
         }
       },
-        onUserSpeakingStart: () => {
-          bargeIn();
-          hasUserInteractedRef.current = true;
-          greetingPhaseRef.current = "done";
-        },
-        onTranscriptPartial: (text) => {
-          if (!text) return;
-          hasUserInteractedRef.current = true;
-          greetingPhaseRef.current = "done";
+      onUserSpeakingStart: () => {
+        bargeIn();
+        hasUserInteractedRef.current = true;
+        greetingPhaseRef.current = "done";
+      },
+      onTranscriptPartial: (text) => {
+        if (!text) return;
+        hasUserInteractedRef.current = true;
+        greetingPhaseRef.current = "done";
 
-          // Immediate silence if visitor asks to read or tells Alba to be quiet
-          const quietRegex = /\b(prefer to read|rather read|want to read|be quiet|stop talking|stop speaking|stay quiet|quiet mode|silent mode|silence please|shut up|hush)\b/i;
-          const resumeRegex = /\b(speak again|talk again|unmute alba|resume speaking|turn off quiet mode|exit reading mode|disable quiet mode)\b/i;
-          if (quietRegex.test(text)) {
-            if (!isQuietModeRef.current) {
-              isQuietModeRef.current = true;
-              setIsQuietMode(true);
-              audioPlayerRef.current?.flush();
-              setAgentStatus("listening");
-            }
-          } else if (resumeRegex.test(text)) {
-            if (isQuietModeRef.current) {
-              isQuietModeRef.current = false;
-              setIsQuietMode(false);
-            }
+        // Immediate silence if visitor asks to read or tells Alba to be quiet
+        const quietRegex = /\b(prefer to read|rather read|want to read|be quiet|stop talking|stop speaking|stay quiet|quiet mode|silent mode|silence please|shut up|hush)\b/i;
+        const resumeRegex = /\b(speak again|talk again|unmute alba|resume speaking|turn off quiet mode|exit reading mode|disable quiet mode)\b/i;
+        if (quietRegex.test(text)) {
+          if (!isQuietModeRef.current) {
+            isQuietModeRef.current = true;
+            setIsQuietMode(true);
+            audioPlayerRef.current?.flush();
+            setAgentStatus("listening");
           }
+        } else if (resumeRegex.test(text)) {
+          if (isQuietModeRef.current) {
+            isQuietModeRef.current = false;
+            setIsQuietMode(false);
+          }
+        }
 
-          setChatMessages((prev) => {
-            const idx = prev.findIndex((m) => m.id === partialMsgIdRef.current);
-            if (idx >= 0) {
-              const updated = [...prev];
+        setChatMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === partialMsgIdRef.current);
+          if (idx >= 0) {
+            const updated = [...prev];
+            updated[idx] = {
+              id: partialMsgIdRef.current,
+              role: "visitor",
+              text,
+              isPartial: true,
+              timestamp: new Date(),
+            };
+            return updated;
+          }
+          return [
+            ...prev,
+            {
+              id: partialMsgIdRef.current,
+              role: "visitor",
+              text,
+              isPartial: true,
+              timestamp: new Date(),
+            },
+          ];
+        });
+      },
+      onTranscriptFinal: (text) => {
+        if (!text?.trim()) return;
+        hasUserInteractedRef.current = true;
+        greetingPhaseRef.current = "done";
+
+        // Vocal confirmation: "let's go with this first", "start tour", etc. triggers the start-tour flow
+        const vocalConfirmRegex = /\b(let'?s go with (this|that)|let'?s (start|begin|do this)( first)?|start (here|the tour|tour|with this)|confirm( this( gallery)?)?|yes,? let'?s (start|go)|take me to|let'?s visit)\b/i;
+
+        const lowerText = text.toLowerCase();
+        let matchedArtId: string | undefined = undefined;
+        if (lowerText.includes("fountain") || lowerText.includes("duchamp") || lowerText.includes("urinal")) {
+          matchedArtId = "duchamp-fountain";
+        } else if (lowerText.includes("masaccio") || lowerText.includes("trinity")) {
+          matchedArtId = "masaccio-holy-trinity";
+        } else if (lowerText.includes("caravaggio") || lowerText.includes("matthew")) {
+          matchedArtId = "caravaggio-calling-st-matthew";
+        } else if (lowerText.includes("van gogh") || lowerText.includes("starry")) {
+          matchedArtId = "van-gogh-starry-night";
+        } else if (lowerText.includes("picasso") || lowerText.includes("demoiselles") || lowerText.includes("avignon")) {
+          matchedArtId = "picasso-demoiselles";
+        } else if (lowerText.includes("pollock") || lowerText.includes("autumn rhythm")) {
+          matchedArtId = "pollock-autumn-rhythm";
+        }
+
+        if (vocalConfirmRegex.test(text) || (matchedArtId && /\b(start|begin|go|visit|tour)\b/i.test(text))) {
+          handleStartTourWithArtwork(matchedArtId);
+          return;
+        }
+
+        const quietRegex = /\b(prefer to read|rather read|want to read|be quiet|stop talking|stop speaking|stay quiet|quiet mode|silent mode|silence please|shut up|hush)\b/i;
+        const resumeRegex = /\b(speak again|talk again|unmute alba|resume speaking|turn off quiet mode|exit reading mode|disable quiet mode)\b/i;
+        if (quietRegex.test(text)) {
+          if (!isQuietModeRef.current) {
+            isQuietModeRef.current = true;
+            setIsQuietMode(true);
+            audioPlayerRef.current?.flush();
+            setAgentStatus("listening");
+          }
+        } else if (resumeRegex.test(text)) {
+          if (isQuietModeRef.current) {
+            isQuietModeRef.current = false;
+            setIsQuietMode(false);
+          }
+        }
+        setChatMessages((prev) => {
+          const filtered = prev.filter((m) => m.id !== partialMsgIdRef.current);
+          return [
+            ...filtered,
+            {
+              id: `visitor-${Date.now()}`,
+              role: "visitor",
+              text,
+              isPartial: false,
+              timestamp: new Date(),
+            },
+          ];
+        });
+        partialMsgIdRef.current = `visitor-partial-${Date.now()}`;
+        setIsChatThinking(true);
+        setAgentStatus("thinking");
+      },
+      onAgentTranscriptPartial: (text) => {
+        if (!text) return;
+        setIsChatThinking(false);
+        setAgentStatus("speaking");
+
+        setChatMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === partialAgentMsgIdRef.current);
+          if (idx >= 0) {
+            const updated = [...prev];
+            const existing = updated[idx];
+            if (existing.role === "agent") {
               updated[idx] = {
-                id: partialMsgIdRef.current,
-                role: "visitor",
-                text,
-                isPartial: true,
-                timestamp: new Date(),
-              };
-              return updated;
-            }
-            return [
-              ...prev,
-              {
-                id: partialMsgIdRef.current,
-                role: "visitor",
-                text,
-                isPartial: true,
-                timestamp: new Date(),
-              },
-            ];
-          });
-        },
-        onTranscriptFinal: (text) => {
-          if (!text?.trim()) return;
-          hasUserInteractedRef.current = true;
-          greetingPhaseRef.current = "done";
-
-          // Vocal confirmation: "let's go with this first", "start tour", etc. triggers the start-tour flow
-          const vocalConfirmRegex = /\b(let'?s go with (this|that)|let'?s (start|begin|do this)( first)?|start (here|the tour|tour|with this)|confirm( this( gallery)?)?|yes,? let'?s (start|go)|take me to|let'?s visit)\b/i;
-          
-          const lowerText = text.toLowerCase();
-          let matchedArtId: string | undefined = undefined;
-          if (lowerText.includes("fountain") || lowerText.includes("duchamp") || lowerText.includes("urinal")) {
-            matchedArtId = "duchamp-fountain";
-          } else if (lowerText.includes("masaccio") || lowerText.includes("trinity")) {
-            matchedArtId = "masaccio-holy-trinity";
-          } else if (lowerText.includes("caravaggio") || lowerText.includes("matthew")) {
-            matchedArtId = "caravaggio-calling-st-matthew";
-          } else if (lowerText.includes("van gogh") || lowerText.includes("starry")) {
-            matchedArtId = "van-gogh-starry-night";
-          } else if (lowerText.includes("picasso") || lowerText.includes("demoiselles") || lowerText.includes("avignon")) {
-            matchedArtId = "picasso-demoiselles";
-          } else if (lowerText.includes("pollock") || lowerText.includes("autumn rhythm")) {
-            matchedArtId = "pollock-autumn-rhythm";
-          }
-
-          if (vocalConfirmRegex.test(text) || (matchedArtId && /\b(start|begin|go|visit|tour)\b/i.test(text))) {
-            handleStartTourWithArtwork(matchedArtId);
-            return;
-          }
-
-          const quietRegex = /\b(prefer to read|rather read|want to read|be quiet|stop talking|stop speaking|stay quiet|quiet mode|silent mode|silence please|shut up|hush)\b/i;
-          const resumeRegex = /\b(speak again|talk again|unmute alba|resume speaking|turn off quiet mode|exit reading mode|disable quiet mode)\b/i;
-          if (quietRegex.test(text)) {
-            if (!isQuietModeRef.current) {
-              isQuietModeRef.current = true;
-              setIsQuietMode(true);
-              audioPlayerRef.current?.flush();
-              setAgentStatus("listening");
-            }
-          } else if (resumeRegex.test(text)) {
-            if (isQuietModeRef.current) {
-              isQuietModeRef.current = false;
-              setIsQuietMode(false);
-            }
-          }
-          setChatMessages((prev) => {
-            const filtered = prev.filter((m) => m.id !== partialMsgIdRef.current);
-            return [
-              ...filtered,
-              {
-                id: `visitor-${Date.now()}`,
-                role: "visitor",
-                text,
-                isPartial: false,
-                timestamp: new Date(),
-              },
-            ];
-          });
-          partialMsgIdRef.current = `visitor-partial-${Date.now()}`;
-          setIsChatThinking(true);
-          setAgentStatus("thinking");
-        },
-        onAgentTranscriptPartial: (text) => {
-          if (!text) return;
-          setIsChatThinking(false);
-          setAgentStatus("speaking");
-
-          setChatMessages((prev) => {
-            const idx = prev.findIndex((m) => m.id === partialAgentMsgIdRef.current);
-            if (idx >= 0) {
-              const updated = [...prev];
-              const existing = updated[idx];
-              if (existing.role === "agent") {
-                updated[idx] = {
-                  ...existing,
-                  text,
-                  isStreaming: true,
-                };
-              }
-              return updated;
-            }
-            return [
-              ...prev,
-              {
-                id: partialAgentMsgIdRef.current,
-                role: "agent",
+                ...existing,
                 text,
                 isStreaming: true,
-                speakerName: "Alba Tour Guide",
-                timestamp: new Date(),
-              },
-            ];
-          });
-        },
-        onAgentTranscriptFinal: (text) => {
-          if (!text?.trim()) return;
-          setIsChatThinking(false);
-          setChatMessages((prev) => {
-            const filtered = prev.filter((m) => m.id !== partialAgentMsgIdRef.current);
-            return [
-              ...filtered,
-              {
-                id: `agent-${Date.now()}`,
-                role: "agent",
-                text,
-                isStreaming: false,
-                speakerName: "Alba Tour Guide",
-                timestamp: new Date(),
-              },
-            ];
-          });
-          partialAgentMsgIdRef.current = `agent-partial-${Date.now()}`;
-        },
-        onAgentSpeakingStart: () => {
-          ignoreAudioUntilNextReplyRef.current = false;
-          setAgentStatus("speaking");
-        },
-        onAgentSpeakingEnd: (interrupted) => {
-          replyIndexRef.current += 1;
-          const isInitialGreetingTurn = replyIndexRef.current === 1;
+              };
+            }
+            return updated;
+          }
+          return [
+            ...prev,
+            {
+              id: partialAgentMsgIdRef.current,
+              role: "agent",
+              text,
+              isStreaming: true,
+              speakerName: "Alba Tour Guide",
+              timestamp: new Date(),
+            },
+          ];
+        });
+      },
+      onAgentTranscriptFinal: (text) => {
+        if (!text?.trim()) return;
+        setIsChatThinking(false);
+        setChatMessages((prev) => {
+          const filtered = prev.filter((m) => m.id !== partialAgentMsgIdRef.current);
+          return [
+            ...filtered,
+            {
+              id: `agent-${Date.now()}`,
+              role: "agent",
+              text,
+              isStreaming: false,
+              speakerName: "Alba Tour Guide",
+              timestamp: new Date(),
+            },
+          ];
+        });
+        partialAgentMsgIdRef.current = `agent-partial-${Date.now()}`;
+      },
+      onAgentSpeakingStart: () => {
+        ignoreAudioUntilNextReplyRef.current = false;
+        setAgentStatus("speaking");
+      },
+      onAgentSpeakingEnd: (interrupted) => {
+        replyIndexRef.current += 1;
+        const isInitialGreetingTurn = replyIndexRef.current === 1;
 
-          if (interrupted) {
-            bargeIn();
-            greetingPhaseRef.current = "done";
-          } else {
-            // Decoupled mute warning: if base greeting just finished transmitting and visitor is still muted
-            if (isInitialGreetingTurn && greetingPhaseRef.current === "greeting") {
-              if (isMutedRef.current && !hasUserInteractedRef.current && !muteWarningSentRef.current) {
-                muteWarningSentRef.current = true;
-                agentRef.current?.triggerReply(
-                  "Notice that the visitor's microphone is currently muted. In one concise, friendly sentence, remind them that their microphone is muted and they can tap the mic button whenever they want to speak or ask questions."
-                );
+        if (interrupted) {
+          bargeIn();
+          greetingPhaseRef.current = "done";
+        } else {
+          // Decoupled mute warning: if base greeting just finished transmitting and visitor is still muted
+          if (isInitialGreetingTurn && greetingPhaseRef.current === "greeting") {
+            if (isMutedRef.current && !hasUserInteractedRef.current && !muteWarningSentRef.current) {
+              muteWarningSentRef.current = true;
+              agentRef.current?.triggerReply(
+                "Notice that the visitor's microphone is currently muted. In one concise, friendly sentence, remind them that their microphone is muted and they can tap the mic button whenever they want to speak or ask questions."
+              );
+            }
+          }
+
+          if (isQuietModeRef.current && activeTourArtworkIdRef.current) {
+            const finishedId = activeTourArtworkIdRef.current;
+            setCompletedArtworkIds((prev) => {
+              if (!prev.includes(finishedId)) {
+                const next = [...prev, finishedId];
+                completedArtworkIdsRef.current = next;
+                return next;
               }
+              return prev;
+            });
+            setActiveTourArtworkId((prev) => (prev === finishedId ? null : prev));
+            activeTourArtworkIdRef.current = null;
+          }
+
+          // Wait for audio player to finish draining queued audio chunks in speakers
+          audioPlayerRef.current?.onPlaybackComplete(() => {
+            setAgentStatus("listening");
+            if (greetingPhaseRef.current === "greeting" && !hasUserInteractedRef.current) {
+              greetingPhaseRef.current = "done";
+              setIsExpanded((prev) => {
+                if (!prev) {
+                  setActiveArtifact("map");
+                  playStageOpen();
+                  return true;
+                }
+                return prev;
+              });
             }
 
-            if (isQuietModeRef.current && activeTourArtworkIdRef.current) {
+            // Track completed artwork state when Alba finishes the tour explanation
+            if (activeTourArtworkIdRef.current) {
               const finishedId = activeTourArtworkIdRef.current;
               setCompletedArtworkIds((prev) => {
                 if (!prev.includes(finishedId)) {
@@ -656,298 +687,267 @@ export default function Home() {
               activeTourArtworkIdRef.current = null;
             }
 
-            // Wait for audio player to finish draining queued audio chunks in speakers
-            audioPlayerRef.current?.onPlaybackComplete(() => {
-              setAgentStatus("listening");
-              if (greetingPhaseRef.current === "greeting" && !hasUserInteractedRef.current) {
-                greetingPhaseRef.current = "done";
-                setIsExpanded((prev) => {
-                  if (!prev) {
-                    setActiveArtifact("map");
-                    playStageOpen();
-                    return true;
-                  }
-                  return prev;
-                });
-              }
+            // If card was collapsed for Alba's explanation, uncollapse it automatically when done!
+            if (shouldUncollapseAfterSpeechRef.current) {
+              shouldUncollapseAfterSpeechRef.current = false;
+              setIsExpanded(true);
+              playStageOpen();
+            }
+          });
+        }
+      },
+      onAgentAudio: (base64) => {
+        // If quiet reading mode is enabled or turn was interrupted by barge-in, suppress audio playback completely
+        if (isQuietModeRef.current || ignoreAudioUntilNextReplyRef.current) return;
+        audioPlayerRef.current?.playChunk(base64);
+      },
+      onToolCall: (tool) => {
+        console.log("[AssemblyAI] Executing tool call:", tool.name, tool.arguments);
+        // Only trigger artifact loading skeleton for actual content changes, NOT if previewing an info card
+        if (tool.name !== "show_info" && tool.name !== "show_artwork_info") {
+          setIsArtifactLoading(true);
+        }
 
-              // Track completed artwork state when Alba finishes the tour explanation
-              if (activeTourArtworkIdRef.current) {
-                const finishedId = activeTourArtworkIdRef.current;
-                setCompletedArtworkIds((prev) => {
-                  if (!prev.includes(finishedId)) {
-                    const next = [...prev, finishedId];
-                    completedArtworkIdsRef.current = next;
-                    return next;
-                  }
-                  return prev;
-                });
-                setActiveTourArtworkId((prev) => (prev === finishedId ? null : prev));
-                activeTourArtworkIdRef.current = null;
-              }
+        if (tool.name === "show_map") {
+          const routeId = (tool.arguments.routeId as string) || "rotunda";
+          const showPath = Boolean(tool.arguments.showPath);
+          setActiveArtifact("map");
+          setActiveMapRoute(routeId);
 
-              // If card was collapsed for Alba's explanation, uncollapse it automatically when done!
-              if (shouldUncollapseAfterSpeechRef.current) {
-                shouldUncollapseAfterSpeechRef.current = false;
-                setIsExpanded(true);
-                playStageOpen();
-              }
+          const routeDestinationMap: Record<string, string> = {
+            perspective: "art:masaccio-holy-trinity",
+            shadow: "art:caravaggio-calling-st-matthew",
+            feeling: "art:van-gogh-starry-night",
+            cubism: "art:picasso-demoiselles",
+            concept: "art:pollock-autumn-rhythm",
+            rotunda: "art:duchamp-fountain",
+            restrooms: "facility:restrooms",
+          };
+          const destId = routeDestinationMap[routeId] || "";
+          // ONLY plot a walking route path if the user explicitly requested directions from A to B (showPath: true)
+          if (showPath && destId) {
+            setMapNavigation({
+              startId: guestLocationRef.current,
+              destinationId: destId,
+              currentNodeId: null,
             });
-          }
-        },
-        onAgentAudio: (base64) => {
-          // If quiet reading mode is enabled or turn was interrupted by barge-in, suppress audio playback completely
-          if (isQuietModeRef.current || ignoreAudioUntilNextReplyRef.current) return;
-          audioPlayerRef.current?.playChunk(base64);
-        },
-        onToolCall: (tool) => {
-          console.log("[AssemblyAI] Executing tool call:", tool.name, tool.arguments);
-          // Only trigger artifact loading skeleton for actual content changes, NOT if previewing an info card
-          if (tool.name !== "show_info" && tool.name !== "show_artwork_info") {
-            setIsArtifactLoading(true);
+            guestLocationRef.current = destId;
+            setGuestLocationId(destId);
+          } else {
+            // Otherwise just show the floor plan without drawing any path line
+            setMapNavigation((prev) => ({
+              ...prev,
+              destinationId: "",
+              currentNodeId: null,
+            }));
           }
 
-          if (tool.name === "show_map") {
-            const routeId = (tool.arguments.routeId as string) || "rotunda";
-            const showPath = Boolean(tool.arguments.showPath);
-            setActiveArtifact("map");
-            setActiveMapRoute(routeId);
-
-            const routeDestinationMap: Record<string, string> = {
-              perspective: "art:masaccio-holy-trinity",
-              shadow: "art:caravaggio-calling-st-matthew",
-              feeling: "art:van-gogh-starry-night",
-              cubism: "art:picasso-demoiselles",
-              concept: "art:pollock-autumn-rhythm",
-              rotunda: "art:duchamp-fountain",
-              restrooms: "facility:restrooms",
-            };
-            const destId = routeDestinationMap[routeId] || "";
-            // ONLY plot a walking route path if the user explicitly requested directions from A to B (showPath: true)
-            if (showPath && destId) {
-              setMapNavigation({
-                startId: guestLocationRef.current,
-                destinationId: destId,
-                currentNodeId: null,
-              });
-              guestLocationRef.current = destId;
-              setGuestLocationId(destId);
-            } else {
-              // Otherwise just show the floor plan without drawing any path line
-              setMapNavigation((prev) => ({
-                ...prev,
-                destinationId: "",
-                currentNodeId: null,
-              }));
-            }
-
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              id: `tool-${Date.now()}`,
+              role: "tool",
+              toolName: "show_map",
+              label: `Gallery Floor Plan: ${routeId}`,
+              artifactType: "map",
+              params: tool.arguments,
+              timestamp: new Date(),
+            },
+          ]);
+          agentRef.current?.sendToolResult(tool.callId, { success: true, destination: routeId });
+        } else if (tool.name === "show_hotspots") {
+          const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
+          const artId = resolveArtworkId(rawId);
+          const hotspotId = (tool.arguments.hotspotId as any) || "vortex";
+          const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+          const artPlaceId = `art:${artwork.id}`;
+          setActiveArtworkId(artwork.id);
+          setActiveArtifact("hotspots");
+          setActiveHotspotId(hotspotId);
+          // Track guest location without triggering an unrequested path route line
+          guestLocationRef.current = artPlaceId;
+          setGuestLocationId(artPlaceId);
+          if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
+            setActiveMapRoute(WING_ROUTE_MAP[artwork.wingId]);
+          }
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              id: `tool-${Date.now()}`,
+              role: "tool",
+              toolName: "show_hotspots",
+              label: `Detail Zoom: ${hotspotId} (${artwork.title})`,
+              artifactType: "hotspots",
+              params: tool.arguments,
+              timestamp: new Date(),
+            },
+          ]);
+          agentRef.current?.sendToolResult(tool.callId, { success: true, activeHotspot: hotspotId, artwork: artwork.title });
+        } else if (tool.name === "show_info" || tool.name === "show_artwork_info") {
+          const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
+          const artId = resolveArtworkId(rawId);
+          const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+          setActiveArtworkId(artwork.id);
+          setActiveArtifact("info");
+          setSelectedArtwork({
+            id: artwork.id,
+            title: artwork.title,
+            imageSrc: artwork.imageSrc,
+            summary: artwork.summary,
+            metadata: [
+              { label: "Artist", value: artwork.artist },
+              { label: "Date", value: artwork.year },
+            ],
+          });
+          // Update guest location and active tour stop without drawing a path route line
+          const artPlaceId = `art:${artwork.id}`;
+          guestLocationRef.current = artPlaceId;
+          setGuestLocationId(artPlaceId);
+          if (startedArtworkIdsRef.current.includes(artwork.id)) {
+            setActiveTourArtworkId(artwork.id);
+            activeTourArtworkIdRef.current = artwork.id;
+          }
+          if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
+            setActiveMapRoute(WING_ROUTE_MAP[artwork.wingId]);
+          }
+          setIsExpanded(true);
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              id: `tool-${Date.now()}`,
+              role: "tool",
+              toolName: "show_info",
+              label: `Artwork: ${artwork.title}`,
+              artifactType: "info",
+              params: tool.arguments,
+              timestamp: new Date(),
+            },
+          ]);
+          agentRef.current?.sendToolResult(tool.callId, { success: true, artwork: artwork.title });
+        } else if (tool.name === "set_quiet_mode") {
+          const quiet = Boolean(tool.arguments.quiet);
+          isQuietModeRef.current = quiet;
+          setIsQuietMode(quiet);
+          if (quiet) {
+            audioPlayerRef.current?.flush();
+            setAgentStatus("listening");
+          }
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              id: `tool-${Date.now()}`,
+              role: "tool",
+              toolName: "set_quiet_mode",
+              label: quiet ? "Quiet Reading Mode Enabled" : "Spoken Audio Guide Enabled",
+              artifactType: "info",
+              detail: quiet ? "Alba will remain quiet while you read." : "Spoken guidance resumed.",
+              params: tool.arguments,
+              timestamp: new Date(),
+            },
+          ]);
+          agentRef.current?.sendToolResult(tool.callId, {
+            success: true,
+            mode: quiet ? "quiet_reading" : "spoken_guide",
+          });
+        } else if (tool.name === "show_comparison") {
+          const pairId = (tool.arguments.pairId as string) || "comparison-perspective";
+          setComparisonPairId(pairId);
+          setActiveArtifact("comparison");
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              id: `tool-${Date.now()}`,
+              role: "tool",
+              toolName: "show_comparison",
+              label: `Epoch Comparison: ${pairId === "comparison-cubism" ? "Academic Nude vs. Cubist Fracture" : "Medieval Icon vs. Renaissance Depth"}`,
+              artifactType: "comparison",
+              params: tool.arguments,
+              timestamp: new Date(),
+            },
+          ]);
+          agentRef.current?.sendToolResult(tool.callId, { success: true, pair: pairId });
+        } else if (tool.name === "show_timeline") {
+          setActiveArtifact("timeline");
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              id: `tool-${Date.now()}`,
+              role: "tool",
+              toolName: "show_timeline",
+              label: "Timeline of Artistic Turning Points",
+              artifactType: "timeline",
+              params: tool.arguments,
+              timestamp: new Date(),
+            },
+          ]);
+          agentRef.current?.sendToolResult(tool.callId, { success: true });
+        } else if (tool.name === "consult_archives") {
+          const query = (tool.arguments.query as string) || "";
+          const category = tool.arguments.category as string | undefined;
+          const result = searchCuratorialArchives(query, category);
+          if (result) {
             setChatMessages((prev) => [
               ...prev,
               {
                 id: `tool-${Date.now()}`,
                 role: "tool",
-                toolName: "show_map",
-                label: `Gallery Floor Plan: ${routeId}`,
-                artifactType: "map",
-                params: tool.arguments,
-                timestamp: new Date(),
-              },
-            ]);
-            agentRef.current?.sendToolResult(tool.callId, { success: true, destination: routeId });
-          } else if (tool.name === "show_hotspots") {
-            const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
-            const artId = resolveArtworkId(rawId);
-            const hotspotId = (tool.arguments.hotspotId as any) || "vortex";
-            const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
-            const artPlaceId = `art:${artwork.id}`;
-            setActiveArtworkId(artwork.id);
-            setActiveArtifact("hotspots");
-            setActiveHotspotId(hotspotId);
-            // Track guest location without triggering an unrequested path route line
-            guestLocationRef.current = artPlaceId;
-            setGuestLocationId(artPlaceId);
-            if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
-              setActiveMapRoute(WING_ROUTE_MAP[artwork.wingId]);
-            }
-            setChatMessages((prev) => [
-              ...prev,
-              {
-                id: `tool-${Date.now()}`,
-                role: "tool",
-                toolName: "show_hotspots",
-                label: `Detail Zoom: ${hotspotId} (${artwork.title})`,
-                artifactType: "hotspots",
-                params: tool.arguments,
-                timestamp: new Date(),
-              },
-            ]);
-            agentRef.current?.sendToolResult(tool.callId, { success: true, activeHotspot: hotspotId, artwork: artwork.title });
-          } else if (tool.name === "show_info" || tool.name === "show_artwork_info") {
-            const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
-            const artId = resolveArtworkId(rawId);
-            const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
-            setActiveArtworkId(artwork.id);
-            setActiveArtifact("info");
-            setSelectedArtwork({
-              id: artwork.id,
-              title: artwork.title,
-              imageSrc: artwork.imageSrc,
-              summary: artwork.summary,
-              metadata: [
-                { label: "Artist", value: artwork.artist },
-                { label: "Date", value: artwork.year },
-              ],
-            });
-            // Update guest location and active tour stop without drawing a path route line
-            const artPlaceId = `art:${artwork.id}`;
-            guestLocationRef.current = artPlaceId;
-            setGuestLocationId(artPlaceId);
-            if (startedArtworkIdsRef.current.includes(artwork.id)) {
-              setActiveTourArtworkId(artwork.id);
-              activeTourArtworkIdRef.current = artwork.id;
-            }
-            if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
-              setActiveMapRoute(WING_ROUTE_MAP[artwork.wingId]);
-            }
-            setIsExpanded(true);
-            setChatMessages((prev) => [
-              ...prev,
-              {
-                id: `tool-${Date.now()}`,
-                role: "tool",
-                toolName: "show_info",
-                label: `Artwork: ${artwork.title}`,
+                toolName: "consult_archives",
+                label: `Archival Source: ${result.authorOrInstitution} (${result.year})`,
                 artifactType: "info",
-                params: tool.arguments,
-                timestamp: new Date(),
-              },
-            ]);
-            agentRef.current?.sendToolResult(tool.callId, { success: true, artwork: artwork.title });
-          } else if (tool.name === "set_quiet_mode") {
-            const quiet = Boolean(tool.arguments.quiet);
-            isQuietModeRef.current = quiet;
-            setIsQuietMode(quiet);
-            if (quiet) {
-              audioPlayerRef.current?.flush();
-              setAgentStatus("listening");
-            }
-            setChatMessages((prev) => [
-              ...prev,
-              {
-                id: `tool-${Date.now()}`,
-                role: "tool",
-                toolName: "set_quiet_mode",
-                label: quiet ? "Quiet Reading Mode Enabled" : "Spoken Audio Guide Enabled",
-                artifactType: "info",
-                detail: quiet ? "Alba will remain quiet while you read." : "Spoken guidance resumed.",
+                detail: `"${result.excerpt}" — Finding: ${result.finding}`,
                 params: tool.arguments,
                 timestamp: new Date(),
               },
             ]);
             agentRef.current?.sendToolResult(tool.callId, {
               success: true,
-              mode: quiet ? "quiet_reading" : "spoken_guide",
+              source: result.authorOrInstitution,
+              title: result.title,
+              year: result.year,
+              archiveRef: result.archiveRef,
+              finding: result.finding,
+              excerpt: result.excerpt,
             });
-          } else if (tool.name === "show_comparison") {
-            const pairId = (tool.arguments.pairId as string) || "comparison-perspective";
-            setComparisonPairId(pairId);
-            setActiveArtifact("comparison");
-            setChatMessages((prev) => [
-              ...prev,
-              {
-                id: `tool-${Date.now()}`,
-                role: "tool",
-                toolName: "show_comparison",
-                label: `Epoch Comparison: ${pairId === "comparison-cubism" ? "Academic Nude vs. Cubist Fracture" : "Medieval Icon vs. Renaissance Depth"}`,
-                artifactType: "comparison",
-                params: tool.arguments,
-                timestamp: new Date(),
-              },
-            ]);
-            agentRef.current?.sendToolResult(tool.callId, { success: true, pair: pairId });
-          } else if (tool.name === "show_timeline") {
-            setActiveArtifact("timeline");
-            setChatMessages((prev) => [
-              ...prev,
-              {
-                id: `tool-${Date.now()}`,
-                role: "tool",
-                toolName: "show_timeline",
-                label: "Timeline of Artistic Turning Points",
-                artifactType: "timeline",
-                params: tool.arguments,
-                timestamp: new Date(),
-              },
-            ]);
-            agentRef.current?.sendToolResult(tool.callId, { success: true });
-          } else if (tool.name === "consult_archives") {
-            const query = (tool.arguments.query as string) || "";
-            const category = tool.arguments.category as string | undefined;
-            const result = searchCuratorialArchives(query, category);
-            if (result) {
-              setChatMessages((prev) => [
-                ...prev,
-                {
-                  id: `tool-${Date.now()}`,
-                  role: "tool",
-                  toolName: "consult_archives",
-                  label: `Archival Source: ${result.authorOrInstitution} (${result.year})`,
-                  artifactType: "info",
-                  detail: `"${result.excerpt}" — Finding: ${result.finding}`,
-                  params: tool.arguments,
-                  timestamp: new Date(),
-                },
-              ]);
-              agentRef.current?.sendToolResult(tool.callId, {
-                success: true,
-                source: result.authorOrInstitution,
-                title: result.title,
-                year: result.year,
-                archiveRef: result.archiveRef,
-                finding: result.finding,
-                excerpt: result.excerpt,
-              });
-            } else {
-              agentRef.current?.sendToolResult(tool.callId, {
-                success: false,
-                message: "No specific archival document found for this query in current records.",
-              });
-            }
           } else {
-            agentRef.current?.sendToolResult(tool.callId, { success: true });
+            agentRef.current?.sendToolResult(tool.callId, {
+              success: false,
+              message: "No specific archival document found for this query in current records.",
+            });
           }
-
-          // Shimmer skeleton matches the target artifact for 450ms then smoothly cross-fades into content
-          setTimeout(() => {
-            setIsArtifactLoading(false);
-          }, 450);
-        },
-        onError: (code, message) => {
-          console.warn("[AssemblyAI] Agent error:", code, message);
-        },
-        onEnded: () => {
-          console.log("[AssemblyAI] Voice agent session ended.");
-          void handleConfirmEndTour();
-        },
-      };
-
-      agentCallbacksRef.current = callbacks;
-      try {
-        const agent = await createVoiceAgent(callbacks, { isMuted: activeMuted });
-        agentRef.current = agent;
-        if (!activeMuted && mediaStreamRef.current) {
-          agent.startAudio(mediaStreamRef.current);
+        } else {
+          agentRef.current?.sendToolResult(tool.callId, { success: true });
         }
-      } catch (err) {
-        console.warn("[AssemblyAI] Agent connection skipped or failed:", err);
+
+        // Shimmer skeleton matches the target artifact for 450ms then smoothly cross-fades into content
+        setTimeout(() => {
+          setIsArtifactLoading(false);
+        }, 450);
+      },
+      onError: (code, message) => {
+        console.warn("[AssemblyAI] Agent error:", code, message);
+      },
+      onEnded: () => {
+        console.log("[AssemblyAI] Voice agent session ended.");
+        void handleConfirmEndTour();
+      },
+    };
+
+    agentCallbacksRef.current = callbacks;
+    try {
+      const agent = await createVoiceAgent(callbacks, { isMuted: activeMuted });
+      agentRef.current = agent;
+      if (!activeMuted && mediaStreamRef.current) {
+        agent.startAudio(mediaStreamRef.current);
       }
+    } catch (err) {
+      console.warn("[AssemblyAI] Agent connection skipped or failed:", err);
+    }
   };
 
   const handleConfirmEndTour = async () => {
     playCallEnd();
     setIsEndDialogOpen(false);
-    
-    // Stop mic and agent session cleanly immediately
+
     stopMic();
     agentRef.current?.end();
     agentRef.current = null;
@@ -1118,8 +1118,8 @@ export default function Home() {
   const statusLabel = isQuietMode
     ? "Quiet"
     : isEffectivelyMuted
-    ? "Muted"
-    : agentStatus;
+      ? "Muted"
+      : agentStatus;
   const areDotsActive = isTourActive && !isMuted && !isQuietMode;
 
   const statusIndicator = (
@@ -1176,11 +1176,13 @@ export default function Home() {
               <div
                 className="landing-hero-image relative w-full shrink-0 overflow-hidden bg-zinc-100"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src="/hero-collage-picked.png"
                   alt="A grainy cut-paper collage of two distinct painted portraits and a still life"
-                  className="block h-full w-full object-cover object-center"
+                  fill
+                  priority
+                  sizes="100vw"
+                  className="object-cover object-center"
                 />
               </div>
 
@@ -1280,11 +1282,10 @@ export default function Home() {
 
                   {/* Artifact Stage - clean canvas utilizing the entire newly formed card as working area */}
                   <div
-                    className={`w-full h-full overflow-hidden ${
-                      activeArtifact === "map" || activeArtifact === "summary"
+                    className={`w-full h-full overflow-hidden ${activeArtifact === "map" || activeArtifact === "summary"
                         ? "p-0 rounded-2xl"
                         : "pt-14 pb-16 px-3 md:p-5 md:pb-16 md:pr-14"
-                    }`}
+                      }`}
                   >
                     <ArtifactStage
                       artifactType={activeArtifact}
@@ -1563,11 +1564,12 @@ export default function Home() {
             </DialogDescription>
           </div>
           <div className="relative min-h-64 sm:min-h-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src="/about-oil-painting.png"
               alt="An oil still life of wildflowers in an ochre vase"
-              className="h-64 w-full object-cover object-center sm:h-full"
+              fill
+              sizes="(max-width: 640px) 100vw, 380px"
+              className="object-cover object-center"
             />
           </div>
         </DialogContent>

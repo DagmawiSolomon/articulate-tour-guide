@@ -35,11 +35,12 @@ export function ComparisonView({ pairId = "comparison-perspective" }: Comparison
           {/* Left Artwork */}
           <div className="flex flex-col w-full md:w-1/2 group">
             <div className="relative w-full aspect-[4/3] overflow-hidden bg-muted/20 rounded-2xl border border-border/60 shadow-xs">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={curatedPair.leftArtwork.imageSrc}
                 alt={curatedPair.leftArtwork.title}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
               />
             </div>
             <div className="flex flex-col gap-1 p-3 pb-4">
@@ -65,11 +66,12 @@ export function ComparisonView({ pairId = "comparison-perspective" }: Comparison
           {/* Right Artwork */}
           <div className="flex flex-col w-full md:w-1/2 group">
             <div className="relative w-full aspect-[4/3] overflow-hidden bg-muted/20 rounded-2xl border border-border/60 shadow-xs">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={curatedPair.rightArtwork.imageSrc}
                 alt={curatedPair.rightArtwork.title}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
               />
             </div>
             <div className="flex flex-col gap-1 p-3 pb-4">
