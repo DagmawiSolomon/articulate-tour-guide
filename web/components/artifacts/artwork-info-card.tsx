@@ -21,6 +21,7 @@ export interface ArtworkInfoCardProps {
   showTourActions?: boolean;
   onReturnToMap?: () => void;
   onStartTour?: () => void;
+  onViewArtworkFullscreen?: () => void;
 }
 
 const DEFAULT_METADATA: ArtworkMetadataField[] = [
@@ -36,6 +37,7 @@ export function ArtworkInfoCard({
   showTourActions = true,
   onReturnToMap,
   onStartTour,
+  onViewArtworkFullscreen,
 }: ArtworkInfoCardProps) {
   // When tour has started (showTourActions is false), the painting slides to expand.
   // When user selects a gallery circle on the map (showTourActions is true), show the card with buttons.
@@ -94,8 +96,8 @@ export function ArtworkInfoCard({
               ? "w-full h-full rounded-2xl border-none bg-transparent flex items-center justify-center"
               : "w-full lg:w-1/2 h-[320px] sm:h-[360px] lg:h-[380px] border-b lg:border-b-0 lg:border-r border-border/50 bg-muted/20 cursor-pointer"
           }`}
-          onClick={!isExpanded ? toggleExpand : undefined}
-          title={!isExpanded ? "Click to expand image" : undefined}
+          onClick={onViewArtworkFullscreen ?? (!isExpanded ? toggleExpand : undefined)}
+          title={onViewArtworkFullscreen ? "View full-screen artwork" : !isExpanded ? "Expand image" : undefined}
         >
           <Image
             src={imageSrc}
@@ -113,15 +115,16 @@ export function ArtworkInfoCard({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              toggleExpand();
+              if (onViewArtworkFullscreen) onViewArtworkFullscreen();
+              else toggleExpand();
             }}
             className={`absolute z-20 size-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer backdrop-blur-md border border-white/10 shadow-sm active:scale-95 ${
               isExpanded ? "top-3 right-3" : "bottom-3 right-3 opacity-70 group-hover:opacity-100"
             }`}
-            aria-label={isExpanded ? "Show curatorial details" : "Expand painting"}
-            title={isExpanded ? "Show curatorial details (Esc)" : "Expand painting"}
+            aria-label={onViewArtworkFullscreen ? "View full-screen artwork" : isExpanded ? "Show curatorial details" : "Expand painting"}
+            title={onViewArtworkFullscreen ? "View full-screen artwork" : isExpanded ? "Show curatorial details (Esc)" : "Expand painting"}
           >
-            {isExpanded ? (
+            {isExpanded && !onViewArtworkFullscreen ? (
               <HugeIcon icon={Cancel01Icon} size={14} />
             ) : (
               <HugeIcon icon={ArrowExpand01Icon} size={13} strokeWidth={2} />

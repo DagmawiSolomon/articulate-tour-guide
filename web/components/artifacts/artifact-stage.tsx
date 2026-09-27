@@ -22,7 +22,8 @@ export type ArtifactType =
   | "hotspots"
   | "chat"
   | "quote"
-  | "summary";
+  | "summary"
+  | "artwork-view";
 
 export type { ChatMessage };
 
@@ -54,6 +55,7 @@ interface ArtifactStageProps {
   onSelectArtifact?: (type: ArtifactType, params?: Record<string, any>) => void;
   showTourActions?: boolean;
   onStartTour?: () => void;
+  onViewArtworkFullscreen?: () => void;
   onResetTour?: () => void;
   activeTourArtworkId?: string | null;
   completedArtworkIds?: string[];
@@ -81,6 +83,7 @@ export function ArtifactStage({
   showTourActions = true,
   onSelectArtifact,
   onStartTour,
+  onViewArtworkFullscreen,
   onResetTour,
   activeTourArtworkId,
   completedArtworkIds,
@@ -116,6 +119,7 @@ export function ArtifactStage({
                   ],
                 } : {}))}
                 showTourActions={showTourActions}
+                onViewArtworkFullscreen={onViewArtworkFullscreen}
                 onReturnToMap={onSelectArtifact ? () => onSelectArtifact("map") : undefined}
                 onStartTour={onStartTour ?? (onSelectArtifact ? () => onSelectArtifact("chat") : undefined)}
               />
