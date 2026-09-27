@@ -211,18 +211,13 @@ INTERACTIVE ARTIFACT TOOLS:
 };
 
 const existingAgentMatch = envContent.match(/ASSEMBLYAI_AGENT_ID=(.+)/);
-const existingAgentId = existingAgentMatch?.[1]?.trim();
+let agentId = existingAgentMatch?.[1]?.trim();
 
-const unmutedAgentMatch = envContent.match(/ASSEMBLYAI_AGENT_ID_UNMUTED=(.+)/);
-const unmutedAgentId = unmutedAgentMatch?.[1]?.trim();
-
-const targetAgentIds = Array.from(new Set([existingAgentId, unmutedAgentId].filter(Boolean)));
-
-// 3. Make the API requests to update all configured agent IDs
-for (const id of targetAgentIds) {
-  try {
-    console.log(`Updating agent ${id} on AssemblyAI...`);
-    const response = await fetch(`https://agents.assemblyai.com/v1/agents/${id}`, {
+// 3. Make the API request to update or create the agent
+try {
+  if (agentId && !agentId.startsWith("agent_placeholder")) {
+    console.log(`Updating agent ${agentId} on AssemblyAI...`);
+    const response = await fetch(`https://agents.assemblyai.com/v1/agents/${agentId}`, {
       method: "PUT",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -233,13 +228,45 @@ for (const id of targetAgentIds) {
 
     if (!response.ok) {
       const err = await response.text();
-      console.warn(`⚠️ Failed to update agent ${id} (${response.status}): ${err}`);
+      console.warn(`⚠️ Failed to update existing agent (${response.status}): ${err}. Creating a new one instead...`);
+      agentId = null;
     } else {
-      console.log(`✅ Agent ${id} updated successfully in place!`);
+      console.log(`✅ Agent ${agentId} updated successfully in place!`);
     }
-  } catch (err) {
-    console.error(`❌ Network error updating agent ${id}:`, err);
   }
-}
 
-console.log("\nAgent configuration complete!");
+  if (!agentId) {
+    console.log("Creating new agent on AssemblyAI...");
+    const response = await fetch("https://agents.assemblyai.com/v1/agents", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(agentPayload)
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error(`❌ Failed to create agent. Status: ${response.status}`, err);
+      process.exit(1);
+    }
+
+    const data = await response.json();
+    agentId = data.id;
+    console.log(`✅ Agent created successfully! Agent ID: ${agentId}`);
+
+    let newEnv = envContent;
+    if (newEnv.includes("ASSEMBLYAI_AGENT_ID=")) {
+      newEnv = newEnv.replace(/ASSEMBLYAI_AGENT_ID=.*/, `ASSEMBLYAI_AGENT_ID=${agentId}`);
+    } else {
+      newEnv += `\nASSEMBLYAI_AGENT_ID=${agentId}\n`;
+    }
+    fs.writeFileSync(envPath, newEnv);
+    console.log("✅ Updated .env.local with ASSEMBLYAI_AGENT_ID");
+  }
+
+  console.log("\nAgent configuration complete!");
+} catch (err) {
+  console.error("❌ Network error:", err);
+}

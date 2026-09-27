@@ -12,13 +12,10 @@ import { NextResponse } from "next/server";
  */
 export async function GET(request: Request) {
   const apiKey = process.env.ASSEMBLYAI_API_KEY;
-  const { searchParams } = new URL(request.url);
-  const isMutedParam = searchParams.get("muted");
-  const isMuted = isMutedParam === "true" || isMutedParam === null;
-
-  const agentId = isMuted
-    ? (process.env.ASSEMBLYAI_AGENT_ID || "agent_95e1824252314c4b8b4bd14db16f5776")
-    : (process.env.ASSEMBLYAI_AGENT_ID_UNMUTED || "agent_6c0abfa11b004a48aa14f07a1f6896dd");
+  const agentId =
+    process.env.ASSEMBLYAI_AGENT_ID ||
+    process.env.ASSEMBLYAI_AGENT_ID_UNMUTED ||
+    "agent_95e1824252314c4b8b4bd14db16f5776";
 
   if (!apiKey) {
     return NextResponse.json(
