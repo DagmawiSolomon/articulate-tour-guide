@@ -33,9 +33,9 @@ export async function GET(request: Request) {
 
   try {
     // Mint a temporary token — expires in 120s (redemption window only)
-    // max_session_duration_seconds: 1800 = 30 min max tour
+    // max_session_duration_seconds: 180 = 3 min hard cap per session (prevents runaway costs)
     const res = await fetch(
-      "https://agents.assemblyai.com/v1/token?expires_in_seconds=120&max_session_duration_seconds=1800",
+      "https://agents.assemblyai.com/v1/token?expires_in_seconds=120&max_session_duration_seconds=180",
       {
         method: "GET",
         headers: {
