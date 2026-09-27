@@ -30,6 +30,39 @@ import type { ExhibitArtworkInfo, ExhibitNavigationState } from "@/components/ar
 import type { MapViewport } from "@/components/ui/map";
 import { searchCuratorialArchives } from "@/lib/archive-retrieval";
 import { TURNING_POINTS_ARTWORKS, TURNING_POINTS_WINGS } from "@/lib/turning-points-data";
+
+const WING_ROUTE_MAP: Record<string, string> = {
+  "wing-perspective": "perspective",
+  "wing-shadow": "shadow",
+  "wing-feeling": "feeling",
+  "wing-cubism": "cubism",
+  "wing-concept": "concept",
+};
+
+function resolveArtworkId(idOrQuery?: string): string {
+  if (!idOrQuery) return "masaccio-holy-trinity";
+  if (TURNING_POINTS_ARTWORKS[idOrQuery]) return idOrQuery;
+  const q = idOrQuery.toLowerCase().trim();
+  if (q.includes("fountain") || q.includes("duchamp") || q.includes("urinal") || q.includes("mutt")) {
+    return "duchamp-fountain";
+  }
+  if (q.includes("masaccio") || q.includes("trinity")) {
+    return "masaccio-holy-trinity";
+  }
+  if (q.includes("caravaggio") || q.includes("matthew")) {
+    return "caravaggio-calling-st-matthew";
+  }
+  if (q.includes("gogh") || q.includes("starry")) {
+    return "van-gogh-starry-night";
+  }
+  if (q.includes("picasso") || q.includes("demoiselles") || q.includes("avignon")) {
+    return "picasso-demoiselles";
+  }
+  if (q.includes("pollock") || q.includes("autumn") || q.includes("rhythm")) {
+    return "pollock-autumn-rhythm";
+  }
+  return idOrQuery;
+}
 import {
   initSounds,
   playCallStart,
@@ -100,14 +133,17 @@ export default function Home() {
   const [activeHotspotId, setActiveHotspotId] = React.useState<"cypress" | "star" | "steeple" | "vortex" | "moon" | undefined>(undefined);
   const [activeArtworkId, setActiveArtworkId] = React.useState<string>("masaccio-holy-trinity");
   const [comparisonPairId, setComparisonPairId] = React.useState<string>("comparison-perspective");
+  // Quiet / Reading Mode: when true, visitor prefers to read and Alba remains silent
+  const [isQuietMode, setIsQuietMode] = React.useState<boolean>(false);
+  const isQuietModeRef = React.useRef<boolean>(false);
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
   // Will be wired to real events once voice is connected.
   const [isArtifactLoading, setIsArtifactLoading] = React.useState(false);
-  // Chat history state â€” messages accumulate as the tour progresses.
+  // Chat history state — messages accumulate as the tour progresses.
   const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([]);
   const [isChatThinking, setIsChatThinking] = React.useState(false);
   const [summaryData, setSummaryData] = React.useState<any>(null);
-  // Partial visitor transcript ID â€” updated in place as partials arrive
+  // Partial visitor transcript ID — updated in place as partials arrive
   const partialMsgIdRef = React.useRef<string>("visitor-partial");
   const partialAgentMsgIdRef = React.useRef<string>("agent-partial");
   // Voice Agent + audio player refs
@@ -290,6 +326,8 @@ export default function Home() {
     greetingPhaseRef.current = "greeting";
     hasUserInteractedRef.current = false;
     isMutedRef.current = isMuted;
+    isQuietModeRef.current = false;
+    setIsQuietMode(false);
 
     // 1. Initialize audio player for voice responses
     if (!audioPlayerRef.current) {
@@ -326,6 +364,24 @@ export default function Home() {
           if (!text) return;
           hasUserInteractedRef.current = true;
           greetingPhaseRef.current = "done";
+
+          // Immediate silence if visitor asks to read or tells Alba to be quiet
+          const quietRegex = /\b(prefer to read|rather read|want to read|be quiet|stop talking|stop speaking|stay quiet|quiet mode|silent mode|silence please|shut up|hush)\b/i;
+          const resumeRegex = /\b(speak again|talk again|unmute alba|resume speaking|turn off quiet mode|exit reading mode|disable quiet mode)\b/i;
+          if (quietRegex.test(text)) {
+            if (!isQuietModeRef.current) {
+              isQuietModeRef.current = true;
+              setIsQuietMode(true);
+              audioPlayerRef.current?.flush();
+              setAgentStatus("listening");
+            }
+          } else if (resumeRegex.test(text)) {
+            if (isQuietModeRef.current) {
+              isQuietModeRef.current = false;
+              setIsQuietMode(false);
+            }
+          }
+
           setChatMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === partialMsgIdRef.current);
             if (idx >= 0) {
@@ -355,6 +411,22 @@ export default function Home() {
           if (!text?.trim()) return;
           hasUserInteractedRef.current = true;
           greetingPhaseRef.current = "done";
+
+          const quietRegex = /\b(prefer to read|rather read|want to read|be quiet|stop talking|stop speaking|stay quiet|quiet mode|silent mode|silence please|shut up|hush)\b/i;
+          const resumeRegex = /\b(speak again|talk again|unmute alba|resume speaking|turn off quiet mode|exit reading mode|disable quiet mode)\b/i;
+          if (quietRegex.test(text)) {
+            if (!isQuietModeRef.current) {
+              isQuietModeRef.current = true;
+              setIsQuietMode(true);
+              audioPlayerRef.current?.flush();
+              setAgentStatus("listening");
+            }
+          } else if (resumeRegex.test(text)) {
+            if (isQuietModeRef.current) {
+              isQuietModeRef.current = false;
+              setIsQuietMode(false);
+            }
+          }
           setChatMessages((prev) => {
             const filtered = prev.filter((m) => m.id !== partialMsgIdRef.current);
             return [
@@ -463,6 +535,8 @@ export default function Home() {
           }
         },
         onAgentAudio: (base64) => {
+          // If quiet reading mode is enabled, suppress audio playback completely
+          if (isQuietModeRef.current) return;
           audioPlayerRef.current?.playChunk(base64);
         },
         onToolCall: (tool) => {
@@ -488,12 +562,21 @@ export default function Home() {
             ]);
             agentRef.current?.sendToolResult(tool.callId, { success: true, destination: routeId });
           } else if (tool.name === "show_hotspots") {
-            const artId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
+            const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
+            const artId = resolveArtworkId(rawId);
             const hotspotId = (tool.arguments.hotspotId as any) || "vortex";
-            setActiveArtworkId(artId);
+            const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+            setActiveArtworkId(artwork.id);
             setActiveArtifact("hotspots");
             setActiveHotspotId(hotspotId);
-            const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+            setMapNavigation({
+              startId: "entrance",
+              destinationId: `art:${artwork.id}`,
+              currentNodeId: null,
+            });
+            if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
+              setActiveMapRoute(WING_ROUTE_MAP[artwork.wingId]);
+            }
             setChatMessages((prev) => [
               ...prev,
               {
@@ -508,11 +591,13 @@ export default function Home() {
             ]);
             agentRef.current?.sendToolResult(tool.callId, { success: true, activeHotspot: hotspotId, artwork: artwork.title });
           } else if (tool.name === "show_info" || tool.name === "show_artwork_info") {
-            const artId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
+            const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
+            const artId = resolveArtworkId(rawId);
             const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
-            setActiveArtworkId(artId);
+            setActiveArtworkId(artwork.id);
             setActiveArtifact("info");
             setSelectedArtwork({
+              id: artwork.id,
               title: artwork.title,
               imageSrc: artwork.imageSrc,
               summary: artwork.summary,
@@ -523,6 +608,14 @@ export default function Home() {
                 { label: "Pivot", value: artwork.historicalPivot },
               ],
             });
+            setMapNavigation({
+              startId: "entrance",
+              destinationId: `art:${artwork.id}`,
+              currentNodeId: null,
+            });
+            if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
+              setActiveMapRoute(WING_ROUTE_MAP[artwork.wingId]);
+            }
             setChatMessages((prev) => [
               ...prev,
               {
@@ -536,6 +629,31 @@ export default function Home() {
               },
             ]);
             agentRef.current?.sendToolResult(tool.callId, { success: true, artwork: artwork.title });
+          } else if (tool.name === "set_quiet_mode") {
+            const quiet = Boolean(tool.arguments.quiet);
+            isQuietModeRef.current = quiet;
+            setIsQuietMode(quiet);
+            if (quiet) {
+              audioPlayerRef.current?.flush();
+              setAgentStatus("listening");
+            }
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                id: `tool-${Date.now()}`,
+                role: "tool",
+                toolName: "set_quiet_mode",
+                label: quiet ? "Quiet Reading Mode Enabled" : "Spoken Audio Guide Enabled",
+                artifactType: "info",
+                detail: quiet ? "Alba will remain quiet while you read." : "Spoken guidance resumed.",
+                params: tool.arguments,
+                timestamp: new Date(),
+              },
+            ]);
+            agentRef.current?.sendToolResult(tool.callId, {
+              success: true,
+              mode: quiet ? "quiet_reading" : "spoken_guide",
+            });
           } else if (tool.name === "show_comparison") {
             const pairId = (tool.arguments.pairId as string) || "comparison-perspective";
             setComparisonPairId(pairId);
@@ -645,6 +763,8 @@ export default function Home() {
     hasUserInteractedRef.current = false;
     replyIndexRef.current = 0;
     muteWarningSentRef.current = false;
+    isQuietModeRef.current = false;
+    setIsQuietMode(false);
 
     // Reset back to pre-tour state
     setIsTourActive(false);
@@ -786,8 +906,12 @@ export default function Home() {
   };
 
   const isEffectivelyMuted = isTourActive && isMuted;
-  const statusLabel = isEffectivelyMuted ? "Muted" : agentStatus;
-  const areDotsActive = isTourActive && !isMuted;
+  const statusLabel = isQuietMode
+    ? "Quiet"
+    : isEffectivelyMuted
+    ? "Muted"
+    : agentStatus;
+  const areDotsActive = isTourActive && !isMuted && !isQuietMode;
 
   const statusIndicator = (
     <div
@@ -964,13 +1088,72 @@ export default function Home() {
                       artworkId={activeArtworkId}
                       onSelectArtwork={(artwork) => {
                         hasUserInteractedRef.current = true;
-                        if (artwork.id) {
-                          setActiveArtworkId(artwork.id);
+                        const rawId = artwork.id || activeArtworkId || "masaccio-holy-trinity";
+                        const resolvedId = resolveArtworkId(rawId);
+                        const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+
+                        // 1. Synchronize state
+                        setActiveArtworkId(targetArtwork.id);
+                        setSelectedArtwork({
+                          id: targetArtwork.id,
+                          title: targetArtwork.title,
+                          imageSrc: targetArtwork.imageSrc,
+                          summary: targetArtwork.summary,
+                          metadata: [
+                            { label: "Artist", value: targetArtwork.artist },
+                            { label: "Year", value: targetArtwork.year },
+                            { label: "Location", value: targetArtwork.locationCreated },
+                            { label: "Pivot", value: targetArtwork.historicalPivot },
+                          ],
+                        });
+                        setMapNavigation({
+                          startId: "entrance",
+                          destinationId: `art:${targetArtwork.id}`,
+                          currentNodeId: null,
+                        });
+                        if (targetArtwork.wingId && WING_ROUTE_MAP[targetArtwork.wingId]) {
+                          setActiveMapRoute(WING_ROUTE_MAP[targetArtwork.wingId]);
                         }
-                        setSelectedArtwork(artwork);
+
                         setActiveArtifact("info");
                         setIsExpanded(true);
                         playTactileTap();
+
+                        // 2. Start explaining once clicked if tour is active and visitor is not in quiet reading mode
+                        if (isTourActive) {
+                          hasUserInteractedRef.current = true;
+                          muteWarningSentRef.current = true;
+                          greetingPhaseRef.current = "done";
+                          audioPlayerRef.current?.flush();
+
+                          if (!isQuietModeRef.current) {
+                            setChatMessages((prev) => [
+                              ...prev,
+                              {
+                                id: `visitor-nav-${Date.now()}`,
+                                role: "visitor",
+                                text: `[Selected ${targetArtwork.title} on gallery map]`,
+                                isPartial: false,
+                                timestamp: new Date(),
+                              },
+                            ]);
+                            setAgentStatus("thinking");
+                            agentRef.current?.triggerReply(
+                              `Directly introduce ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} to the visitor in 1 to 2 vivid sentences highlighting its revolutionary impact. Speak with poise and dive straight into the artwork without any conversational apologies.`
+                            );
+                          } else {
+                            setChatMessages((prev) => [
+                              ...prev,
+                              {
+                                id: `visitor-nav-${Date.now()}`,
+                                role: "visitor",
+                                text: `[Viewing ${targetArtwork.title} in Quiet Reading Mode]`,
+                                isPartial: false,
+                                timestamp: new Date(),
+                              },
+                            ]);
+                          }
+                        }
                       }}
                       mapRouteId={activeMapRoute}
                       originMapRouteId={originMapRoute}
