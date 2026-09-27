@@ -169,7 +169,7 @@ export const TURNING_POINTS_ARTWORKS: Record<string, TurningPointArtwork> = {
       "\"What I once was, you are now; what I am now, you shall be.\" — Memento Mori inscription upon the tomb",
     summary:
       "Regarded as the foundational fresco of Renaissance humanism. Masaccio applied Filippo Brunelleschi's mathematical laws of linear perspective to paint a coffered barrel vault so convincing that contemporaries believed the stone wall had been carved away.",
-    imageSrc: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Masaccio_trinity.jpg/1024px-Masaccio_trinity.jpg",
+    imageSrc: "/artworks/masaccio-holy-trinity.jpg",
     wingId: "wing-perspective",
     historicalPivot: "The birth of single-point linear perspective in painting. The observer's eye is locked into an exact geometric relationship with the sacred space.",
     hotspots: [
@@ -230,7 +230,7 @@ export const TURNING_POINTS_ARTWORKS: Record<string, TurningPointArtwork> = {
       "\"Caravaggio did not look at antique statues; he took his models directly from the sun-drenched alleys and darkened taverns of Rome.\" — Giovanni Pietro Bellori, 1672",
     summary:
       "Caravaggio shattered Late Mannerist convention by setting Christ's divine summons not in a celestial cloud, but in a shadowy Roman customs house where men in doublet and feathers count coins.",
-    imageSrc: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Caravaggio_-_The_Calling_of_Saint_Matthew.jpg/1280px-Caravaggio_-_The_Calling_of_Saint_Matthew.jpg",
+    imageSrc: "/artworks/caravaggio-calling-st-matthew.jpg",
     wingId: "wing-shadow",
     historicalPivot: "Tenebrism as narrative engine. Divine revelation is not a halo of light around a saint, but a ruthless physical beam piercing everyday corruption.",
     hotspots: [
@@ -291,7 +291,7 @@ export const TURNING_POINTS_ARTWORKS: Record<string, TurningPointArtwork> = {
       "\"Be clearly aware of the stars and infinity on high. Then life seems almost enchanted after all.\" — Letter 642 to Theo",
     summary:
       "Painted during Van Gogh's convalescence at Saint-Rémy, this masterwork represents an unprecedented departure from direct observation into psychological expressionism, using dynamic impasto spirals to evoke cosmic vitalism.",
-    imageSrc: "/starry-night.jpg",
+    imageSrc: "/artworks/van-gogh-starry-night.jpg",
     wingId: "wing-feeling",
     historicalPivot: "The turn inward: art ceases to record optical appearance and becomes the direct conduit of psychological and cosmic emotion.",
     hotspots: [
@@ -352,7 +352,7 @@ export const TURNING_POINTS_ARTWORKS: Record<string, TurningPointArtwork> = {
       "\"It was as if someone were drinking kerosene in order to spit fire.\" — Georges Braque upon first seeing the painting in Picasso's studio, 1907",
     summary:
       "A watershed rupture in 20th-century culture. Picasso dismantled the academic female nude into an explosive confrontation of geometric planes, Iberian primitive heads, and African ritual masks, initiating the trajectory toward Cubism.",
-    imageSrc: "https://upload.wikimedia.org/wikipedia/en/4/4c/Les_Demoiselles_d%27Avignon.jpg",
+    imageSrc: "/artworks/picasso-demoiselles.jpg",
     wingId: "wing-cubism",
     historicalPivot: "The total destruction of single-point Renaissance perspective. Space is no longer a vacuum containing objects, but a solid crystal smashed into shards.",
     hotspots: [
@@ -413,7 +413,7 @@ export const TURNING_POINTS_ARTWORKS: Record<string, TurningPointArtwork> = {
       "\"On the floor I am more at ease. I feel nearer, more a part of the painting, since this way I can walk around it, work from the four sides and literally be in the painting.\" — Jackson Pollock, 1947",
     summary:
       "A monument of Abstract Expressionism and Action Painting. Spanning over seventeen feet, Pollock abandoned easel and brushes entirely, rhythmically drizzling industrial Duco enamel onto unprimed canvas with sticks, trowels, and basting syringes.",
-    imageSrc: "https://upload.wikimedia.org/wikipedia/en/f/f6/Autumn_Rhythm.jpg",
+    imageSrc: "/artworks/pollock-autumn-rhythm.jpg",
     wingId: "wing-concept",
     historicalPivot: "The canvas transformed from an illusionistic window into an arena of action. Art is no longer a representation of an object, but the physical record of bodily event.",
     hotspots: [
@@ -448,6 +448,57 @@ export const TURNING_POINTS_ARTWORKS: Record<string, TurningPointArtwork> = {
         insight: "Micro-inspection reveals cigarette ash, matches, and studio dust trapped forever inside dried lacquer skin—evidence of total physical immersion."
       }
     ]
+  },
+  "duchamp-fountain": {
+    id: "duchamp-fountain",
+    title: "Fountain",
+    originalTitle: "Fontaine",
+    artist: "Marcel Duchamp",
+    artistLifespan: "French-American, 1887–1968",
+    year: "1917",
+    locationCreated: "New York City, United States",
+    medium: "Glazed ceramic urinal inverted on pedestal with black enamel paint",
+    dimensions: "36 cm × 48 cm × 61 cm (14.2 in × 18.9 in × 24.0 in)",
+    accession: "Original lost; authorized edition replica (1964), Tate Modern & MoMA",
+    curatorialQuote:
+      "\"Whether Mr Mutt with his own hands made the fountain or not has no importance. He CHOSE it. He took an ordinary article of life, placed it so that its useful significance disappeared under the new title and point of view — created a new thought for that object.\" — The Blind Man, May 1917",
+    summary:
+      "The definitive conceptual watershed of 20th-century art. Submitted to the 1917 Society of Independent Artists under the pseudonym 'R. Mutt 1917', Duchamp severed artistic value from manual craft, decreeing that the artist's intellectual choice is itself the creation.",
+    imageSrc: "/artworks/duchamp-fountain.jpg",
+    wingId: "wing-concept",
+    historicalPivot: "The birth of Conceptual Art. The artwork transforms from an object of physical craft into an intellectual provocation and test of institutional framing.",
+    hotspots: [
+      {
+        id: "vortex" as any,
+        name: "The 'R. MUTT 1917' Signature",
+        tag: "Pseudonymous Provocation",
+        xPercent: 28,
+        yPercent: 78,
+        zoomScale: 2.5,
+        zoomOrigin: "28% 78%",
+        insight: "Inscribed in black enamel referencing the J.L. Mott Iron Works commercial plumbing supplier, fused with the popular Mutt and Jeff newspaper cartoon."
+      },
+      {
+        id: "star" as any,
+        name: "Inverted Ninety-Degree Orientation",
+        tag: "Functional Erasure",
+        xPercent: 50,
+        yPercent: 45,
+        zoomScale: 2.2,
+        zoomOrigin: "50% 45%",
+        insight: "Rotated 90 degrees flat on its back onto a pedestal, entirely extinguishing its sanitary plumbing purpose to force contemplation of pure industrial form."
+      },
+      {
+        id: "cypress" as any,
+        name: "Industrial Sanitary Porcelain",
+        tag: "Anti-Retinal Ready-Made",
+        xPercent: 70,
+        yPercent: 32,
+        zoomScale: 2.4,
+        zoomOrigin: "70% 32%",
+        insight: "Duchamp deliberately attacked 'retinal art' designed to seduce the eye, forcing the museum institution to confront mass-manufactured readymades."
+      }
+    ]
   }
 };
 
@@ -463,7 +514,7 @@ export const EPOCH_COMPARISONS: Record<string, CuratedComparisonPair> = {
       artist: "Cimabue (Cenni di Pepo)",
       year: "c. 1280",
       school: "Late Italo-Byzantine / Proto-Renaissance",
-      imageSrc: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Cimabue_-_Maest%C3%A0_di_Santa_Trinita_-_Google_Art_Project.jpg/800px-Cimabue_-_Maest%C3%A0_di_Santa_Trinita_-_Google_Art_Project.jpg",
+      imageSrc: "/artworks/cimabue-maesta.jpg",
       traits: [
         "Gold leaf ground denoting timeless heavenly atmosphere",
         "Hieratic scale: Mary dwarfs attendant angels by virtue of divine status",
@@ -478,7 +529,7 @@ export const EPOCH_COMPARISONS: Record<string, CuratedComparisonPair> = {
       artist: "Masaccio",
       year: "1427",
       school: "Early Florentine Renaissance",
-      imageSrc: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Masaccio_trinity.jpg/1024px-Masaccio_trinity.jpg",
+      imageSrc: "/artworks/masaccio-holy-trinity.jpg",
       traits: [
         "Rigorous single-point linear perspective with vanishing point at human eye level",
         "Coffered Roman triumphal arch modeled on Brunelleschi's architecture",
@@ -500,7 +551,7 @@ export const EPOCH_COMPARISONS: Record<string, CuratedComparisonPair> = {
       artist: "Jean-Auguste-Dominique Ingres",
       year: "1814",
       school: "French Neoclassicism / Orientalism",
-      imageSrc: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Jean-Auguste-Dominique_Ingres_-_Une_Odalisque%2C_dite_La_Grande_Odalisque.jpg/1280px-Jean-Auguste-Dominique_Ingres_-_Une_Odalisque%2C_dite_La_Grande_Odalisque.jpg",
+      imageSrc: "/artworks/ingres-grande-odalisque.jpg",
       traits: [
         "Continuous unbroken sinuous contour lines without visible brushstrokes",
         "Intentional anatomical distortion (three extra vertebrae) to enhance fluid grace",
@@ -515,7 +566,7 @@ export const EPOCH_COMPARISONS: Record<string, CuratedComparisonPair> = {
       artist: "Pablo Picasso",
       year: "1907",
       school: "Proto-Cubism",
-      imageSrc: "https://upload.wikimedia.org/wikipedia/en/4/4c/Les_Demoiselles_d%27Avignon.jpg",
+      imageSrc: "/artworks/picasso-demoiselles.jpg",
       traits: [
         "Serrated, angular anatomy broken into flat intersecting geometric planes",
         "African and Iberian ritual mask faces confronting spectator with overt hostility",
