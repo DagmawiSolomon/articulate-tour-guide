@@ -144,14 +144,16 @@ export default function Home() {
   // Guest location tracking: begins at entrance and updates as galleries/artworks are visited
   const [guestLocationId, setGuestLocationId] = React.useState<string>("entrance");
   const guestLocationRef = React.useRef<string>("entrance");
-  // Active tour stop (blue ring) and completed stops (green ring) on the floor map
-  const [activeTourArtworkId, setActiveTourArtworkId] = React.useState<string | null>(null);
+  // ── Gallery State Machine ────────────────────────────────────────────────
+  // Single source of truth for all artwork tour states.
+  // Replaces the previous 3 pairs of state+ref (activeTourArtworkId, completedArtworkIds, startedArtworkIds).
+  const [galleryStates, setGalleryStates] = React.useState<Record<string, "unexplored" | "exploring" | "completed">>({});
+  const galleryStatesRef = React.useRef<Record<string, "unexplored" | "exploring" | "completed">>({}); 
+  // Cache refs kept in sync inside the setGalleryStates updater — safe to read inside callbacks.
   const activeTourArtworkIdRef = React.useRef<string | null>(null);
-  const [completedArtworkIds, setCompletedArtworkIds] = React.useState<string[]>([]);
   const completedArtworkIdsRef = React.useRef<string[]>([]);
-  // Tracks each gallery's own tour started state (so unstarted galleries always show Start Tour & Go to map buttons)
-  const [startedArtworkIds, setStartedArtworkIds] = React.useState<string[]>([]);
-  const startedArtworkIdsRef = React.useRef<string[]>([]);
+  // Auto-reset timer for the artifact loading skeleton — prevents permanently stuck skeletons.
+  const loadingTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   // When start tour is clicked, card collapses for fullscreen Alba explanation, then auto-uncollapses
   const shouldUncollapseAfterSpeechRef = React.useRef<boolean>(false);
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
@@ -189,6 +191,77 @@ export default function Home() {
     audioPlayerRef.current?.flush();
     setAgentStatus("listening");
     shouldUncollapseAfterSpeechRef.current = false;
+  }, []);
+
+  // ── State Machine Helpers ─────────────────────────────────────────────────
+
+  /**
+   * Atomically transition: any currently "exploring" artwork → "completed",
+   * then set the target artwork to "exploring". This is the only way a tour starts.
+   * Keeps all cache refs in sync inside the updater (closure-safe).
+   */
+  const startExploring = React.useCallback((artworkId: string) => {
+    setGalleryStates((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((id) => {
+        if (next[id] === "exploring" && id !== artworkId) next[id] = "completed";
+      });
+      next[artworkId] = "exploring";
+      galleryStatesRef.current = next;
+      activeTourArtworkIdRef.current = artworkId;
+      completedArtworkIdsRef.current = Object.keys(next).filter((k) => next[k] === "completed");
+      return next;
+    });
+  }, []);
+
+  /**
+   * Atomically transition a single artwork to a target state.
+   * Used to mark an artwork as "completed" when ending its gallery tour.
+   */
+  const setArtworkGalleryState = React.useCallback((
+    artworkId: string,
+    toState: "unexplored" | "exploring" | "completed",
+  ) => {
+    setGalleryStates((prev) => {
+      const next = { ...prev, [artworkId]: toState };
+      galleryStatesRef.current = next;
+      activeTourArtworkIdRef.current = Object.keys(next).find((k) => next[k] === "exploring") ?? null;
+      completedArtworkIdsRef.current = Object.keys(next).filter((k) => next[k] === "completed");
+      return next;
+    });
+  }, []);
+
+  /** Reset all gallery states (used on full tour end). */
+  const resetGalleryStates = React.useCallback(() => {
+    setGalleryStates({});
+    galleryStatesRef.current = {};
+    activeTourArtworkIdRef.current = null;
+    completedArtworkIdsRef.current = [];
+  }, []);
+
+  /**
+   * Safe reply — always flushes in-flight audio before triggering a new agent reply.
+   * Prevents double-reply race conditions when navigating while Alba is already speaking.
+   * Use this instead of calling audioPlayerRef.current?.flush() + triggerReply() separately.
+   */
+  const safeReply = React.useCallback((prompt: string) => {
+    ignoreAudioUntilNextReplyRef.current = true;
+    audioPlayerRef.current?.flush();
+    setAgentStatus("thinking");
+    agentRef.current?.triggerReply(prompt);
+  }, []);
+
+  /**
+   * Start artifact loading with a guaranteed auto-reset.
+   * Cancels any previous timer so interrupted tool calls never leave the skeleton stuck.
+   */
+  const startLoading = React.useCallback(() => {
+    if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+    setIsArtifactLoading(true);
+    loadingTimerRef.current = setTimeout(() => {
+      setIsArtifactLoading(false);
+      loadingTimerRef.current = null;
+    }, 500);
   }, []);
 
   // Fixed card geometry.
@@ -337,7 +410,7 @@ export default function Home() {
   }, []);
 
   const handleStartTourWithArtwork = React.useCallback((overrideArtworkId?: string) => {
-    bargeIn();
+    // No explicit bargeIn() here — safeReply() at the end flushes audio before speaking.
     hasUserInteractedRef.current = true;
     muteWarningSentRef.current = true;
     greetingPhaseRef.current = "done";
@@ -347,7 +420,7 @@ export default function Home() {
     const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
     const artPlaceId = `art:${targetArtwork.id}`;
 
-    // 1. Update guest location without drawing a route line (path only shown when user explicitly asks for directions)
+    // 1. Update guest location without drawing a route line
     setMapNavigation((prev) => ({
       ...prev,
       startId: artPlaceId,
@@ -357,13 +430,9 @@ export default function Home() {
     guestLocationRef.current = artPlaceId;
     setGuestLocationId(artPlaceId);
 
-    // Track active tour stop for blue ring
-    if (activeTourArtworkIdRef.current && activeTourArtworkIdRef.current !== targetArtwork.id) {
-      const prevId = activeTourArtworkIdRef.current;
-      setCompletedArtworkIds((prev) => (prev.includes(prevId) ? prev : [...prev, prevId]));
-    }
-    setActiveTourArtworkId(targetArtwork.id);
-    activeTourArtworkIdRef.current = targetArtwork.id;
+    // 2. Atomically: any currently "exploring" artwork → "completed", target → "exploring".
+    //    This is the ONLY place this transition happens — single source of truth.
+    startExploring(targetArtwork.id);
 
     setActiveArtworkId(targetArtwork.id);
     setSelectedArtwork({
@@ -381,15 +450,6 @@ export default function Home() {
       setActiveMapRoute(WING_ROUTE_MAP[targetArtwork.wingId]);
     }
 
-    // 2. Mark this specific gallery as tour-started (hiding its Start tour & Go back buttons)
-    setStartedArtworkIds((prev) => {
-      if (!prev.includes(targetArtwork.id)) {
-        const next = [...prev, targetArtwork.id];
-        startedArtworkIdsRef.current = next;
-        return next;
-      }
-      return prev;
-    });
     setActiveArtifact("artwork-view");
     setIsExpanded(true);
 
@@ -405,37 +465,28 @@ export default function Home() {
       },
     ]);
 
-    // 4. Trigger Alba's direct explanation
-    audioPlayerRef.current?.flush();
-    setAgentStatus("thinking");
-    agentRef.current?.triggerReply(
+    // 4. Safe reply — always flushes in-flight audio before triggering a new agent reply
+    safeReply(
       `The visitor confirmed: "Let's go with this first!" to start their tour with ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist}. Welcome them enthusiastically to this opening stop of the exhibition and give a vivid, engaging 2-sentence curatorial breakdown of why this masterpiece is our first revolutionary milestone. Speak with poise and dive straight into the artwork without any apologies.`
     );
-  }, [selectedArtwork, activeArtworkId, bargeIn]);
+  }, [selectedArtwork, activeArtworkId, safeReply, startExploring]);
 
   const handleEndGalleryTour = React.useCallback(() => {
-    bargeIn();
+    // No explicit bargeIn() here — safeReply() at the end flushes audio before speaking.
     hasUserInteractedRef.current = true;
     greetingPhaseRef.current = "done";
 
+    // Resolve the currently exploring artwork via the ref (closure-safe, always current)
     const rawId = activeTourArtworkIdRef.current || activeArtworkId || selectedArtwork?.id || "masaccio-holy-trinity";
     const resolvedId = resolveArtworkId(rawId);
     const currentArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
     const artPlaceId = `art:${currentArtwork.id}`;
 
-    // 1. Mark this gallery as completed
-    setCompletedArtworkIds((prev) => {
-      if (!prev.includes(currentArtwork.id)) {
-        const next = [...prev, currentArtwork.id];
-        completedArtworkIdsRef.current = next;
-        return next;
-      }
-      return prev;
-    });
-    setActiveTourArtworkId(null);
-    activeTourArtworkIdRef.current = null;
+    // 1. Atomically: mark this artwork as completed and clear the active tour pointer.
+    //    setArtworkGalleryState handles all ref sync internally.
+    setArtworkGalleryState(currentArtwork.id, "completed");
 
-    // 2. Set guest location to current artwork on the floor map without drawing paths
+    // 2. Set guest location without drawing paths
     setMapNavigation((prev) => ({
       ...prev,
       startId: artPlaceId,
@@ -445,13 +496,12 @@ export default function Home() {
     guestLocationRef.current = artPlaceId;
     setGuestLocationId(artPlaceId);
 
-    // 3. Switch back to floor map view so visitor can pick the next artwork
+    // 3. Return to floor map so visitor can choose next stop
     setActiveArtifact("map");
     setIsExpanded(true);
-
     playTactileTap();
 
-    // 4. Post visitor ending confirmation to transcript
+    // 4. Post visitor transcript
     setChatMessages((prev) => [
       ...prev,
       {
@@ -463,14 +513,12 @@ export default function Home() {
       },
     ]);
 
-    // 5. Alba asks what they want to tour next
-    audioPlayerRef.current?.flush();
-    setAgentStatus("thinking");
+    // 5. Safe reply — always flushes in-flight audio before speaking
     setIsChatThinking(true);
-    agentRef.current?.triggerReply(
+    safeReply(
       `The visitor has ended their tour of the ${currentArtwork.title} (${currentArtwork.year}) gallery and returned to the exhibition floor map. In 1 to 2 warm, engaging sentences as Alba, acknowledge concluding our time with ${currentArtwork.title}, and ask them which gallery, milestone, or artwork they would like to explore next on the floor map.`
     );
-  }, [selectedArtwork, activeArtworkId, bargeIn]);
+  }, [selectedArtwork, activeArtworkId, safeReply, setArtworkGalleryState]);
 
   const handleAskAboutSelection = React.useCallback(async (selection: ArtworkSelection) => {
     const artworkId = resolveArtworkId(selectedArtwork?.id || activeArtworkId);
@@ -610,8 +658,8 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     setIsQuietMode(false);
     guestLocationRef.current = "entrance";
     setGuestLocationId("entrance");
-    setStartedArtworkIds([]);
-    startedArtworkIdsRef.current = [];
+    // Reset all gallery states atomically
+    resetGalleryStates();
     shouldUncollapseAfterSpeechRef.current = false;
 
     // 1. Initialize audio player for voice responses
@@ -834,20 +882,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             }
           }
 
-          if (isQuietModeRef.current && activeTourArtworkIdRef.current) {
-            const finishedId = activeTourArtworkIdRef.current;
-            setCompletedArtworkIds((prev) => {
-              if (!prev.includes(finishedId)) {
-                const next = [...prev, finishedId];
-                completedArtworkIdsRef.current = next;
-                return next;
-              }
-              return prev;
-            });
-            setActiveTourArtworkId((prev) => (prev === finishedId ? null : prev));
-            activeTourArtworkIdRef.current = null;
-          }
-
           // Wait for audio player to finish draining queued audio chunks in speakers
           audioPlayerRef.current?.onPlaybackComplete(() => {
             setAgentStatus("listening");
@@ -861,21 +895,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                 }
                 return prev;
               });
-            }
-
-            // Track completed artwork state when Alba finishes the tour explanation
-            if (activeTourArtworkIdRef.current) {
-              const finishedId = activeTourArtworkIdRef.current;
-              setCompletedArtworkIds((prev) => {
-                if (!prev.includes(finishedId)) {
-                  const next = [...prev, finishedId];
-                  completedArtworkIdsRef.current = next;
-                  return next;
-                }
-                return prev;
-              });
-              setActiveTourArtworkId((prev) => (prev === finishedId ? null : prev));
-              activeTourArtworkIdRef.current = null;
             }
 
             // If card was collapsed for Alba's explanation, uncollapse it automatically when done!
@@ -896,7 +915,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         console.log("[AssemblyAI] Executing tool call:", tool.name, tool.arguments);
         // Only trigger artifact loading skeleton for actual content changes, NOT if previewing an info card
         if (tool.name !== "show_info" && tool.name !== "show_artwork_info") {
-          setIsArtifactLoading(true);
+          startLoading();
         }
 
         if (tool.name === "end_gallery_tour" || tool.name === "finish_gallery") {
@@ -1019,14 +1038,13 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
               { label: "Date", value: artwork.year },
             ],
           });
-          // Update guest location and active tour stop without drawing a path route line
+          // Update guest location without drawing a path route line
           const artPlaceId = `art:${artwork.id}`;
           guestLocationRef.current = artPlaceId;
           setGuestLocationId(artPlaceId);
-          if (startedArtworkIdsRef.current.includes(artwork.id)) {
-            setActiveTourArtworkId(artwork.id);
-            activeTourArtworkIdRef.current = artwork.id;
-          }
+          // Gallery state (exploring/completed/unexplored) is owned exclusively by the state machine.
+          // show_info NEVER modifies it — this prevents a completed artwork from being incorrectly
+          // re-flagged as "exploring" when the agent calls show_info to re-display the card.
           if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
             setActiveMapRoute(WING_ROUTE_MAP[artwork.wingId]);
           }
@@ -1087,32 +1105,40 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           ]);
           agentRef.current?.sendToolResult(tool.callId, { success: true, pair: pairId });
         } else if (tool.name === "show_timeline") {
-          const eraId = (tool.arguments.activeEraId as string) || (tool.arguments.eraId as string) || (tool.arguments.artworkId as string);
-          const eraToArtworkMap: Record<string, string> = {
-            "1427": "masaccio-holy-trinity",
-            "1600": "caravaggio-calling-st-matthew",
-            "1889": "van-gogh-starry-night",
-            "1907": "picasso-demoiselles",
-            "1950": "pollock-autumn-rhythm",
-          };
-          const resolvedArtworkId = eraToArtworkMap[eraId] || (TURNING_POINTS_ARTWORKS[eraId] ? eraId : undefined);
-          if (resolvedArtworkId) {
-            setActiveArtworkId(resolvedArtworkId);
+          // Guard: don't hijack the screen while the visitor is actively exploring an artwork.
+          // The agent can mention historical context in speech; the timeline view is only shown
+          // when not mid-exploration, preventing jarring mid-tour screen switches.
+          if (activeTourArtworkIdRef.current) {
+            setIsArtifactLoading(false);
+            agentRef.current?.sendToolResult(tool.callId, { success: true, skipped: "visitor is actively exploring an artwork" });
+          } else {
+            const eraId = (tool.arguments.activeEraId as string) || (tool.arguments.eraId as string) || (tool.arguments.artworkId as string);
+            const eraToArtworkMap: Record<string, string> = {
+              "1427": "masaccio-holy-trinity",
+              "1600": "caravaggio-calling-st-matthew",
+              "1889": "van-gogh-starry-night",
+              "1907": "picasso-demoiselles",
+              "1950": "pollock-autumn-rhythm",
+            };
+            const resolvedArtworkId = eraToArtworkMap[eraId] || (TURNING_POINTS_ARTWORKS[eraId] ? eraId : undefined);
+            if (resolvedArtworkId) {
+              setActiveArtworkId(resolvedArtworkId);
+            }
+            setActiveArtifact("timeline");
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                id: `tool-${Date.now()}`,
+                role: "tool",
+                toolName: "show_timeline",
+                label: "Timeline of Artistic Turning Points",
+                artifactType: "timeline",
+                params: tool.arguments,
+                timestamp: new Date(),
+              },
+            ]);
+            agentRef.current?.sendToolResult(tool.callId, { success: true, activeArtworkId: resolvedArtworkId });
           }
-          setActiveArtifact("timeline");
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              id: `tool-${Date.now()}`,
-              role: "tool",
-              toolName: "show_timeline",
-              label: "Timeline of Artistic Turning Points",
-              artifactType: "timeline",
-              params: tool.arguments,
-              timestamp: new Date(),
-            },
-          ]);
-          agentRef.current?.sendToolResult(tool.callId, { success: true, activeArtworkId: resolvedArtworkId });
         } else if (tool.name === "consult_archives") {
           const query = (tool.arguments.query as string) || "";
           const category = tool.arguments.category as string | undefined;
@@ -1150,10 +1176,9 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           agentRef.current?.sendToolResult(tool.callId, { success: true });
         }
 
-        // Shimmer skeleton matches the target artifact for 450ms then smoothly cross-fades into content
-        setTimeout(() => {
-          setIsArtifactLoading(false);
-        }, 450);
+        // startLoading() already set a self-cancelling timer — no manual cleanup needed here.
+        // Any early-return paths above that set setIsArtifactLoading(false) are also safe
+        // because startLoading()'s pending timer will simply fire as a no-op.
       },
       onError: (code, message) => {
         console.warn("[AssemblyAI] Agent error:", code, message);
@@ -1194,13 +1219,9 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     setIsQuietMode(false);
     guestLocationRef.current = "entrance";
     setGuestLocationId("entrance");
-    setStartedArtworkIds([]);
-    startedArtworkIdsRef.current = [];
+    // Reset all gallery states atomically
+    resetGalleryStates();
     shouldUncollapseAfterSpeechRef.current = false;
-    setActiveTourArtworkId(null);
-    activeTourArtworkIdRef.current = null;
-    setCompletedArtworkIds([]);
-    completedArtworkIdsRef.current = [];
     setMapNavigation({ startId: "entrance", destinationId: "", currentNodeId: null });
 
     // Reset back to pre-tour state
@@ -1213,6 +1234,10 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     setOriginMapRoute("entrance");
     setActiveMapRoute("entrance");
   };
+
+  // Derived from the gallery state machine for rendering (map ring colors, card buttons, showTourActions)
+  const activeTourArtworkId = Object.keys(galleryStates).find((k) => galleryStates[k] === "exploring") ?? null;
+  const completedArtworkIds = Object.keys(galleryStates).filter((k) => galleryStates[k] === "completed");
 
   const isListening = isTourActive && !isMuted && activeExpressionId === "listening";
 
@@ -1523,7 +1548,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                       onMapViewportChange={setMapViewport}
                       comparisonPairId={comparisonPairId}
                       artworkId={activeArtworkId}
-                      showTourActions={!startedArtworkIds.includes(activeArtworkId)}
+                      showTourActions={(galleryStates[activeArtworkId] ?? "unexplored") === "unexplored"}
                       activeTourArtworkId={activeTourArtworkId}
                       completedArtworkIds={completedArtworkIds}
                       onStartTour={() => handleStartTourWithArtwork()}
@@ -1562,90 +1587,48 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                         setIsExpanded(true);
                         playTactileTap();
 
-                        const isTourStartedForThisArtwork = startedArtworkIds.includes(targetArtwork.id);
+                        // Use the state machine's ref for an accurate snapshot (not the closure-captured derived value)
+                        const isCurrentlyExploring = galleryStatesRef.current[targetArtwork.id] === "exploring";
 
-                        if (!isTourStartedForThisArtwork) {
-                          // TOUR HAS NOT STARTED FOR THIS SPECIFIC GALLERY:
-                          // 'Start tour' and 'Go to map' buttons WILL be displayed!
-                          if (isTourActive && !isSameGallery && activeTourArtworkId) {
-                            bargeIn();
+                        if (!isCurrentlyExploring && isTourActive) {
+                          muteWarningSentRef.current = true;
+                          greetingPhaseRef.current = "done";
+
+                          const artworkState = galleryStatesRef.current[targetArtwork.id] ?? "unexplored";
+                          // For completed artworks: acknowledge the visit WITHOUT suggesting revisiting
+                          // (the Revisit button exists for user-initiated action only)
+                          const promptText = artworkState === "completed"
+                            ? `The visitor tapped on ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} — a gallery they have already visited. In one warm sentence, acknowledge what made this stop memorable and offer to answer any lingering questions. Do NOT suggest revisiting.`
+                            : `The visitor clicked on ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} on the floor map. In one friendly, brief sentence, give a warm teaser of why this masterpiece is exciting, and invite them to tap 'Start tour' or ask any questions to begin here. Speak with poise and no apologies. CRITICAL: Do NOT call any tools. Do not call show_info, show_map, or any other tool. Speak ONLY the single-sentence spoken teaser.`;
+
+                          if (!isQuietModeRef.current) {
+                            setChatMessages((prev) => [
+                              ...prev,
+                              {
+                                id: `visitor-nav-${Date.now()}`,
+                                role: "visitor",
+                                text: `[Previewing ${targetArtwork.title} on gallery map]`,
+                                isPartial: false,
+                                timestamp: new Date(),
+                              },
+                            ]);
+                            // safeReply always flushes in-flight audio first — prevents the double-reply
+                            // race condition when the user taps a pin while Alba is already speaking
+                            safeReply(promptText);
+                          } else {
+                            setChatMessages((prev) => [
+                              ...prev,
+                              {
+                                id: `visitor-nav-${Date.now()}`,
+                                role: "visitor",
+                                text: `[Viewing ${targetArtwork.title} in Quiet Reading Mode]`,
+                                isPartial: false,
+                                timestamp: new Date(),
+                              },
+                            ]);
                           }
-
-                          if (isTourActive) {
-                            muteWarningSentRef.current = true;
-                            greetingPhaseRef.current = "done";
-
-                            if (!isQuietModeRef.current) {
-                              setChatMessages((prev) => [
-                                ...prev,
-                                {
-                                  id: `visitor-nav-${Date.now()}`,
-                                  role: "visitor",
-                                  text: `[Previewing ${targetArtwork.title} on gallery map]`,
-                                  isPartial: false,
-                                  timestamp: new Date(),
-                                },
-                              ]);
-                              setAgentStatus("thinking");
-                              agentRef.current?.triggerReply(
-                                `The visitor clicked on ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} on the floor map. In one friendly, brief sentence, give a warm teaser of why this masterpiece is exciting, and invite them to tap 'Start tour' or ask any questions to begin here. Speak with poise and no apologies. CRITICAL: Do NOT call any tools. Do not call show_info, show_map, or any other tool. Speak ONLY the single-sentence spoken teaser.`
-                              );
-                            } else {
-                              setChatMessages((prev) => [
-                                ...prev,
-                                {
-                                  id: `visitor-nav-${Date.now()}`,
-                                  role: "visitor",
-                                  text: `[Viewing ${targetArtwork.title} in Quiet Reading Mode]`,
-                                  isPartial: false,
-                                  timestamp: new Date(),
-                                },
-                              ]);
-                            }
-                          }
-                        } else {
-                          // TOUR HAS ALREADY STARTED FOR THIS GALLERY:
-                          // Uncollapsed image is shown (no Start tour buttons).
-                          if (!isSameGallery) {
-                            bargeIn();
-                            setActiveTourArtworkId(targetArtwork.id);
-                            activeTourArtworkIdRef.current = targetArtwork.id;
-
-                            if (isTourActive) {
-                              muteWarningSentRef.current = true;
-                              greetingPhaseRef.current = "done";
-
-                              if (!isQuietModeRef.current) {
-                                setChatMessages((prev) => [
-                                  ...prev,
-                                  {
-                                    id: `visitor-nav-${Date.now()}`,
-                                    role: "visitor",
-                                    text: `[Visiting ${targetArtwork.title}]`,
-                                    isPartial: false,
-                                    timestamp: new Date(),
-                                  },
-                                ]);
-                                setAgentStatus("thinking");
-                                agentRef.current?.triggerReply(
-                                  `The visitor moved to ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist}. Welcome them to this gallery stop and deliver a vivid, engaging 2-sentence curatorial breakdown of why this masterpiece is a key revolutionary turning point. Speak with poise and dive straight into the artwork without apologies.`
-                                );
-                              } else {
-                                setChatMessages((prev) => [
-                                  ...prev,
-                                  {
-                                    id: `visitor-nav-${Date.now()}`,
-                                    role: "visitor",
-                                    text: `[Viewing ${targetArtwork.title} in Quiet Reading Mode]`,
-                                    isPartial: false,
-                                    timestamp: new Date(),
-                                  },
-                                ]);
-                              }
-                            }
-                          }
-                          // If same gallery: narration continues without interruption!
                         }
+                        // If currently exploring: narration continues smoothly without interruption!
                       }}
                       mapRouteId={activeMapRoute}
                       originMapRouteId={originMapRoute}
@@ -1753,7 +1736,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           avatar={<ArticulateAvatar expressionId={activeExpressionId} size={112} isListening={isListening} isMuted={isMuted} isSpeaking={agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
           controls={callGroup}
           onBackToDetails={() => setActiveArtifact("info")}
-          onEndGalleryTour={handleEndGalleryTour}
         />
       )}
       <Dialog open={isExhibitInfoOpen} onOpenChange={setIsExhibitInfoOpen}>
