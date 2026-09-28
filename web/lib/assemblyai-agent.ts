@@ -56,6 +56,8 @@ export type VoiceAgent = {
   stopAudio: () => void;
   /** Send the result of a tool call back to the agent */
   sendToolResult: (callId: string, result: unknown, isError?: boolean) => void;
+  /** Add non-spoken context to the conversation without requesting a reply */
+  sendContext: (content: string) => void;
   /** Ask the agent to generate a reply right now, optionally with one-shot instructions */
   triggerReply: (instructions?: string) => void;
   /** End the session cleanly — stops billing immediately */
@@ -438,6 +440,11 @@ registerProcessor('pcm-processor', PcmProcessor);
     }
   }
 
+  function sendContext(content: string) {
+    if (!content.trim() || !isConnected || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "conversation.message", role: "system", content }));
+  }
+
   function end() {
     if (toolFlushTimer) {
       clearTimeout(toolFlushTimer);
@@ -466,6 +473,7 @@ registerProcessor('pcm-processor', PcmProcessor);
     startAudio,
     stopAudio,
     sendToolResult,
+    sendContext,
     triggerReply,
     end,
     get connected() {

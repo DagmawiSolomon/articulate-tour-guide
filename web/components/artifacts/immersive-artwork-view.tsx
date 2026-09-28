@@ -26,6 +26,7 @@ interface ImmersiveArtworkViewProps {
   onAskAboutSelection: (selection: ArtworkSelection) => void;
   activeHotspotId?: string | null;
   onSelectHotspot?: (id: string | null) => void;
+  onUiContextChange?: (change: string, interruptSpeech?: boolean) => void;
 }
 
 type Size = { width: number; height: number };
@@ -43,6 +44,7 @@ export function ImmersiveArtworkView({
   onAskAboutSelection,
   activeHotspotId,
   onSelectHotspot,
+  onUiContextChange,
 }: ImmersiveArtworkViewProps) {
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const draftPathRef = React.useRef<Point[]>([]);
@@ -97,9 +99,10 @@ export function ImmersiveArtworkView({
   }, [canvasSize, imageSize]);
 
   const zoomBy = React.useCallback((amount: number) => {
+    onUiContextChange?.("zoomed the artwork", false);
     setZoomOrigin({ x: canvasSize.width / 2, y: canvasSize.height / 2 });
     setZoom((current) => Math.min(3.5, Math.max(1, Number((current + amount).toFixed(2)))));
-  }, [canvasSize]);
+  }, [canvasSize, onUiContextChange]);
 
   const getLayerPoint = React.useCallback((clientX: number, clientY: number): Point => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -162,6 +165,7 @@ export function ImmersiveArtworkView({
 
     const finishStroke = (points: Point[]) => {
       if (points.length < 3) return;
+      onUiContextChange?.("circled a detail in " + (artwork?.title || "the artwork"), true);
       const xs = points.map((point) => point.x);
       const ys = points.map((point) => point.y);
       const left = Math.min(...xs);
@@ -233,7 +237,7 @@ export function ImmersiveArtworkView({
       window.removeEventListener("pointercancel", onPointerCancel);
       activePointerIdRef.current = null;
     };
-  }, [getLayerPoint, imageBounds, isDrawing]);
+  }, [getLayerPoint, imageBounds, isDrawing, onUiContextChange, artwork?.title]);
 
   // Pan-to-move: drag the canvas to scroll around when zoomed in and not in drawing mode
   React.useEffect(() => {
@@ -269,6 +273,7 @@ export function ImmersiveArtworkView({
       if (activePointerIdRef.current !== event.pointerId) return;
       activePointerIdRef.current = null;
       setIsPanning(false);
+      onUiContextChange?.("panned the artwork", false);
     };
 
     const onPointerCancel = (event: PointerEvent) => {
@@ -287,19 +292,22 @@ export function ImmersiveArtworkView({
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerCancel);
     };
-  }, [canvasSize, isDrawing, zoom, zoomOrigin]);
+  }, [canvasSize, isDrawing, zoom, zoomOrigin, onUiContextChange]);
 
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         if (isDrawing) {
+          onUiContextChange?.("cancelled the detail selection", false);
           setIsDrawing(false);
           setDraftPath([]);
         } else if (selection) {
+          onUiContextChange?.("cleared the detail selection", false);
           setSelection(null);
           setSelectionPath([]);
           setDraftPath([]);
         } else if (isCardOpen) {
+          onUiContextChange?.("dismissed the artwork detail card", false);
           setIsCardOpen(false);
         } else if (zoomedHotspotId) {
           setZoomedHotspotId(null);
@@ -317,7 +325,7 @@ export function ImmersiveArtworkView({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isDrawing, onBackToDetails, selection, zoomBy]);
+  }, [isDrawing, onBackToDetails, selection, zoomBy, onUiContextChange, isCardOpen, zoomedHotspotId]);
 
   if (!artwork) return null;
 
@@ -444,6 +452,7 @@ export function ImmersiveArtworkView({
                         onClick={(e) => {
                           e.stopPropagation();
                           playTactileTap();
+                          onUiContextChange?.("dismissed the artwork detail card", false);
                           setIsCardOpen(false);
                         }}
                         className="text-muted-foreground hover:text-foreground cursor-pointer p-0.5 shrink-0 rounded-md transition-colors"
@@ -470,7 +479,7 @@ export function ImmersiveArtworkView({
             aria-label={isDrawing ? "Cancel drawing" : "Circle a detail"}
             aria-pressed={isDrawing}
             title={isDrawing ? "Cancel drawing" : "Circle a detail"}
-            onClick={() => { setIsDrawing((active) => !active); setDraftPath([]); setSelection(null); setSelectionPath([]); }}
+            onClick={() => { onUiContextChange?.("started or cleared a detail selection", true); setIsDrawing((active) => !active); setDraftPath([]); setSelection(null); setSelectionPath([]); }}
           >
             <HugeiconsIcon icon={Pen01Icon} size={19} strokeWidth={1.8} />
           </button>
