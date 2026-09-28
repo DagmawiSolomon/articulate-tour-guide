@@ -1001,8 +1001,20 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           const hotspotId = matchedHotspot.id;
           const artPlaceId = `art:${artwork.id}`;
           setActiveArtworkId(artwork.id);
-          setActiveArtifact("hotspots");
+          setSelectedArtwork({
+            id: artwork.id,
+            title: artwork.title,
+            imageSrc: artwork.imageSrc,
+            summary: artwork.summary,
+            metadata: [
+              { label: "Artist", value: artwork.artist },
+              { label: "Date", value: artwork.year },
+            ],
+          });
+          // Display the hotspots on the fullscreen artwork presentation!
+          setActiveArtifact("artwork-view");
           setActiveHotspotId(hotspotId);
+          setIsExpanded(true);
           // Track guest location without triggering an unrequested path route line
           guestLocationRef.current = artPlaceId;
           setGuestLocationId(artPlaceId);
@@ -1016,7 +1028,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
               role: "tool",
               toolName: "show_hotspots",
               label: `Detail: ${matchedHotspot.name} (${artwork.title})`,
-              artifactType: "hotspots",
+              artifactType: "artwork-view",
               params: tool.arguments,
               timestamp: new Date(),
             },
@@ -1735,7 +1747,12 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           onAskAboutSelection={handleAskAboutSelection}
           avatar={<ArticulateAvatar expressionId={activeExpressionId} size={112} isListening={isListening} isMuted={isMuted} isSpeaking={agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
           controls={callGroup}
-          onBackToDetails={() => setActiveArtifact("info")}
+          onBackToDetails={() => {
+            setActiveHotspotId(null);
+            setActiveArtifact("info");
+          }}
+          activeHotspotId={activeHotspotId}
+          onSelectHotspot={setActiveHotspotId}
         />
       )}
       <Dialog open={isExhibitInfoOpen} onOpenChange={setIsExhibitInfoOpen}>
