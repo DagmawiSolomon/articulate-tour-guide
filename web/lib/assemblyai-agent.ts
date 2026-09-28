@@ -84,7 +84,7 @@ export async function createVoiceAgent(
 ): Promise<VoiceAgent> {
   const isMuted = options?.isMuted ?? true;
   // 1. Fetch temp token + agent ID from our server
-  const tokenRes = await fetch("/api/agent-token");
+  const tokenRes = await fetch("/api/agent-token", { cache: "no-store" });
   if (!tokenRes.ok) {
     const { error } = await tokenRes.json().catch(() => ({ error: "unknown" }));
     throw new Error(`Failed to get agent token: ${error}`);
