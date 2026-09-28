@@ -675,52 +675,8 @@ body {
   opacity: 0.72;
   transition: background 140ms ease, opacity 140ms ease;
 }
-.immersive-artwork-top-actions {
-  position: absolute;
-  z-index: 5;
-  top: clamp(16px, 3vw, 36px);
-  right: clamp(16px, 3vw, 36px);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.immersive-artwork-top-actions .immersive-artwork-close {
-  position: static;
-  top: auto;
-  right: auto;
-}
-.immersive-artwork-end-gallery {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 9999px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  color: #1f1e1b;
-  font-family: var(--font-inter), sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: -0.1px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  cursor: pointer;
-  transition: all 140ms ease;
-}
-.immersive-artwork-end-gallery:hover {
-  background: #ffffff;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-  transform: translateY(-1px);
-}
-.immersive-artwork-end-gallery:active {
-  transform: scale(0.97);
-}
-.immersive-artwork-end-gallery:focus-visible {
-  outline: 2px solid #1f1e1b;
-  outline-offset: 2px;
-}
+.immersive-artwork-close:hover { background: rgba(255, 255, 255, 0.72); opacity: 1; }
+.immersive-artwork-close:focus-visible { outline: 2px solid #1f1e1b; outline-offset: 3px; }
 .immersive-artwork-image {
   z-index: 0;
   box-sizing: border-box;
@@ -872,9 +828,7 @@ body {
 @keyframes immersiveAskShimmer { 0%, 100% { opacity: 0.72; transform: scale(0.94) rotate(-7deg); } 50% { opacity: 1; transform: scale(1.08) rotate(7deg); } }
 @media (prefers-reduced-motion: reduce) { .immersive-artwork-ask-icon { animation: none; } }
 @media (max-width: 640px) {
-  .immersive-artwork-top-actions { top: 12px; right: 12px; gap: 6px; }
-  .immersive-artwork-end-gallery { height: 32px; padding: 0 11px; font-size: 11.5px; gap: 4px; }
-  .immersive-artwork-close { width: 32px; height: 32px; }
+  .immersive-artwork-close { top: 12px; right: 12px; width: 34px; height: 34px; }
   .immersive-artwork-avatar { left: 10px; bottom: 12px; width: 76px; height: 76px; }
   .immersive-artwork-controls { bottom: 18px; }
   .immersive-artwork-tools {
