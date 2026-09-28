@@ -20,6 +20,7 @@ import {
   CallDisabled02Icon,
   MessageSquareIcon,
   MapIcon,
+  InformationCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { ArticulateAvatar } from "@/components/avatar/articulate-avatar";
 import {
@@ -1617,7 +1618,7 @@ export default function Home() {
         />
       )}
       <Dialog open={isExhibitInfoOpen} onOpenChange={setIsExhibitInfoOpen}>
-        <DialogContent showCloseButton={false} className="grid max-h-[calc(100dvh-2rem)] w-full grid-cols-1 gap-0 overflow-y-auto rounded-none border-0 bg-white p-0 sm:h-[460px] sm:max-w-[760px] sm:grid-cols-[0.72fr_1fr] sm:overflow-hidden">
+        <DialogContent showCloseButton={false} className="grid max-h-[calc(100dvh-2rem)] w-full grid-cols-1 gap-0 overflow-y-auto rounded-none border-0 bg-white p-0 sm:h-[480px] sm:max-w-[760px] sm:grid-cols-[1.15fr_0.85fr] sm:overflow-hidden">
           <button
             type="button"
             aria-label="Close about exhibit"
@@ -1626,31 +1627,41 @@ export default function Home() {
             className="absolute right-4 top-4 z-10 grid size-9 place-items-center rounded-full bg-[#fafafa] text-[#1f1e1b] shadow-md transition-colors hover:bg-[#e5e7eb] hover:text-[#1f1e1b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1e1b]"
           >
             <HugeIcon icon={Cancel01Icon} size={16} />
-          </button>          <div className="flex min-h-[360px] flex-col justify-between p-7 sm:min-h-0 sm:p-8">
-            <div className="flex flex-col items-start gap-6">
-              <DialogHeader>
-                <DialogTitle className="max-w-[15rem] font-outfit text-3xl font-normal leading-tight tracking-normal">
-                  Turning Points in Art History
+          </button>
+          <div className="flex min-h-[360px] flex-col justify-between p-7 sm:min-h-0 sm:p-8">
+            <div className="flex flex-col items-start gap-4">
+              <DialogHeader className="w-full">
+                <DialogTitle className="w-full font-outfit text-3xl sm:text-4xl font-normal leading-[1.08] tracking-normal text-[#1f1e1b]">
+                  <span className="block">Turning Points in Art</span>
+                  <span className="block">History</span>
                 </DialogTitle>
               </DialogHeader>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsExhibitInfoOpen(false);
-                  void handleStartTour();
-                }}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-5 font-sans text-sm font-medium cursor-pointer transition-all active:scale-[0.96]"
-                style={{ background: "var(--ink)", color: "#fff" }}
-              >
-                Start tour
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M5 12h14m-6-6l6 6-6 6" />
-                </svg>
-              </button>
+
+              <div className="flex flex-col items-start gap-4 pt-1">
+                <DialogDescription className="max-w-[19.5rem] font-sans text-sm leading-relaxed text-[#3f3f46]">
+                  An intelligent voice tour guide reimagining the museum experience, turning gallery visits into an interactive, real-time conversation.
+                </DialogDescription>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExhibitInfoOpen(false);
+                    void handleStartTour();
+                  }}
+                  className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-5 font-sans text-sm font-medium cursor-pointer transition-all active:scale-[0.96]"
+                  style={{ background: "var(--ink)", color: "#fff" }}
+                >
+                  Start tour
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M5 12h14m-6-6l6 6-6 6" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <DialogDescription className="mt-10 max-w-[17rem] font-sans text-sm leading-relaxed text-[#3f3f46]">
-              Journey through an imagined collection of history’s most influential artworks, from ancient icons to modern masterpieces, and discover the ideas that changed art along the way.
-            </DialogDescription>
+
+            <div className="pt-4 flex items-center gap-1.5 text-xs text-secondary-text">
+              <HugeIcon icon={InformationCircleIcon} size={14} className="shrink-0 text-secondary-text" />
+              <span>Microphone access required for voice conversation.</span>
+            </div>
           </div>
           <div className="relative min-h-64 sm:min-h-0">
             <Image
