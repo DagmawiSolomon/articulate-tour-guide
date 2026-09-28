@@ -91,11 +91,17 @@ export async function createVoiceAgent(
   let isConnected = false;
   let mediaRecorder: MediaRecorder | null = null;
   let lastEvent: string | null = null;
+  let toolFlushTimer: NodeJS.Timeout | null = null;
   const pendingTools: Array<{ callId: string; result: unknown; isError: boolean }> = [];
 
-  // Helper: flush pending tool results when reply.done is the latest event
-  function flushPendingTools() {
-    if (lastEvent !== "reply.done" || pendingTools.length === 0) return;
+  // Helper: flush pending tool results when reply.done is the latest event or forced
+  function flushPendingTools(force = false) {
+    if ((!force && lastEvent !== "reply.done") || pendingTools.length === 0) return;
+    if (!isConnected || ws.readyState !== WebSocket.OPEN) return;
+    if (toolFlushTimer) {
+      clearTimeout(toolFlushTimer);
+      toolFlushTimer = null;
+    }
     for (const t of pendingTools) {
       ws.send(
         JSON.stringify({
@@ -181,9 +187,25 @@ export async function createVoiceAgent(
 
       case "reply.done": {
         lastEvent = "reply.done";
+        if (toolFlushTimer) {
+          clearTimeout(toolFlushTimer);
+          toolFlushTimer = null;
+        }
         const interrupted = (msg.status as string) === "interrupted";
         if (interrupted) {
-          // Barge-in — discard pending tool results for the interrupted reply
+          // Barge-in: formally acknowledge any pending tools as interrupted so server turn state resolves cleanly
+          if (isConnected && ws.readyState === WebSocket.OPEN) {
+            for (const t of pendingTools) {
+              ws.send(
+                JSON.stringify({
+                  type: "tool.result",
+                  call_id: t.callId,
+                  result: JSON.stringify({ success: false, status: "interrupted" }),
+                  is_error: true,
+                })
+              );
+            }
+          }
           pendingTools.length = 0;
         } else {
           flushPendingTools();
@@ -379,8 +401,27 @@ registerProcessor('pcm-processor', PcmProcessor);
   }
 
   function sendToolResult(callId: string, result: unknown, isError = false) {
+    // If agent is NOT actively speaking a transition phrase, dispatch immediately (prevents deadlocks)
+    if (lastEvent !== "reply.started") {
+      if (isConnected && ws.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({
+            type: "tool.result",
+            call_id: callId,
+            result: JSON.stringify(result),
+            is_error: isError,
+          })
+        );
+      }
+      return;
+    }
+
+    // Otherwise, agent is actively mid-phrase; queue until reply.done with 500ms safety timeout
     pendingTools.push({ callId, result, isError });
-    flushPendingTools();
+    if (toolFlushTimer) clearTimeout(toolFlushTimer);
+    toolFlushTimer = setTimeout(() => {
+      flushPendingTools(true);
+    }, 500);
   }
 
   function triggerReply(instructions?: string) {
@@ -395,6 +436,10 @@ registerProcessor('pcm-processor', PcmProcessor);
   }
 
   function end() {
+    if (toolFlushTimer) {
+      clearTimeout(toolFlushTimer);
+      toolFlushTimer = null;
+    }
     stopAudio();
     ws.onmessage = null;
     ws.onerror = null;
