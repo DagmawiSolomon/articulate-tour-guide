@@ -52,6 +52,7 @@ interface ArtifactStageProps {
   onStartTour?: () => void;
   onViewArtworkFullscreen?: () => void;
   onResetTour?: () => void;
+  onEndGalleryTour?: () => void;
   activeTourArtworkId?: string | null;
   completedArtworkIds?: string[];
 }
@@ -79,6 +80,7 @@ export function ArtifactStage({
   onStartTour,
   onViewArtworkFullscreen,
   onResetTour,
+  onEndGalleryTour,
   activeTourArtworkId,
   completedArtworkIds,
 }: ArtifactStageProps) {
@@ -97,7 +99,6 @@ export function ArtifactStage({
           <ArtifactSkeleton
             artifactType={artifactType}
             showTourActions={showTourActions}
-            isImageExpanded={!showTourActions}
           />
         ) : (
           <>
@@ -114,6 +115,7 @@ export function ArtifactStage({
                 } : {}))}
                 showTourActions={showTourActions}
                 onViewArtworkFullscreen={onViewArtworkFullscreen}
+                onEndGalleryTour={onEndGalleryTour}
                 onReturnToMap={onSelectArtifact ? () => onSelectArtifact("map") : undefined}
                 onStartTour={onStartTour ?? (onSelectArtifact ? () => onSelectArtifact("chat") : undefined)}
               />

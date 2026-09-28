@@ -5,7 +5,7 @@ import Image from "next/image";
 import { ARTWORK_DATA } from "@/lib/demo-tour-data";
 import { Separator } from "@/components/ui/separator";
 import { HugeIcon } from "@/components/ui/hugeicon";
-import { Cancel01Icon, ArrowLeft02Icon, ArrowExpand01Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft02Icon, ArrowRight02Icon } from "@hugeicons/core-free-icons";
 import { playTactileTap } from "@/lib/sounds";
 
 export interface ArtworkMetadataField {
@@ -22,6 +22,7 @@ export interface ArtworkInfoCardProps {
   onReturnToMap?: () => void;
   onStartTour?: () => void;
   onViewArtworkFullscreen?: () => void;
+  onEndGalleryTour?: () => void;
 }
 
 const DEFAULT_METADATA: ArtworkMetadataField[] = [
@@ -38,39 +39,13 @@ export function ArtworkInfoCard({
   onReturnToMap,
   onStartTour,
   onViewArtworkFullscreen,
+  onEndGalleryTour,
 }: ArtworkInfoCardProps) {
-  // When tour has started (showTourActions is false), the painting slides to expand.
-  // When user selects a gallery circle on the map (showTourActions is true), show the card with buttons.
-  const [isExpanded, setIsExpanded] = React.useState(!showTourActions);
-
-  // Sync when tour state or artwork changes
-  React.useEffect(() => {
-    setIsExpanded(!showTourActions);
-  }, [showTourActions, imageSrc]);
-
-  // Keyboard navigation: Escape key exits expanded image view
-  React.useEffect(() => {
-    if (!isExpanded) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        playTactileTap();
-        setIsExpanded(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isExpanded]);
-
-  const toggleExpand = () => {
-    playTactileTap();
-    setIsExpanded((prev) => !prev);
-  };
-
   const activeMetadata = metadata && metadata.length > 0 ? metadata : DEFAULT_METADATA;
 
   return (
     <div className="relative w-full h-full flex items-center justify-center p-2 sm:p-4 overflow-hidden">
-      {onReturnToMap && !isExpanded && (
+      {onReturnToMap && (
         <button
           type="button"
           onClick={onReturnToMap}
@@ -82,78 +57,63 @@ export function ArtworkInfoCard({
         </button>
       )}
 
-      <div
-        className={`relative flex flex-col lg:flex-row items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] bg-card ${
-          isExpanded
-            ? "w-full h-full max-w-5xl border-none shadow-none bg-transparent"
-            : "w-full max-w-[780px] rounded-2xl border border-border/70 shadow-xs overflow-hidden"
-        }`}
-      >
-        {/* Left side: Artwork Image (equal 50% size with border when collapsed, grows to full stage borderless when expanded) */}
+      <div className="relative w-full max-w-[780px] rounded-2xl border border-border/70 shadow-xs overflow-hidden flex flex-col lg:flex-row items-center justify-center bg-card">
+        {/* Left side: Artwork Image (clicking opens full-screen view) */}
         <div
-          className={`relative overflow-hidden group transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
-            isExpanded
-              ? "w-full h-full rounded-2xl border-none bg-transparent flex items-center justify-center"
-              : "w-full lg:w-1/2 h-[320px] sm:h-[360px] lg:h-[380px] border-b lg:border-b-0 lg:border-r border-border/50 bg-muted/20 cursor-pointer"
+          className={`relative overflow-hidden w-full lg:w-1/2 h-[320px] sm:h-[360px] lg:h-[380px] border-b lg:border-b-0 lg:border-r border-border/50 bg-muted/20 group ${
+            onViewArtworkFullscreen ? "cursor-pointer" : ""
           }`}
-          onClick={onViewArtworkFullscreen ?? (!isExpanded ? toggleExpand : undefined)}
-          title={onViewArtworkFullscreen ? "View full-screen artwork" : !isExpanded ? "Expand image" : undefined}
+          onClick={onViewArtworkFullscreen}
+          title={onViewArtworkFullscreen ? "View full-screen artwork" : undefined}
         >
           <Image
             src={imageSrc}
             alt={title}
             fill
-            sizes="(max-width: 1024px) 100vw, 100vw"
+            sizes="(max-width: 1024px) 100vw, 390px"
             priority
-            className={`transition-all duration-500 drop-shadow-sm ${
-              isExpanded ? "object-contain p-2 sm:p-4" : "object-cover"
-            }`}
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           />
 
-          {/* Clean Expand / Collapse Toggle Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onViewArtworkFullscreen) onViewArtworkFullscreen();
-              else toggleExpand();
-            }}
-            className={`absolute z-20 size-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer backdrop-blur-md border border-white/10 shadow-sm active:scale-95 ${
-              isExpanded ? "top-3 right-3" : "bottom-3 right-3 opacity-70 group-hover:opacity-100"
-            }`}
-            aria-label={onViewArtworkFullscreen ? "View full-screen artwork" : isExpanded ? "Show curatorial details" : "Expand painting"}
-            title={onViewArtworkFullscreen ? "View full-screen artwork" : isExpanded ? "Show curatorial details (Esc)" : "Expand painting"}
-          >
-            {isExpanded && !onViewArtworkFullscreen ? (
-              <HugeIcon icon={Cancel01Icon} size={14} />
-            ) : (
-              <HugeIcon icon={ArrowExpand01Icon} size={13} strokeWidth={2} />
-            )}
-          </button>
+          {/* Full-screen button when tour has started, in addition to clicking the image */}
+          {!showTourActions && onViewArtworkFullscreen && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                playTactileTap();
+                onViewArtworkFullscreen();
+              }}
+              aria-label="View full-screen"
+              title="View full-screen"
+              className="absolute top-3 right-3 z-10 flex size-9 items-center justify-center rounded-full bg-black/60 hover:bg-black/85 text-white backdrop-blur-md transition-all cursor-pointer shadow-sm active:scale-95"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="15 3 21 3 21 9" />
+                <polyline points="9 21 3 21 3 15" />
+                <line x1="21" y1="3" x2="14" y2="10" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {/* Right side: Text Content (equal 50% size, collapses when expanded) */}
-        <div
-          className={`flex flex-col justify-center overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
-            isExpanded
-              ? "w-0 h-0 lg:h-auto opacity-0 p-0 pointer-events-none"
-              : "w-full lg:w-1/2 h-auto opacity-100 p-4 sm:p-6 lg:p-7"
-          }`}
-        >
+        {/* Right side: Curatorial Text Content & Actions */}
+        <div className="w-full lg:w-1/2 h-auto p-4 sm:p-6 lg:p-7 flex flex-col justify-center overflow-hidden">
           <div className="w-full shrink-0">
-            {/* Title */}
+            {/* Header: Title */}
             <h2 className="text-xl sm:text-2xl font-semibold tracking-[-0.1px] text-foreground leading-snug">
               {title}
             </h2>
 
-            {/* Curatorial Summary: elegant secondary narrative contrast */}
+            {/* Curatorial Summary */}
             <p className="mt-2 text-xs sm:text-[12.5px] leading-[1.65] text-secondary-text tracking-[-0.1px] font-normal">
               {summary}
             </p>
 
             <Separator className="my-3.5 bg-border/50" />
 
-            {/* Author (Artist) */}
+            {/* Author (Artist) & Metadata */}
             <div className="space-y-2">
               {activeMetadata.map((item) => (
                 <div
@@ -170,7 +130,7 @@ export function ArtworkInfoCard({
               ))}
             </div>
 
-            {/* Horizontal rule above CTA buttons */}
+            {/* Action buttons */}
             {showTourActions && (onStartTour || onReturnToMap) && (
               <div className="mt-5">
                 <Separator className="mb-4 bg-border/60" />
@@ -208,7 +168,7 @@ export function ArtworkInfoCard({
                         playTactileTap();
                         onReturnToMap();
                       }}
-                      className="inline-flex min-h-9 items-center justify-center rounded-full px-5 py-2 text-xs font-medium cursor-pointer transition-colors hover:bg-zinc-200 border-0"
+                      className="inline-flex min-h-9 items-center justify-center rounded-full px-4 py-2 text-xs font-medium cursor-pointer transition-colors hover:bg-zinc-200 border-0"
                       style={{ background: "#f4f4f5", color: "#1f1e1b" }}
                     >
                       Go to map
@@ -217,6 +177,46 @@ export function ArtworkInfoCard({
                 </div>
               </div>
             )}
+
+            {/* If tour has started, show dedicated Full screen view and End gallery tour action buttons */}
+            {!showTourActions && (onViewArtworkFullscreen || onEndGalleryTour) && (
+              <div className="mt-4 pt-3.5 border-t border-border/50 flex flex-wrap items-center gap-2.5">
+                {onViewArtworkFullscreen && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playTactileTap();
+                      onViewArtworkFullscreen();
+                    }}
+                    className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-medium cursor-pointer transition-all hover:bg-zinc-200 active:scale-[0.96] border-0"
+                    style={{ background: "#f4f4f5", color: "#1f1e1b" }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="15 3 21 3 21 9" />
+                      <polyline points="9 21 3 21 3 15" />
+                      <line x1="21" y1="3" x2="14" y2="10" />
+                      <line x1="3" y1="21" x2="10" y2="14" />
+                    </svg>
+                    Full screen view
+                  </button>
+                )}
+                {onEndGalleryTour && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playTactileTap();
+                      onEndGalleryTour();
+                    }}
+                    className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
+                    style={{ background: "var(--ink)", color: "#fff" }}
+                  >
+                    End gallery tour
+                    <HugeIcon icon={ArrowRight02Icon} size={13} color="#ffffff" className="text-white" strokeWidth={2.2} />
+                  </button>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
       </div>

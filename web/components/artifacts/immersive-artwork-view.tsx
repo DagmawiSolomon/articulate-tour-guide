@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { Cancel01Icon, Pen01Icon, SparklesIcon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, Pen01Icon, SparklesIcon, ArrowRight02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { HugeIcon } from "@/components/ui/hugeicon";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
@@ -22,6 +22,7 @@ interface ImmersiveArtworkViewProps {
   controls: ReactNode;
   onBackToDetails: () => void;
   onAskAboutSelection: (selection: ArtworkSelection) => void;
+  onEndGalleryTour?: () => void;
 }
 
 type Size = { width: number; height: number };
@@ -29,19 +30,30 @@ type Point = { x: number; y: number };
 type ImageBounds = { left: number; top: number; width: number; height: number };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const DEFAULT_INITIAL_ZOOM = 1.35;
 
-export function ImmersiveArtworkView({ artwork, avatar, controls, onBackToDetails, onAskAboutSelection }: ImmersiveArtworkViewProps) {
+export function ImmersiveArtworkView({
+  artwork,
+  avatar,
+  controls,
+  onBackToDetails,
+  onAskAboutSelection,
+  onEndGalleryTour,
+}: ImmersiveArtworkViewProps) {
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const draftPathRef = React.useRef<Point[]>([]);
   const activePointerIdRef = React.useRef<number | null>(null);
   const [canvasSize, setCanvasSize] = React.useState<Size>({ width: 0, height: 0 });
   const [imageSize, setImageSize] = React.useState<Size>({ width: 1, height: 1 });
-  const [zoom, setZoom] = React.useState(1);
+  const [zoom, setZoom] = React.useState(DEFAULT_INITIAL_ZOOM);
   const [zoomOrigin, setZoomOrigin] = React.useState<Point>({ x: 0, y: 0 });
   const [isDrawing, setIsDrawing] = React.useState(false);
   const [draftPath, setDraftPath] = React.useState<Point[]>([]);
   const [selection, setSelection] = React.useState<ArtworkSelection | null>(null);
   const [selectionPath, setSelectionPath] = React.useState<Point[]>([]);
+  const [isPanning, setIsPanning] = React.useState(false);
+  const panOriginRef = React.useRef<Point>({ x: 0, y: 0 });
+  const zoomOriginStartRef = React.useRef<Point>({ x: 0, y: 0 });
 
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -54,12 +66,14 @@ export function ImmersiveArtworkView({ artwork, avatar, controls, onBackToDetail
   }, []);
 
   React.useEffect(() => {
-    setZoom(1);
+    setZoom(DEFAULT_INITIAL_ZOOM);
+    setZoomOrigin({ x: 0, y: 0 });
     setImageSize({ width: 1, height: 1 });
     setSelection(null);
     setSelectionPath([]);
     setDraftPath([]);
     setIsDrawing(false);
+    setIsPanning(false);
   }, [artwork?.id]);
 
   const imageBounds = React.useMemo<ImageBounds>(() => {
@@ -71,13 +85,15 @@ export function ImmersiveArtworkView({ artwork, avatar, controls, onBackToDetail
 
   const zoomBy = React.useCallback((amount: number) => {
     setZoomOrigin({ x: canvasSize.width / 2, y: canvasSize.height / 2 });
-    setZoom((current) => Math.min(3, Math.max(1, Number((current + amount).toFixed(2)))));
+    setZoom((current) => Math.min(3.5, Math.max(1, Number((current + amount).toFixed(2)))));
   }, [canvasSize]);
 
   const getLayerPoint = React.useCallback((clientX: number, clientY: number): Point => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
-    const origin = zoom === 1 ? { x: canvasSize.width / 2, y: canvasSize.height / 2 } : zoomOrigin;
+    const origin = (zoomOrigin.x === 0 && zoomOrigin.y === 0)
+      ? { x: canvasSize.width / 2, y: canvasSize.height / 2 }
+      : zoomOrigin;
     return {
       x: (clientX - rect.left - origin.x) / zoom + origin.x,
       y: (clientY - rect.top - origin.y) / zoom + origin.y,
@@ -163,6 +179,61 @@ export function ImmersiveArtworkView({ artwork, avatar, controls, onBackToDetail
       activePointerIdRef.current = null;
     };
   }, [getLayerPoint, imageBounds, isDrawing]);
+
+  // Pan-to-move: drag the canvas to scroll around when zoomed in and not in drawing mode
+  React.useEffect(() => {
+    if (isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0 || zoom <= 1) return;
+      if (event.target instanceof Element && event.target.closest(".immersive-artwork-tools, .immersive-artwork-selection-trigger, .immersive-artwork-ask")) return;
+      event.preventDefault();
+      activePointerIdRef.current = event.pointerId;
+      try { canvas.setPointerCapture(event.pointerId); } catch { /* ok */ }
+      panOriginRef.current = { x: event.clientX, y: event.clientY };
+      zoomOriginStartRef.current = { ...zoomOrigin };
+      setIsPanning(true);
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+      const dx = event.clientX - panOriginRef.current.x;
+      const dy = event.clientY - panOriginRef.current.y;
+      const effectiveStart = (zoomOriginStartRef.current.x === 0 && zoomOriginStartRef.current.y === 0)
+        ? { x: canvasSize.width / 2, y: canvasSize.height / 2 }
+        : zoomOriginStartRef.current;
+      setZoomOrigin({
+        x: effectiveStart.x + dx,
+        y: effectiveStart.y + dy,
+      });
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+      activePointerIdRef.current = null;
+      setIsPanning(false);
+    };
+
+    const onPointerCancel = (event: PointerEvent) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+      activePointerIdRef.current = null;
+      setIsPanning(false);
+    };
+
+    canvas.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerCancel);
+    return () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
+    };
+  }, [canvasSize, isDrawing, zoom, zoomOrigin]);
+
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -188,17 +259,39 @@ export function ImmersiveArtworkView({ artwork, avatar, controls, onBackToDetail
 
   if (!artwork) return null;
 
-  const origin = zoom === 1 ? `${canvasSize.width / 2}px ${canvasSize.height / 2}px` : `${zoomOrigin.x}px ${zoomOrigin.y}px`;
+  const origin = (zoomOrigin.x === 0 && zoomOrigin.y === 0)
+    ? `${canvasSize.width / 2}px ${canvasSize.height / 2}px`
+    : `${zoomOrigin.x}px ${zoomOrigin.y}px`;
   const visiblePath = isDrawing ? draftPath : selectionPath;
   const renderedPath = !isDrawing && visiblePath.length > 2 ? [...visiblePath, visiblePath[0]] : visiblePath;
 
   return (
     <section className="immersive-artwork-view fixed inset-0 z-[40] h-[100dvh] w-screen overflow-hidden" aria-label={`Viewing ${artwork.title}`}>
-      <button type="button" onClick={onBackToDetails} className="immersive-artwork-close" aria-label="Close artwork view">
-        <HugeIcon icon={Cancel01Icon} size={18} strokeWidth={2} />
-      </button>
+      <div className="immersive-artwork-top-actions">
+        {onEndGalleryTour && (
+          <button
+            type="button"
+            onClick={onEndGalleryTour}
+            className="immersive-artwork-end-gallery"
+            aria-label="End tour of this gallery"
+            title="End tour of this gallery"
+          >
+            <span>End gallery tour</span>
+            <HugeIcon icon={ArrowRight02Icon} size={15} strokeWidth={2.2} />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onBackToDetails}
+          className="immersive-artwork-close"
+          aria-label="Close artwork view"
+          title="Back to artwork card"
+        >
+          <HugeIcon icon={Cancel01Icon} size={18} strokeWidth={2} />
+        </button>
+      </div>
 
-      <div ref={canvasRef} className={`immersive-artwork-canvas${isDrawing ? " is-drawing" : ""}`}>
+      <div ref={canvasRef} className={`immersive-artwork-canvas${isDrawing ? " is-drawing" : isPanning ? " is-panning" : ""}`}>
         <div className="immersive-artwork-image-layer" style={{ transform: `scale(${zoom})`, transformOrigin: origin }}>
           <Image
             src={artwork.imageSrc}
@@ -229,20 +322,31 @@ export function ImmersiveArtworkView({ artwork, avatar, controls, onBackToDetail
                 }}
               />
               <HoverCardContent side="right" align="center" className="w-fit border-0 bg-transparent p-0 shadow-none">
-                <button type="button" className="immersive-artwork-ask inline-flex items-center justify-center gap-2" onClick={() => onAskAboutSelection(selection)}><HugeiconsIcon icon={SparklesIcon} size={15} className="immersive-artwork-ask-icon" />Ask Alba</button>
+                <button type="button" className="immersive-artwork-ask inline-flex items-center justify-center gap-2" onClick={() => onAskAboutSelection(selection)}>
+                  <HugeiconsIcon icon={SparklesIcon} size={15} className="immersive-artwork-ask-icon" />
+                  Ask Alba
+                </button>
               </HoverCardContent>
             </HoverCard>
           )}
         </div>
         <div className="immersive-artwork-tools" role="group" aria-label="Artwork tools">
-          <button type="button" className={`immersive-artwork-icon-button immersive-artwork-pen${isDrawing ? " is-active" : ""}`} aria-label={isDrawing ? "Cancel drawing" : "Circle a detail"} aria-pressed={isDrawing} title={isDrawing ? "Cancel drawing" : "Circle a detail"} onClick={() => { setIsDrawing((active) => !active); setDraftPath([]); setSelection(null); setSelectionPath([]); }}>
+          <button
+            type="button"
+            className={`immersive-artwork-icon-button immersive-artwork-pen${isDrawing ? " is-active" : ""}`}
+            aria-label={isDrawing ? "Cancel drawing" : "Circle a detail"}
+            aria-pressed={isDrawing}
+            title={isDrawing ? "Cancel drawing" : "Circle a detail"}
+            onClick={() => { setIsDrawing((active) => !active); setDraftPath([]); setSelection(null); setSelectionPath([]); }}
+          >
             <HugeiconsIcon icon={Pen01Icon} size={19} strokeWidth={1.8} />
           </button>
-          <button type="button" className="immersive-artwork-icon-button" onClick={() => zoomBy(0.25)} disabled={zoom >= 3} aria-label="Zoom in" title="Zoom in">+</button>
+          <div className="immersive-artwork-tool-divider" aria-hidden="true" />
+          <button type="button" className="immersive-artwork-icon-button" onClick={() => zoomBy(0.25)} disabled={zoom >= 3.5} aria-label="Zoom in" title="Zoom in">+</button>
           <button type="button" className="immersive-artwork-icon-button" onClick={() => zoomBy(-0.25)} disabled={zoom <= 1} aria-label="Zoom out" title="Zoom out">−</button>
         </div>
       </div>
-<div className="immersive-artwork-shade" aria-hidden="true" />
+      <div className="immersive-artwork-shade" aria-hidden="true" />
       <div className="immersive-artwork-avatar">{avatar}</div>
       <div className="immersive-artwork-controls">{controls}</div>
     </section>

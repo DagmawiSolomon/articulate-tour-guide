@@ -426,12 +426,15 @@ registerProcessor('pcm-processor', PcmProcessor);
 
   function triggerReply(instructions?: string) {
     if (isConnected && ws.readyState === WebSocket.OPEN) {
+      console.log("[Agent] triggerReply sending reply.create. Length:", instructions?.length);
       ws.send(
         JSON.stringify({
           type: "reply.create",
           ...(instructions ? { instructions } : {}),
         })
       );
+    } else {
+      console.warn("[Agent] triggerReply ignored - WS not ready. isConnected:", isConnected, "readyState:", ws?.readyState);
     }
   }
 
