@@ -124,7 +124,7 @@ function MrTGlyph() {
 }
 
 function AgentSection({
-  speakerName = "Mr. Triangle",
+  speakerName = "Alba",
   topic,
   time,
   body,
@@ -161,7 +161,7 @@ function AgentSection({
       {/* Agent message header: docent identity and time inline */}
       <div className="flex items-center gap-1.5 text-[12px] leading-none px-1 pb-1">
         <span className="font-semibold" style={{ color: "var(--ink)" }}>
-          {speakerName || "Mr. Triangle"}
+          {speakerName || "Alba"}
         </span>
         <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>
           {time}
@@ -354,7 +354,7 @@ export function ChatHistoryView({
               ? formatTime(msg.timestamp)
               : formatTime(new Date());
             const topic = msg.topic ?? (msg.label && msg.label !== "The Starry Night" ? msg.label : undefined);
-            const speaker = msg.speakerName ?? "Mr. Triangle";
+            const speaker = msg.speakerName ?? "Alba";
 
             return (
               <AgentSection
@@ -381,7 +381,7 @@ export function ChatHistoryView({
             <ThinkingState
               variant="Steps"
               active="Consulting Museum Archives…"
-              done="Verified in 1889 Archives"
+              done="Verified in Curatorial Archives"
             />
           </div>
         )}
