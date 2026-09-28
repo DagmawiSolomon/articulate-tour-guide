@@ -61,20 +61,10 @@ export function ImmersiveArtworkView({
 
   const [zoomedHotspotId, setZoomedHotspotId] = React.useState<string | null>(activeHotspotId ?? null);
   const [isCardOpen, setIsCardOpen] = React.useState(Boolean(activeHotspotId));
-  const [hoveredHotspotId, setHoveredHotspotId] = React.useState<string | null>(null);
-  const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const hotspots = React.useMemo(() => {
     return artwork?.id ? getArtworkHotspots(artwork.id) : [];
   }, [artwork?.id]);
-
-  React.useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-      }
-    };
-  }, []);
 
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -97,7 +87,6 @@ export function ImmersiveArtworkView({
     setIsPanning(false);
     setZoomedHotspotId(null);
     setIsCardOpen(false);
-    setHoveredHotspotId(null);
   }, [artwork?.id]);
 
   const imageBounds = React.useMemo<ImageBounds>(() => {
@@ -123,23 +112,6 @@ export function ImmersiveArtworkView({
       y: (clientY - rect.top - origin.y) / zoom + origin.y,
     };
   }, [canvasSize, zoom, zoomOrigin]);
-
-  const handleHotspotMouseEnter = (id: string) => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-    setHoveredHotspotId(id);
-  };
-
-  const handleHotspotMouseLeave = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-    hoverTimeoutRef.current = setTimeout(() => {
-      setHoveredHotspotId(null);
-    }, 120);
-  };
 
   const handleSelectHotspot = React.useCallback((id: string) => {
     playTactileTap();
@@ -401,32 +373,22 @@ export function ImmersiveArtworkView({
             </HoverCard>
           )}
 
-          {/* Hotspot Markers Layer */}
-          {!isDrawing && imageBounds.width > 0 && hotspots.map((hotspot) => {
-            const isSelected = zoomedHotspotId === hotspot.id;
-            const isHovered = hoveredHotspotId === hotspot.id;
-            const isCardVisible = isHovered || (isSelected && isCardOpen);
-            const isAnySelected = zoomedHotspotId !== null;
+          {/* Hotspot Markers Layer — only displayed when the show_hotspots tool is triggered */}
+          {!isDrawing && Boolean(zoomedHotspotId) && imageBounds.width > 0 && hotspots.filter((h) => h.id === zoomedHotspotId).map((hotspot) => {
+            const isSelected = true;
+            const isCardVisible = isCardOpen;
             const markerX = imageBounds.left + (hotspot.xPercent / 100) * imageBounds.width;
             const markerY = imageBounds.top + (hotspot.yPercent / 100) * imageBounds.height;
 
             return (
               <div
                 key={hotspot.id}
-                className={`absolute transition-opacity duration-300 immersive-artwork-hotspot-marker ${
-                  isSelected
-                    ? "z-30 opacity-100"
-                    : isAnySelected
-                    ? "z-10 opacity-0 pointer-events-none"
-                    : "z-20 opacity-100"
-                }`}
+                className="absolute z-30 opacity-100 transition-opacity duration-300 immersive-artwork-hotspot-marker"
                 style={{
                   left: `${markerX}px`,
                   top: `${markerY}px`,
                   transform: "translate(-50%, -50%)",
                 }}
-                onMouseEnter={() => handleHotspotMouseEnter(hotspot.id)}
-                onMouseLeave={handleHotspotMouseLeave}
               >
                 {/* Clean solid white dot marker */}
                 <button
