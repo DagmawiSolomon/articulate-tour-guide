@@ -133,8 +133,26 @@ export function ArtifactStage({
                 <GalleryMapView originRouteId={originMapRouteId} activeRouteId={mapRouteId} />
               )
             )}
-            {artifactType === "comparison" && <ComparisonView pairId={comparisonPairId} />}
-            {artifactType === "timeline" && <TimelineView />}
+            {artifactType === "timeline" && (
+              <TimelineView
+                activeArtworkId={targetArtwork?.id || artworkId}
+                onSelectMilestone={onSelectArtwork ? (id) => {
+                  const art = TURNING_POINTS_ARTWORKS[id];
+                  if (art) {
+                    onSelectArtwork({
+                      id: art.id,
+                      title: art.title,
+                      imageSrc: art.imageSrc,
+                      summary: art.summary,
+                      metadata: [
+                        { label: "Artist", value: art.artist },
+                        { label: "Date", value: art.year },
+                      ],
+                    });
+                  }
+                } : undefined}
+              />
+            )}
             {artifactType === "hotspots" && (
               <DetailHotspotsView
                 activeHotspotId={hotspotId}

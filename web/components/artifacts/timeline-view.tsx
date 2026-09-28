@@ -5,10 +5,26 @@ import Image from "next/image";
 import { TIMELINE_MILESTONES, TimelineMilestone } from "@/lib/demo-tour-data";
 import { playTactileTap } from "@/lib/sounds";
 
-export function TimelineView() {
-  const [selectedId, setSelectedId] = React.useState<string>("saint-remy");
+export interface TimelineViewProps {
+  activeArtworkId?: string;
+  onSelectMilestone?: (milestoneId: string) => void;
+}
+
+export function TimelineView({ activeArtworkId, onSelectMilestone }: TimelineViewProps = {}) {
+  const [selectedId, setSelectedId] = React.useState<string>(() => {
+    if (activeArtworkId && TIMELINE_MILESTONES.some((m) => m.id === activeArtworkId)) {
+      return activeArtworkId;
+    }
+    return "van-gogh-starry-night";
+  });
   const [hoveredId, setHoveredId] = React.useState<string | null>(null);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (activeArtworkId && TIMELINE_MILESTONES.some((m) => m.id === activeArtworkId)) {
+      setSelectedId(activeArtworkId);
+    }
+  }, [activeArtworkId]);
 
   const isDragging = React.useRef(false);
   const startX = React.useRef(0);
@@ -41,6 +57,7 @@ export function TimelineView() {
   const handleSelectMilestone = (id: string) => {
     playTactileTap();
     setSelectedId(id);
+    onSelectMilestone?.(id);
   };
 
   return (
