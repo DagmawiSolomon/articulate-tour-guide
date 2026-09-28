@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { HugeIcon } from "@/components/ui/hugeicon";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -1826,6 +1826,13 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                     <HugeIcon icon={InformationCircleIcon} size={16} />
                     <AlertTitle>{voiceConnection === "failed" ? "Voice session unavailable" : "Microphone unavailable"}</AlertTitle>
                     <AlertDescription>{voiceConnection === "failed" ? connectionError : micError}</AlertDescription>
+                    {micError && !connectionError && (
+                      <AlertAction>
+                        <Button type="button" variant="ghost" size="icon-xs" aria-label="Dismiss microphone alert" onClick={() => setMicError(null)}>
+                          <HugeIcon icon={Cancel01Icon} size={14} />
+                        </Button>
+                      </AlertAction>
+                    )}
                   </Alert>
                 </div>
               )}

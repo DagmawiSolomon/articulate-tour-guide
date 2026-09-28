@@ -266,7 +266,12 @@ export async function createVoiceAgent(
         const message = typeof msg.message === "string" ? msg.message : "Voice session failed.";
         const isExpired = code.toLowerCase() === "session_expired";
         sessionEndReason = isExpired ? { type: "expired", code, message } : { type: "failed", code, message };
-        if (!isExpired) callbacks.onError?.(code, message);
+        if (isExpired && !endedNotified) {
+          endedNotified = true;
+          callbacks.onEnded?.(sessionEndReason);
+        } else if (!isExpired) {
+          callbacks.onError?.(code, message);
+        }
         break;
       }
     }
