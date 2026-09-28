@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { HugeIcon } from "@/components/ui/hugeicon";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -1500,7 +1500,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
   };
 
   const isEffectivelyMuted = isTourActive && isMuted;
-  const statusLabel = isQuietMode ? "Quiet" : voiceConnection === "connecting" ? "Connecting" : voiceConnection === "failed" ? "Unable to connect" : isEffectivelyMuted ? "Muted" : agentStatus;
+  const statusLabel = isQuietMode ? "Quiet" : voiceConnection === "connecting" ? "Connecting..." : voiceConnection === "failed" ? "Unable to connect" : isEffectivelyMuted ? "Muted" : agentStatus;
 
   const statusIndicator = (
     <div
@@ -1798,10 +1798,11 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                 aria-expanded={isExpanded}
               >
                 <ArticulateAvatar
-                  expressionId={activeExpressionId}
+                  expressionId={voiceConnection === "connecting" ? "neutral" : activeExpressionId}
                   size={480}
                   isListening={isListening}
-                  isMuted={isTourActive && (isMuted || voiceConnection !== "connected")}
+                  isMuted={isTourActive && isMuted}
+                  isConnecting={isTourActive && voiceConnection === "connecting"}
                   isSpeaking={agentStatus === "speaking"}
                   audioLevel={audioLevel}
                   shape={0.11}
@@ -1820,12 +1821,9 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
 
               {isTourActive && (connectionError || micError) && (
                 <div className="fixed top-4 left-1/2 z-30 w-[min(32rem,calc(100%-2rem))] -translate-x-1/2">
-                  <Alert variant="destructive">
+                  <Alert>
                     <AlertTitle>{voiceConnection === "failed" ? "Voice session unavailable" : "Microphone unavailable"}</AlertTitle>
                     <AlertDescription>{voiceConnection === "failed" ? connectionError : micError}</AlertDescription>
-                    <AlertAction>
-                      <Button type="button" size="xs" onClick={voiceConnection === "failed" ? handleRetryConnection : async () => { const stream = await startMic(); if (stream) setMicError(null); }}>Retry</Button>
-                    </AlertAction>
                   </Alert>
                 </div>
               )}
@@ -1865,7 +1863,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         <ImmersiveArtworkView
           artwork={selectedArtwork}
           onAskAboutSelection={handleAskAboutSelection}
-          avatar={<ArticulateAvatar expressionId={activeExpressionId} size={112} isListening={isListening} isMuted={isMuted || voiceConnection !== "connected"} isSpeaking={agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
+          avatar={<ArticulateAvatar expressionId={voiceConnection === "connecting" ? "neutral" : activeExpressionId} size={112} isListening={isListening} isMuted={isMuted} isConnecting={voiceConnection === "connecting"} isSpeaking={agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
           controls={callGroup}
           onBackToDetails={() => {
             visualAnalysisRequestRef.current += 1;
