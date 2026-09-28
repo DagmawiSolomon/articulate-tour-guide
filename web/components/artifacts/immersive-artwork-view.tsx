@@ -2,32 +2,46 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, Pen01Icon, SparklesIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { HugeIcon } from "@/components/ui/hugeicon";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import type { ReactNode } from "react";
 import type { ExhibitArtworkInfo } from "./exhibit-floor-map-view";
-import type { DetailHotspot } from "@/lib/demo-tour-data";
+
+export interface ArtworkSelection {
+  centerXPercent: number;
+  centerYPercent: number;
+  widthPercent: number;
+  heightPercent: number;
+}
 
 interface ImmersiveArtworkViewProps {
   artwork?: ExhibitArtworkInfo | null;
-  hotspots?: DetailHotspot[];
   avatar: ReactNode;
   controls: ReactNode;
   onBackToDetails: () => void;
-  onAskAboutDetail: (hotspot: DetailHotspot) => void;
+  onAskAboutSelection: (selection: ArtworkSelection) => void;
 }
 
 type Size = { width: number; height: number };
 type Point = { x: number; y: number };
+type ImageBounds = { left: number; top: number; width: number; height: number };
 
-export function ImmersiveArtworkView({ artwork, hotspots = [], avatar, controls, onBackToDetails, onAskAboutDetail }: ImmersiveArtworkViewProps) {
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+export function ImmersiveArtworkView({ artwork, avatar, controls, onBackToDetails, onAskAboutSelection }: ImmersiveArtworkViewProps) {
   const canvasRef = React.useRef<HTMLDivElement>(null);
+  const draftPathRef = React.useRef<Point[]>([]);
+  const activePointerIdRef = React.useRef<number | null>(null);
   const [canvasSize, setCanvasSize] = React.useState<Size>({ width: 0, height: 0 });
   const [imageSize, setImageSize] = React.useState<Size>({ width: 1, height: 1 });
   const [zoom, setZoom] = React.useState(1);
   const [zoomOrigin, setZoomOrigin] = React.useState<Point>({ x: 0, y: 0 });
-  const [isSelecting, setIsSelecting] = React.useState(false);
-  const [selectedHotspot, setSelectedHotspot] = React.useState<DetailHotspot | null>(null);
+  const [isDrawing, setIsDrawing] = React.useState(false);
+  const [draftPath, setDraftPath] = React.useState<Point[]>([]);
+  const [selection, setSelection] = React.useState<ArtworkSelection | null>(null);
+  const [selectionPath, setSelectionPath] = React.useState<Point[]>([]);
 
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -41,56 +55,142 @@ export function ImmersiveArtworkView({ artwork, hotspots = [], avatar, controls,
 
   React.useEffect(() => {
     setZoom(1);
-    setSelectedHotspot(null);
-    setIsSelecting(false);
+    setImageSize({ width: 1, height: 1 });
+    setSelection(null);
+    setSelectionPath([]);
+    setDraftPath([]);
+    setIsDrawing(false);
   }, [artwork?.id]);
 
-  const getImagePoint = React.useCallback((hotspot: DetailHotspot): Point => {
+  const imageBounds = React.useMemo<ImageBounds>(() => {
     const scale = Math.min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height);
-    const renderedWidth = imageSize.width * scale;
-    const renderedHeight = imageSize.height * scale;
-    const left = (canvasSize.width - renderedWidth) / 2;
-    const top = (canvasSize.height - renderedHeight) / 2;
-    return {
-      x: left + (hotspot.xPercent / 100) * renderedWidth,
-      y: top + (hotspot.yPercent / 100) * renderedHeight,
-    };
+    const width = imageSize.width * scale;
+    const height = imageSize.height * scale;
+    return { left: (canvasSize.width - width) / 2, top: (canvasSize.height - height) / 2, width, height };
   }, [canvasSize, imageSize]);
 
-  const zoomBy = (amount: number) => {
+  const zoomBy = React.useCallback((amount: number) => {
+    setZoomOrigin({ x: canvasSize.width / 2, y: canvasSize.height / 2 });
     setZoom((current) => Math.min(3, Math.max(1, Number((current + amount).toFixed(2)))));
-  };
+  }, [canvasSize]);
 
-  const handleHotspotSelect = (hotspot: DetailHotspot) => {
-    const point = getImagePoint(hotspot);
-    setSelectedHotspot(hotspot);
-    setZoomOrigin(point);
-    setZoom(Math.max(1.8, Math.min(2.5, hotspot.zoomScale)));
-  };
+  const getLayerPoint = React.useCallback((clientX: number, clientY: number): Point => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    const origin = zoom === 1 ? { x: canvasSize.width / 2, y: canvasSize.height / 2 } : zoomOrigin;
+    return {
+      x: (clientX - rect.left - origin.x) / zoom + origin.x,
+      y: (clientY - rect.top - origin.y) / zoom + origin.y,
+    };
+  }, [canvasSize, zoom, zoomOrigin]);
 
+  React.useEffect(() => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const finishStroke = (points: Point[]) => {
+      if (points.length < 3) return;
+      const xs = points.map((point) => point.x);
+      const ys = points.map((point) => point.y);
+      const left = Math.min(...xs);
+      const top = Math.min(...ys);
+      const width = Math.max(Math.max(...xs) - left, 24);
+      const height = Math.max(Math.max(...ys) - top, 24);
+      setSelectionPath(points);
+      setSelection({
+        centerXPercent: clamp(((left + width / 2 - imageBounds.left) / imageBounds.width) * 100, 0, 100),
+        centerYPercent: clamp(((top + height / 2 - imageBounds.top) / imageBounds.height) * 100, 0, 100),
+        widthPercent: clamp((width / imageBounds.width) * 100, 1, 100),
+        heightPercent: clamp((height / imageBounds.height) * 100, 1, 100),
+      });
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0 || !imageBounds.width || !imageBounds.height) return;
+      if (event.target instanceof Element && event.target.closest(".immersive-artwork-tools, .immersive-artwork-selection-trigger")) return;
+      event.preventDefault();
+      activePointerIdRef.current = event.pointerId;
+      try { canvas.setPointerCapture(event.pointerId); } catch { /* Window listeners also track movement. */ }
+      const point = getLayerPoint(event.clientX, event.clientY);
+      draftPathRef.current = [point];
+      setDraftPath([point]);
+      setSelection(null);
+      setSelectionPath([]);
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+      const point = getLayerPoint(event.clientX, event.clientY);
+      const previous = draftPathRef.current[draftPathRef.current.length - 1];
+      if (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 2) return;
+      const nextPath = [...draftPathRef.current, point];
+      draftPathRef.current = nextPath;
+      setDraftPath(nextPath);
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+      const point = getLayerPoint(event.clientX, event.clientY);
+      const previous = draftPathRef.current[draftPathRef.current.length - 1];
+      const points = previous && Math.hypot(point.x - previous.x, point.y - previous.y) >= 2
+        ? [...draftPathRef.current, point]
+        : draftPathRef.current;
+      activePointerIdRef.current = null;
+      draftPathRef.current = [];
+      setDraftPath([]);
+      finishStroke(points);
+      setIsDrawing(false);
+    };
+
+    const onPointerCancel = (event: PointerEvent) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+      activePointerIdRef.current = null;
+      draftPathRef.current = [];
+      setDraftPath([]);
+      setIsDrawing(false);
+    };
+
+    canvas.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerCancel);
+    return () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
+      activePointerIdRef.current = null;
+    };
+  }, [getLayerPoint, imageBounds, isDrawing]);
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        if (selectedHotspot) {
-          setSelectedHotspot(null);
-          setZoom(1);
+        if (isDrawing) {
+          setIsDrawing(false);
+          setDraftPath([]);
+        } else if (selection) {
+          setSelection(null);
+          setSelectionPath([]);
+          setDraftPath([]);
         } else {
           onBackToDetails();
         }
       } else if (event.key === "+" || event.key === "=") {
-        setZoom((current) => Math.min(3, Number((current + 0.25).toFixed(2))));
+        zoomBy(0.25);
       } else if (event.key === "-") {
-        setZoom((current) => Math.max(1, Number((current - 0.25).toFixed(2))));
+        zoomBy(-0.25);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canvasSize, onBackToDetails, selectedHotspot]);
+  }, [isDrawing, onBackToDetails, selection, zoomBy]);
 
   if (!artwork) return null;
 
-  const selectedPoint = selectedHotspot ? getImagePoint(selectedHotspot) : null;
   const origin = zoom === 1 ? `${canvasSize.width / 2}px ${canvasSize.height / 2}px` : `${zoomOrigin.x}px ${zoomOrigin.y}px`;
+  const visiblePath = isDrawing ? draftPath : selectionPath;
+  const renderedPath = !isDrawing && visiblePath.length > 2 ? [...visiblePath, visiblePath[0]] : visiblePath;
 
   return (
     <section className="immersive-artwork-view fixed inset-0 z-[40] h-[100dvh] w-screen overflow-hidden" aria-label={`Viewing ${artwork.title}`}>
@@ -98,7 +198,7 @@ export function ImmersiveArtworkView({ artwork, hotspots = [], avatar, controls,
         <HugeIcon icon={Cancel01Icon} size={18} strokeWidth={2} />
       </button>
 
-      <div ref={canvasRef} className="immersive-artwork-canvas">
+      <div ref={canvasRef} className={`immersive-artwork-canvas${isDrawing ? " is-drawing" : ""}`}>
         <div className="immersive-artwork-image-layer" style={{ transform: `scale(${zoom})`, transformOrigin: origin }}>
           <Image
             src={artwork.imageSrc}
@@ -109,55 +209,40 @@ export function ImmersiveArtworkView({ artwork, hotspots = [], avatar, controls,
             className="immersive-artwork-image"
             onLoad={(event) => setImageSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
           />
-
-          {isSelecting && hotspots.map((hotspot) => {
-            const point = getImagePoint(hotspot);
-            const isSelected = selectedHotspot?.id === hotspot.id;
-            return (
-              <button
-                key={hotspot.id}
-                type="button"
-                className={`immersive-artwork-hotspot${isSelected ? " is-selected" : ""}`}
-                style={{ left: point.x, top: point.y }}
-                onClick={() => handleHotspotSelect(hotspot)}
-                aria-label={`Select ${hotspot.name}`}
-                title={hotspot.name}
-              >
-                <span />
-              </button>
-            );
-          })}
+          {renderedPath.length > 1 && (
+            <svg className="immersive-artwork-selection-mark" viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`} preserveAspectRatio="none" aria-hidden="true">
+              <polyline points={renderedPath.map(({ x, y }) => `${x},${y}`).join(" ")} />
+            </svg>
+          )}
+          {selection && (
+            <HoverCard>
+              <HoverCardTrigger
+                delay={120}
+                closeDelay={260}
+                aria-label="Hover to ask Alba about the circled detail"
+                className="immersive-artwork-selection-trigger"
+                style={{
+                  left: imageBounds.left + imageBounds.width * selection.centerXPercent / 100,
+                  top: imageBounds.top + imageBounds.height * selection.centerYPercent / 100,
+                  width: Math.max(48, imageBounds.width * selection.widthPercent / 100),
+                  height: Math.max(48, imageBounds.height * selection.heightPercent / 100),
+                }}
+              />
+              <HoverCardContent side="right" align="center" className="w-fit border-0 bg-transparent p-0 shadow-none">
+                <button type="button" className="immersive-artwork-ask inline-flex items-center justify-center gap-2" onClick={() => onAskAboutSelection(selection)}><HugeiconsIcon icon={SparklesIcon} size={15} className="immersive-artwork-ask-icon" />Ask Alba</button>
+              </HoverCardContent>
+            </HoverCard>
+          )}
         </div>
-
-        {isSelecting && !selectedHotspot && (
-          <p className="immersive-artwork-hint">Select a highlighted detail to ask Alba</p>
-        )}
-
-        {selectedHotspot && selectedPoint && (
-          <div className="immersive-artwork-detail" role="group" aria-label={`Selected detail: ${selectedHotspot.name}`}>
-            <button type="button" className="immersive-artwork-detail-close" onClick={() => { setSelectedHotspot(null); setZoom(1); }} aria-label="Clear selected detail">
-              <HugeIcon icon={Cancel01Icon} size={14} />
-            </button>
-            <p className="text-xs font-semibold text-[#1f1e1b]">{selectedHotspot.name}</p>
-            <p className="mt-1 text-xs leading-relaxed text-[#65635d]">{selectedHotspot.insight}</p>
-            <button type="button" className="immersive-artwork-ask" onClick={() => onAskAboutDetail(selectedHotspot)}>Ask Alba about this</button>
-          </div>
-        )}
-      </div>
-
-      <div className="immersive-artwork-tools">
-        <button type="button" onClick={() => { setIsSelecting((active) => !active); setSelectedHotspot(null); }} aria-pressed={isSelecting} className={`immersive-artwork-select${isSelecting ? " is-active" : ""}`}>
-          {isSelecting ? "Cancel selection" : "Select a detail"}
-        </button>
-        <div className="immersive-artwork-zoom" role="group" aria-label="Artwork zoom controls">
-          <button type="button" onClick={() => zoomBy(0.25)} disabled={zoom >= 3} aria-label="Zoom in">+</button>
-          <span aria-live="polite">{Math.round(zoom * 100)}%</span>
-          <button type="button" onClick={() => zoomBy(-0.25)} disabled={zoom <= 1} aria-label="Zoom out">−</button>
-          <button type="button" onClick={() => { setZoom(1); setSelectedHotspot(null); }} disabled={zoom === 1} aria-label="Reset zoom">↺</button>
+        <div className="immersive-artwork-tools" role="group" aria-label="Artwork tools">
+          <button type="button" className={`immersive-artwork-icon-button immersive-artwork-pen${isDrawing ? " is-active" : ""}`} aria-label={isDrawing ? "Cancel drawing" : "Circle a detail"} aria-pressed={isDrawing} title={isDrawing ? "Cancel drawing" : "Circle a detail"} onClick={() => { setIsDrawing((active) => !active); setDraftPath([]); setSelection(null); setSelectionPath([]); }}>
+            <HugeiconsIcon icon={Pen01Icon} size={19} strokeWidth={1.8} />
+          </button>
+          <button type="button" className="immersive-artwork-icon-button" onClick={() => zoomBy(0.25)} disabled={zoom >= 3} aria-label="Zoom in" title="Zoom in">+</button>
+          <button type="button" className="immersive-artwork-icon-button" onClick={() => zoomBy(-0.25)} disabled={zoom <= 1} aria-label="Zoom out" title="Zoom out">−</button>
         </div>
       </div>
-
-      <div className="immersive-artwork-shade" aria-hidden="true" />
+<div className="immersive-artwork-shade" aria-hidden="true" />
       <div className="immersive-artwork-avatar">{avatar}</div>
       <div className="immersive-artwork-controls">{controls}</div>
     </section>
