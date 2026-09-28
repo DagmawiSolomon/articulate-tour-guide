@@ -13,11 +13,14 @@ export interface ArtworkMetadataField {
   value: string;
 }
 
+export type GalleryState = "unexplored" | "exploring" | "completed";
+
 export interface ArtworkInfoCardProps {
   title?: string;
   imageSrc?: string;
   summary?: string;
   metadata?: ArtworkMetadataField[];
+  galleryState?: GalleryState;
   showTourActions?: boolean;
   onReturnToMap?: () => void;
   onStartTour?: () => void;
@@ -35,6 +38,7 @@ export function ArtworkInfoCard({
   imageSrc = ARTWORK_DATA.imageSrc,
   summary = ARTWORK_DATA.summary,
   metadata,
+  galleryState,
   showTourActions = true,
   onReturnToMap,
   onStartTour,
@@ -42,6 +46,7 @@ export function ArtworkInfoCard({
   onEndGalleryTour,
 }: ArtworkInfoCardProps) {
   const activeMetadata = metadata && metadata.length > 0 ? metadata : DEFAULT_METADATA;
+  const state: GalleryState = galleryState ?? (showTourActions ? "unexplored" : "exploring");
 
   return (
     <div className="relative w-full h-full flex items-center justify-center p-2 sm:p-4 overflow-hidden">
@@ -75,8 +80,8 @@ export function ArtworkInfoCard({
             className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           />
 
-          {/* Full-screen button when tour has started, in addition to clicking the image */}
-          {!showTourActions && onViewArtworkFullscreen && (
+          {/* Full-screen button when touring */}
+          {state === "exploring" && onViewArtworkFullscreen && (
             <button
               type="button"
               onClick={(e) => {
@@ -130,92 +135,113 @@ export function ArtworkInfoCard({
               ))}
             </div>
 
-            {/* Action buttons */}
-            {showTourActions && (onStartTour || onReturnToMap) && (
-              <div className="mt-5">
-                <Separator className="mb-4 bg-border/60" />
-                <div className="flex flex-wrap items-center gap-2.5">
-                  {onStartTour && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        playTactileTap();
-                        onStartTour();
-                      }}
-                      className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-5 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
-                      style={{ background: "var(--ink)", color: "#fff" }}
-                    >
-                      Start tour
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
+            {/* Action buttons based on gallery state */}
+            <div className="mt-5">
+              <Separator className="mb-4 bg-border/60" />
+              <div className="flex flex-wrap items-center gap-2.5">
+                {state === "unexplored" && (
+                  <>
+                    {onStartTour && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playTactileTap();
+                          onStartTour();
+                        }}
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-5 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
+                        style={{ background: "var(--ink)", color: "#fff" }}
                       >
-                        <path d="M5 12h14m-6-6l6 6-6 6" />
-                      </svg>
-                    </button>
-                  )}
-                  {onReturnToMap && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        playTactileTap();
-                        onReturnToMap();
-                      }}
-                      className="inline-flex min-h-9 items-center justify-center rounded-full px-4 py-2 text-xs font-medium cursor-pointer transition-colors hover:bg-zinc-200 border-0"
-                      style={{ background: "#f4f4f5", color: "#1f1e1b" }}
-                    >
-                      Go to map
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
+                        Start tour
+                        <HugeIcon icon={ArrowRight02Icon} size={13} color="#ffffff" className="text-white" strokeWidth={2.2} />
+                      </button>
+                    )}
+                    {onReturnToMap && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playTactileTap();
+                          onReturnToMap();
+                        }}
+                        className="inline-flex min-h-9 items-center justify-center rounded-full px-4 py-2 text-xs font-medium cursor-pointer transition-colors hover:bg-zinc-200 border-0"
+                        style={{ background: "#f4f4f5", color: "#1f1e1b" }}
+                      >
+                        Go to map
+                      </button>
+                    )}
+                  </>
+                )}
 
-            {/* If tour has started, show dedicated Full screen view and End gallery tour action buttons */}
-            {!showTourActions && (onViewArtworkFullscreen || onEndGalleryTour) && (
-              <div className="mt-4 pt-3.5 border-t border-border/50 flex flex-wrap items-center gap-2.5">
-                {onViewArtworkFullscreen && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      playTactileTap();
-                      onViewArtworkFullscreen();
-                    }}
-                    className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-medium cursor-pointer transition-all hover:bg-zinc-200 active:scale-[0.96] border-0"
-                    style={{ background: "#f4f4f5", color: "#1f1e1b" }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <polyline points="15 3 21 3 21 9" />
-                      <polyline points="9 21 3 21 3 15" />
-                      <line x1="21" y1="3" x2="14" y2="10" />
-                      <line x1="3" y1="21" x2="10" y2="14" />
-                    </svg>
-                    Full screen view
-                  </button>
+                {state === "exploring" && (
+                  <>
+                    {onViewArtworkFullscreen && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playTactileTap();
+                          onViewArtworkFullscreen();
+                        }}
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-medium cursor-pointer transition-all hover:bg-zinc-200 active:scale-[0.96] border-0"
+                        style={{ background: "#f4f4f5", color: "#1f1e1b" }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="15 3 21 3 21 9" />
+                          <polyline points="9 21 3 21 3 15" />
+                          <line x1="21" y1="3" x2="14" y2="10" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                        Full screen view
+                      </button>
+                    )}
+                    {onEndGalleryTour && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playTactileTap();
+                          onEndGalleryTour();
+                        }}
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-5 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
+                        style={{ background: "var(--ink)", color: "#fff" }}
+                      >
+                        End gallery tour
+                        <HugeIcon icon={ArrowRight02Icon} size={13} color="#ffffff" className="text-white" strokeWidth={2.2} />
+                      </button>
+                    )}
+                  </>
                 )}
-                {onEndGalleryTour && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      playTactileTap();
-                      onEndGalleryTour();
-                    }}
-                    className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
-                    style={{ background: "var(--ink)", color: "#fff" }}
-                  >
-                    End gallery tour
-                    <HugeIcon icon={ArrowRight02Icon} size={13} color="#ffffff" className="text-white" strokeWidth={2.2} />
-                  </button>
+
+                {state === "completed" && (
+                  <>
+                    {onStartTour && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playTactileTap();
+                          onStartTour();
+                        }}
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-5 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
+                        style={{ background: "var(--ink)", color: "#fff" }}
+                      >
+                        Revisit
+                        <HugeIcon icon={ArrowRight02Icon} size={13} color="#ffffff" className="text-white" strokeWidth={2.2} />
+                      </button>
+                    )}
+                    {onReturnToMap && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playTactileTap();
+                          onReturnToMap();
+                        }}
+                        className="inline-flex min-h-9 items-center justify-center rounded-full px-4 py-2 text-xs font-medium cursor-pointer transition-colors hover:bg-zinc-200 border-0"
+                        style={{ background: "#f4f4f5", color: "#1f1e1b" }}
+                      >
+                        Go to map
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
-            )}
+            </div>
 
           </div>
         </div>
