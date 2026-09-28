@@ -156,6 +156,9 @@ export default function Home() {
   const loadingTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   // When start tour is clicked, card collapses for fullscreen Alba explanation, then auto-uncollapses
   const shouldUncollapseAfterSpeechRef = React.useRef<boolean>(false);
+  // Tracks hotspot speech lifecycle: only dismisses AFTER Alba completes the tool response explanation
+  const hotspotSpeechPhaseRef = React.useRef<"idle" | "pending_reply" | "explaining" | "draining">("idle");
+  const hotspotDismissTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   // Dev toggle: simulates the isLoading state triggered by tool.call / tool.result.
   // Will be wired to real events once voice is connected.
   const [isArtifactLoading, setIsArtifactLoading] = React.useState(false);
@@ -191,6 +194,15 @@ export default function Home() {
     audioPlayerRef.current?.flush();
     setAgentStatus("listening");
     shouldUncollapseAfterSpeechRef.current = false;
+    if (hotspotDismissTimerRef.current) {
+      clearTimeout(hotspotDismissTimerRef.current);
+      hotspotDismissTimerRef.current = null;
+    }
+    // Only dismiss if visitor barged in during or after Alba's active explanation (never on pre-reply turn transition)
+    if (hotspotSpeechPhaseRef.current === "explaining" || hotspotSpeechPhaseRef.current === "draining") {
+      hotspotSpeechPhaseRef.current = "idle";
+      setActiveHotspotId(null);
+    }
   }, []);
 
   // ── State Machine Helpers ─────────────────────────────────────────────────
@@ -467,7 +479,7 @@ export default function Home() {
 
     // 4. Safe reply — always flushes in-flight audio before triggering a new agent reply
     safeReply(
-      `The visitor confirmed: "Let's go with this first!" to start their tour with ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist}. Welcome them enthusiastically to this opening stop of the exhibition and give a vivid, engaging 2-sentence curatorial breakdown of why this masterpiece is our first revolutionary milestone. Speak with poise and dive straight into the artwork without any apologies.`
+      `The visitor confirmed: "Let's go with this first!" to start their tour with ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist}. Welcome them enthusiastically to this opening stop of the exhibition and give a vivid, engaging 2-sentence curatorial breakdown of why this masterpiece is our first revolutionary milestone. Speak with poise and dive straight into the artwork without any apologies. CRITICAL: Do NOT call show_info, show_map, or any tools. Speak ONLY the spoken breakdown.`
     );
   }, [selectedArtwork, activeArtworkId, safeReply, startExploring]);
 
@@ -863,6 +875,9 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       onAgentSpeakingStart: () => {
         ignoreAudioUntilNextReplyRef.current = false;
         setAgentStatus("speaking");
+        if (hotspotSpeechPhaseRef.current === "pending_reply") {
+          hotspotSpeechPhaseRef.current = "explaining";
+        }
       },
       onAgentSpeakingEnd: (interrupted) => {
         replyIndexRef.current += 1;
@@ -871,7 +886,14 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         if (interrupted) {
           bargeIn();
           greetingPhaseRef.current = "done";
+          if (hotspotSpeechPhaseRef.current === "explaining" || hotspotSpeechPhaseRef.current === "draining") {
+            hotspotSpeechPhaseRef.current = "idle";
+            setActiveHotspotId(null);
+          }
         } else {
+          if (hotspotSpeechPhaseRef.current === "explaining") {
+            hotspotSpeechPhaseRef.current = "draining";
+          }
           // Decoupled mute warning: if base greeting just finished transmitting and visitor is still muted
           if (isInitialGreetingTurn && greetingPhaseRef.current === "greeting") {
             if (isMutedRef.current && !hasUserInteractedRef.current && !muteWarningSentRef.current) {
@@ -885,6 +907,15 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           // Wait for audio player to finish draining queued audio chunks in speakers
           audioPlayerRef.current?.onPlaybackComplete(() => {
             setAgentStatus("listening");
+            if (hotspotSpeechPhaseRef.current === "draining") {
+              hotspotSpeechPhaseRef.current = "idle";
+              if (hotspotDismissTimerRef.current) clearTimeout(hotspotDismissTimerRef.current);
+              // Detail explanation complete: retain detail for comfortable viewing, then gracefully clear
+              hotspotDismissTimerRef.current = setTimeout(() => {
+                setActiveHotspotId(null);
+                hotspotDismissTimerRef.current = null;
+              }, 4000);
+            }
             if (greetingPhaseRef.current === "greeting" && !hasUserInteractedRef.current) {
               greetingPhaseRef.current = "done";
               setIsExpanded((prev) => {
@@ -1012,8 +1043,13 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             ],
           });
           // Display the hotspots on the fullscreen artwork presentation!
+          if (hotspotDismissTimerRef.current) {
+            clearTimeout(hotspotDismissTimerRef.current);
+            hotspotDismissTimerRef.current = null;
+          }
           setActiveArtifact("artwork-view");
           setActiveHotspotId(hotspotId);
+          hotspotSpeechPhaseRef.current = "pending_reply";
           setIsExpanded(true);
           // Track guest location without triggering an unrequested path route line
           guestLocationRef.current = artPlaceId;
@@ -1039,7 +1075,8 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           const artId = resolveArtworkId(rawId);
           const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
           setActiveArtworkId(artwork.id);
-          setActiveArtifact("info");
+          // If the visitor is viewing the artwork in fullscreen, don't kick them out back to card info
+          setActiveArtifact((prev) => (prev === "artwork-view" ? prev : "info"));
           setSelectedArtwork({
             id: artwork.id,
             title: artwork.title,
