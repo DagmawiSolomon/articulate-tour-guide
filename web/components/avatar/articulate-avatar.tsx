@@ -72,7 +72,7 @@ export function ArticulateAvatar({
         className={`relative rounded-full flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isListening ? "avatar-listening" : ""
         } ${isSpeaking ? "avatar-speaking" : ""} ${
-          isMuted ? "avatar-muted opacity-60 filter contrast-[0.92] scale-[0.96] translate-y-1.5" : "opacity-100"} ${isConnecting ? "grayscale" : ""
+          isMuted ? "avatar-muted opacity-60 filter contrast-[0.92] scale-[0.96] translate-y-1.5" : "opacity-100"} ${isConnecting ? "grayscale brightness-110" : ""
         }`}
         style={{
           width: currentSize,

@@ -247,8 +247,12 @@ export async function createVoiceAgent(
         const code = typeof msg.code === "string" ? msg.code : undefined;
         const message = typeof msg.message === "string" ? msg.message : undefined;
         const detail = String(code ?? "") + " " + String(message ?? "");
-        sessionEndReason = /expir|duration|time.?limit|maximum.*session|session.*maximum/i.test(detail)
-          ? { type: "expired", code, message }
+        const duration = typeof msg.session_duration_seconds === "number" ? msg.session_duration_seconds : null;
+        const reachedDurationLimit = duration !== null && duration >= 180;
+        const previousExpiry = sessionEndReason?.type === "expired" ? sessionEndReason : null;
+        const isExpired = previousExpiry !== null || reachedDurationLimit || /expir|duration|time.?limit|maximum.*session|session.*maximum/i.test(detail);
+        sessionEndReason = isExpired
+          ? previousExpiry ?? { type: "expired", code, message }
           : { type: "ended", code, message };
         if (!endedNotified) {
           endedNotified = true;
@@ -260,14 +264,16 @@ export async function createVoiceAgent(
       case "session.error": {
         const code = typeof msg.code === "string" ? msg.code : "agent_error";
         const message = typeof msg.message === "string" ? msg.message : "Voice session failed.";
-        sessionEndReason = { type: "failed", code, message };
-        callbacks.onError?.(code, message);
+        const isExpired = code.toLowerCase() === "session_expired";
+        sessionEndReason = isExpired ? { type: "expired", code, message } : { type: "failed", code, message };
+        if (!isExpired) callbacks.onError?.(code, message);
         break;
       }
     }
   };
 
   ws.onerror = () => {
+    if (sessionEndReason?.type === "expired") return;
     // Pre-handshake failures (UNAUTHORIZED etc.) surface as close 1006
     // — no session.error payload arrives in this case
     sessionEndReason = { type: "failed", code: "connection_error", message: "WebSocket connection failed" };
