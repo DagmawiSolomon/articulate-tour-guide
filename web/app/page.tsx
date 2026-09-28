@@ -3,6 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { HugeIcon } from "@/components/ui/hugeicon";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -79,12 +80,13 @@ import {
   playTactileTap,
   playToggle,
 } from "@/lib/sounds";
-import { createVoiceAgent, type VoiceAgent, type VoiceAgentCallbacks } from "@/lib/assemblyai-agent";
+import { createVoiceAgent, type VoiceAgent, type VoiceAgentCallbacks, type VoiceAgentEndReason } from "@/lib/assemblyai-agent";
 import { createAudioPlayer, type AudioPlayer } from "@/lib/assemblyai-audio";
 import { BayerDitherBackground } from "@/components/ui/bayer-dither-background";
 import { useMicAudioLevel } from "@/hooks/use-mic-audio-level";
 
 type AgentStatus = "listening" | "thinking" | "speaking";
+type VoiceConnectionState = "idle" | "connecting" | "connected" | "failed";
 
 const LISTENING_EMOTIONS: ExpressionId[] = [
   "listening",
@@ -128,6 +130,10 @@ export default function Home() {
   const [isExhibitInfoOpen, setIsExhibitInfoOpen] = React.useState(false);
   const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("neutral");
   const [agentStatus, setAgentStatus] = React.useState<AgentStatus>("listening");
+  const [voiceConnection, setVoiceConnection] = React.useState<VoiceConnectionState>("idle");
+  const [connectionError, setConnectionError] = React.useState<string | null>(null);
+  const [micError, setMicError] = React.useState<string | null>(null);
+  const [sessionExpiryDialogOpen, setSessionExpiryDialogOpen] = React.useState(false);
   const [isMuted, setIsMuted] = React.useState(false);
   const [activeArtifact, setActiveArtifact] = React.useState<ArtifactType>("info");
   const [selectedArtwork, setSelectedArtwork] = React.useState<ExhibitArtworkInfo | null>(null);
@@ -183,6 +189,7 @@ export default function Home() {
 
   // Barge-in: immediately stop playback in speakers and drop any pending/in-flight audio chunks from interrupted turn
   const ignoreAudioUntilNextReplyRef = React.useRef<boolean>(false);
+  const visualAnalysisRequestRef = React.useRef(0);
   const pendingVisualAnalysisRef = React.useRef<{
     artworkId: string;
     answer: string;
@@ -257,6 +264,14 @@ export default function Home() {
    * Use this instead of calling audioPlayerRef.current?.flush() + triggerReply() separately.
    */
   const safeReply = React.useCallback((prompt: string) => {
+    const agent = agentRef.current;
+    if (!agent?.ready) {
+      if (agent?.connected) {
+        setVoiceConnection("failed");
+        setConnectionError("Alba is not connected. Retry to continue the voice tour.");
+      }
+      return;
+    }
     ignoreAudioUntilNextReplyRef.current = true;
     audioPlayerRef.current?.flush();
     setAgentStatus("thinking");
@@ -371,12 +386,14 @@ export default function Home() {
         // Start streaming audio to the agent
         agentRef.current?.startAudio(stream);
         setMicStream(stream);
+        setMicError(null);
         isMutedRef.current = false;
         setIsMuted(false);
         return stream;
       }
     } catch (err) {
       console.warn("Microphone access error or denied:", err);
+      setMicError("Microphone access was denied. Allow microphone access and retry.");
       isMutedRef.current = true;
       setIsMuted(true);
     }
@@ -533,6 +550,7 @@ export default function Home() {
   }, [selectedArtwork, activeArtworkId, safeReply, setArtworkGalleryState]);
 
   const handleAskAboutSelection = React.useCallback(async (selection: ArtworkSelection) => {
+    const requestId = ++visualAnalysisRequestRef.current;
     const artworkId = resolveArtworkId(selectedArtwork?.id || activeArtworkId);
     const artwork = TURNING_POINTS_ARTWORKS[artworkId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
     const visitorQuestion = `Tell me about the area I circled in ${artwork.title}.`;
@@ -555,6 +573,7 @@ export default function Home() {
         body: JSON.stringify({ artworkId, selection, question: visitorQuestion }),
       });
       const result = await response.json();
+      if (requestId !== visualAnalysisRequestRef.current) return;
       if (!response.ok || typeof result.answer !== "string") {
         throw new Error(result.error || "I couldn't inspect that detail just now.");
       }
@@ -592,7 +611,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       ignoreAudioUntilNextReplyRef.current = false;
       setAgentStatus("thinking");
 
-      if (agentRef.current?.connected) {
+      if (agentRef.current?.ready) {
         agentRef.current.triggerReply(reply);
       } else {
         setIsChatThinking(false);
@@ -627,6 +646,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         }
       }
     } catch (error) {
+      if (requestId !== visualAnalysisRequestRef.current) return;
       console.error("Artwork visual question failed:", error);
       const reply = `The visitor circled a detail in "${artwork.title}" and asked about it, but the visual analysis failed. In one warm sentence, apologize briefly that you could not inspect that detail right now, and invite them to ask about something else in the painting.`;
       setChatMessages((previous) => [
@@ -636,7 +656,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       audioPlayerRef.current?.flush();
       ignoreAudioUntilNextReplyRef.current = false;
       setAgentStatus("thinking");
-      if (agentRef.current?.connected) {
+      if (agentRef.current?.ready) {
         agentRef.current.triggerReply(reply);
       } else {
         setIsChatThinking(false);
@@ -645,6 +665,11 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     }
   }, [selectedArtwork, activeArtworkId, bargeIn]);
   const handleStartTour = async () => {
+    visualAnalysisRequestRef.current += 1;
+    setConnectionError(null);
+    setMicError(null);
+    setSessionExpiryDialogOpen(false);
+    setVoiceConnection("connecting");
     playCallStart();
     setIsTourActive(true);
     // Alba starts large in the center! Stage expands only after greeting or manual action
@@ -695,6 +720,9 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     // 3. Connect Voice Agent session
     const callbacks: VoiceAgentCallbacks = {
       onReady: (sessionId) => {
+        setVoiceConnection("connected");
+        setConnectionError(null);
+        setActiveExpressionId(isMutedRef.current ? "muted" : "listening");
         console.log("[AssemblyAI] Tour session ready:", sessionId);
         if (mediaStreamRef.current) {
           agentRef.current?.startAudio(mediaStreamRef.current);
@@ -1231,10 +1259,12 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       },
       onError: (code, message) => {
         console.warn("[AssemblyAI] Agent error:", code, message);
+        setVoiceConnection("failed");
+        setActiveExpressionId("neutral");
+        setConnectionError(message || "Alba could not connect. Check your connection and retry.");
       },
-      onEnded: () => {
-        console.log("[AssemblyAI] Voice agent session ended.");
-        void handleConfirmEndTour();
+      onEnded: (reason) => {
+        handleUnexpectedSessionEnd(reason);
       },
     };
 
@@ -1247,10 +1277,45 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       }
     } catch (err) {
       console.warn("[AssemblyAI] Agent connection skipped or failed:", err);
+      setVoiceConnection("failed");
+      setActiveExpressionId("neutral");
+      setConnectionError(err instanceof Error ? err.message : "Alba could not connect. Check your connection and retry.");
+    }
+  };
+
+  const handleUnexpectedSessionEnd = (reason: VoiceAgentEndReason) => {
+    setVoiceConnection("failed");
+    setAgentStatus("listening");
+    setActiveExpressionId("neutral");
+    stopMic();
+    agentRef.current = null;
+    const isExpired = reason.type === "expired";
+    setConnectionError(isExpired ? "This voice session reached its 180-second limit. You can continue exploring or start a new session." : reason.type === "disconnected" ? "Alba's connection was interrupted. Your tour remains open; retry to talk with her again." : reason.message || "Alba's voice session ended. Your tour remains open.");
+    if (isExpired) setSessionExpiryDialogOpen(true);
+  };
+
+  const handleRetryConnection = async () => {
+    setConnectionError(null);
+    setVoiceConnection("connecting");
+    try {
+      agentRef.current?.end();
+      agentRef.current = null;
+      if (!audioPlayerRef.current) audioPlayerRef.current = createAudioPlayer();
+      const agent = await createVoiceAgent(agentCallbacksRef.current ?? {}, { isMuted: isMutedRef.current });
+      agentRef.current = agent;
+      if (!isMutedRef.current && mediaStreamRef.current) agent.startAudio(mediaStreamRef.current);
+    } catch (err) {
+      setVoiceConnection("failed");
+      setConnectionError(err instanceof Error ? err.message : "Alba could not connect. Check your connection and retry.");
     }
   };
 
   const handleConfirmEndTour = async () => {
+    visualAnalysisRequestRef.current += 1;
+    setVoiceConnection("idle");
+    setConnectionError(null);
+    setMicError(null);
+    setSessionExpiryDialogOpen(false);
     playCallEnd();
     setIsEndDialogOpen(false);
 
@@ -1288,7 +1353,8 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
   const activeTourArtworkId = Object.keys(galleryStates).find((k) => galleryStates[k] === "exploring") ?? null;
   const completedArtworkIds = Object.keys(galleryStates).filter((k) => galleryStates[k] === "completed");
 
-  const isListening = isTourActive && !isMuted && activeExpressionId === "listening";
+  const isListening = isTourActive && voiceConnection === "connected" && !isMuted && activeExpressionId === "listening";
+  const isVoiceReady = isTourActive && voiceConnection === "connected" && Boolean(agentRef.current?.ready);
 
   // Original top-right inverted border radius (outer edge of circle matches top and right borders)
   const btnRadius = tuning.closeSize / 2;
@@ -1375,6 +1441,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     <button
       type="button"
       onClick={toggleMic}
+      disabled={!isVoiceReady}
       aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
       title={isMuted ? "Unmute microphone" : "Mute microphone"}
       className="call-group-mic-btn size-9 rounded-full border border-border/80 bg-card hover:bg-muted text-foreground flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0 shadow-xs"
@@ -1420,12 +1487,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
   };
 
   const isEffectivelyMuted = isTourActive && isMuted;
-  const statusLabel = isQuietMode
-    ? "Quiet"
-    : isEffectivelyMuted
-      ? "Muted"
-      : agentStatus;
-  const areDotsActive = isTourActive && !isMuted && !isQuietMode;
+  const statusLabel = isQuietMode ? "Quiet" : voiceConnection === "connecting" ? "Connecting" : voiceConnection === "failed" ? "Unable to connect" : isEffectivelyMuted ? "Muted" : agentStatus;
 
   const statusIndicator = (
     <div
@@ -1433,11 +1495,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     >
       <span className="capitalize font-medium text-[#72706b]">
         {statusLabel}
-      </span>
-      <span className="inline-flex items-center gap-1 ml-0.5">
-        <span className={`size-1.5 rounded-full bg-[#72706b] ${areDotsActive ? "animate-bounce [animation-delay:-0.3s]" : "opacity-60"}`} />
-        <span className={`size-1.5 rounded-full bg-[#72706b] ${areDotsActive ? "animate-bounce [animation-delay:-0.15s]" : "opacity-60"}`} />
-        <span className={`size-1.5 rounded-full bg-[#72706b] ${areDotsActive ? "animate-bounce" : "opacity-60"}`} />
       </span>
     </div>
   );
@@ -1604,6 +1661,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                       onViewArtworkFullscreen={() => setActiveArtifact("artwork-view")}
                       onEndGalleryTour={handleEndGalleryTour}
                       onSelectArtwork={(artwork) => {
+                        visualAnalysisRequestRef.current += 1;
                         hasUserInteractedRef.current = true;
                         const rawId = artwork.id || activeArtworkId || "masaccio-holy-trinity";
                         const resolvedId = resolveArtworkId(rawId);
@@ -1730,7 +1788,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                   expressionId={activeExpressionId}
                   size={480}
                   isListening={isListening}
-                  isMuted={isTourActive && isMuted}
+                  isMuted={isTourActive && (isMuted || voiceConnection !== "connected")}
                   isSpeaking={agentStatus === "speaking"}
                   audioLevel={audioLevel}
                   shape={0.11}
@@ -1746,6 +1804,18 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
               >
                 {statusIndicator}
               </div>
+
+              {isTourActive && (connectionError || micError) && (
+                <div className="fixed top-4 left-1/2 z-30 w-[min(32rem,calc(100%-2rem))] -translate-x-1/2">
+                  <Alert variant="destructive">
+                    <AlertTitle>{voiceConnection === "failed" ? "Voice session unavailable" : "Microphone unavailable"}</AlertTitle>
+                    <AlertDescription>{voiceConnection === "failed" ? connectionError : micError}</AlertDescription>
+                    <AlertAction>
+                      <Button type="button" size="xs" onClick={voiceConnection === "failed" ? handleRetryConnection : async () => { const stream = await startMic(); if (stream) setMicError(null); }}>Retry</Button>
+                    </AlertAction>
+                  </Alert>
+                </div>
+              )}
 
               {/* Persistent Media Dock: Exact same position at bottom whether uncollapsed or collapsed */}
               <div className="guide-dock" role="group" aria-label="Tour controls">
@@ -1782,9 +1852,10 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         <ImmersiveArtworkView
           artwork={selectedArtwork}
           onAskAboutSelection={handleAskAboutSelection}
-          avatar={<ArticulateAvatar expressionId={activeExpressionId} size={112} isListening={isListening} isMuted={isMuted} isSpeaking={agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
+          avatar={<ArticulateAvatar expressionId={activeExpressionId} size={112} isListening={isListening} isMuted={isMuted || voiceConnection !== "connected"} isSpeaking={agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
           controls={callGroup}
           onBackToDetails={() => {
+            visualAnalysisRequestRef.current += 1;
             setActiveHotspotId(null);
             setActiveArtifact("info");
           }}
@@ -1850,34 +1921,23 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         </DialogContent>
       </Dialog>
       {/* Confirmation Dialog: End Tour */}
-      <Dialog open={isEndDialogOpen} onOpenChange={setIsEndDialogOpen}>
+      <Dialog open={isEndDialogOpen || sessionExpiryDialogOpen} onOpenChange={(open) => { setIsEndDialogOpen(open); if (!open) setSessionExpiryDialogOpen(false); }}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>End tour?</DialogTitle>
+            <DialogTitle>{sessionExpiryDialogOpen ? "Voice session ended" : "End tour?"}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to end your tour? This will disconnect your conversation session with Alba.
+              {sessionExpiryDialogOpen
+                ? "This voice session reached its 180-second limit. Your tour is still open, and you can continue exploring."
+                : "Are you sure you want to end your tour? This will disconnect your conversation session with Alba."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                playTactileTap();
-                setIsEndDialogOpen(false);
-              }}
-              className="rounded-lg h-9 px-4 text-sm font-medium bg-card hover:bg-subtle border border-border text-foreground cursor-pointer shadow-none"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              onClick={handleConfirmEndTour}
-              className="rounded-lg h-9 px-4 text-sm font-medium cursor-pointer"
-            >
-              End tour
-            </Button>
+            {sessionExpiryDialogOpen ? (
+              <Button type="button" onClick={() => setSessionExpiryDialogOpen(false)}>Continue exploring</Button>
+            ) : <>
+              <Button type="button" variant="outline" onClick={() => { playTactileTap(); setIsEndDialogOpen(false); }} className="rounded-lg h-9 px-4 text-sm font-medium bg-card hover:bg-subtle border border-border text-foreground cursor-pointer shadow-none">Cancel</Button>
+              <Button type="button" variant="default" onClick={handleConfirmEndTour} className="rounded-lg h-9 px-4 text-sm font-medium cursor-pointer">End tour</Button>
+            </>}
           </DialogFooter>
         </DialogContent>
       </Dialog>
