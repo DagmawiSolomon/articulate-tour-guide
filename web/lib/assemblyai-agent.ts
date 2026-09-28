@@ -44,10 +44,16 @@ export type VoiceAgentCallbacks = {
   /** Session is ready (after session.ready) */
   onReady?: (sessionId: string) => void;
   /** Session ended cleanly */
-  onEnded?: () => void;
+  onEnded?: (reason: VoiceAgentEndReason) => void;
   /** An error occurred */
   onError?: (code: string, message: string) => void;
 };
+
+export type VoiceAgentEndReason =
+  | { type: "ended"; code?: string; message?: string }
+  | { type: "expired"; code?: string; message?: string }
+  | { type: "disconnected"; code?: number; message: string }
+  | { type: "failed"; code?: string; message: string };
 
 export type VoiceAgent = {
   /** Start streaming mic audio to the agent */
@@ -62,6 +68,7 @@ export type VoiceAgent = {
   end: () => void;
   /** Whether the WebSocket is currently open */
   readonly connected: boolean;
+  readonly ready: boolean;
 };
 
 /**
@@ -89,6 +96,9 @@ export async function createVoiceAgent(
   const ws = new WebSocket(wsUrl);
 
   let isConnected = false;
+  let sessionEndReason: VoiceAgentEndReason | null = null;
+  let endedNotified = false;
+  let manuallyEnded = false;
   let mediaRecorder: MediaRecorder | null = null;
   let lastEvent: string | null = null;
   let toolFlushTimer: NodeJS.Timeout | null = null;
@@ -234,12 +244,24 @@ export async function createVoiceAgent(
 
       case "session.ended": {
         isConnected = false;
-        callbacks.onEnded?.();
+        const code = typeof msg.code === "string" ? msg.code : undefined;
+        const message = typeof msg.message === "string" ? msg.message : undefined;
+        const detail = String(code ?? "") + " " + String(message ?? "");
+        sessionEndReason = /expir|duration|time.?limit|maximum.*session|session.*maximum/i.test(detail)
+          ? { type: "expired", code, message }
+          : { type: "ended", code, message };
+        if (!endedNotified) {
+          endedNotified = true;
+          callbacks.onEnded?.(sessionEndReason);
+        }
         break;
       }
 
       case "session.error": {
-        callbacks.onError?.(msg.code as string, msg.message as string);
+        const code = typeof msg.code === "string" ? msg.code : "agent_error";
+        const message = typeof msg.message === "string" ? msg.message : "Voice session failed.";
+        sessionEndReason = { type: "failed", code, message };
+        callbacks.onError?.(code, message);
         break;
       }
     }
@@ -248,18 +270,18 @@ export async function createVoiceAgent(
   ws.onerror = () => {
     // Pre-handshake failures (UNAUTHORIZED etc.) surface as close 1006
     // — no session.error payload arrives in this case
+    sessionEndReason = { type: "failed", code: "connection_error", message: "WebSocket connection failed" };
     callbacks.onError?.("connection_error", "WebSocket connection failed");
   };
 
   ws.onclose = (event) => {
     const wasActive = isConnected;
     isConnected = false;
-    if (wasActive) {
-      callbacks.onEnded?.();
-    }
-    if (!event.wasClean) {
-      // Network drop — session preserved for 30s, could session.resume here
-      callbacks.onError?.("disconnected", `Connection closed unexpectedly (${event.code})`);
+    if (!manuallyEnded && !endedNotified && (wasActive || !event.wasClean)) {
+      endedNotified = true;
+      callbacks.onEnded?.(sessionEndReason ?? (event.wasClean
+        ? { type: "ended", code: String(event.code), message: event.reason || "Session ended." }
+        : { type: "disconnected", code: event.code, message: event.reason || "Connection closed unexpectedly (" + event.code + ")" }));
     }
   };
 
@@ -439,6 +461,7 @@ registerProcessor('pcm-processor', PcmProcessor);
   }
 
   function end() {
+    manuallyEnded = true;
     if (toolFlushTimer) {
       clearTimeout(toolFlushTimer);
       toolFlushTimer = null;
@@ -470,6 +493,9 @@ registerProcessor('pcm-processor', PcmProcessor);
     end,
     get connected() {
       return isConnected;
+    },
+    get ready() {
+      return isConnected && ws.readyState === WebSocket.OPEN;
     },
   };
 }
