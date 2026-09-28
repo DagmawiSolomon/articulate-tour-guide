@@ -159,7 +159,6 @@ export default function Home() {
   // Chat history state — messages accumulate as the tour progresses.
   const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([]);
   const [isChatThinking, setIsChatThinking] = React.useState(false);
-  const [summaryData, setSummaryData] = React.useState<any>(null);
   // Partial visitor transcript ID — updated in place as partials arrive
   const partialMsgIdRef = React.useRef<string>("visitor-partial");
   const partialAgentMsgIdRef = React.useRef<string>("agent-partial");
@@ -1061,7 +1060,6 @@ export default function Home() {
     setActiveExpressionId("neutral");
     setChatMessages([]);
     setIsChatThinking(false);
-    setSummaryData(null);
     setOriginMapRoute("entrance");
     setActiveMapRoute("entrance");
   };
@@ -1309,7 +1307,7 @@ export default function Home() {
           ) : (
             /* Active Tour Stage */
             <div className="guide-stage relative w-full h-full max-h-[min(90vh,860px)] 2xl:max-h-[940px]" data-expanded={isExpanded}>
-              <div className={`guide-card-layer absolute inset-0 ${activeArtifact === 'artwork-view' ? 'md:-left-24' : activeArtifact !== 'summary' ? 'md:left-24' : ''}`} inert={!isExpanded} aria-hidden={!isExpanded}>
+              <div className={`guide-card-layer absolute inset-0 ${activeArtifact === 'artwork-view' ? 'md:-left-24' : 'md:left-24'}`} inert={!isExpanded} aria-hidden={!isExpanded}>
                 <div className="guide-card relative flex h-full w-full items-center justify-center overflow-visible rounded-2xl border border-[#e5e7e6] bg-[#fafafa] shadow-xs">
 
                   {/* Top-Right Original Inverted Corner Notch: Houses the close button (kept exactly as requested) */}
@@ -1343,12 +1341,7 @@ export default function Home() {
                     type="button"
                     onClick={() => {
                       playStageClose();
-                      if (activeArtifact === "summary") {
-                        bargeIn();
-                        window.location.reload();
-                      } else {
-                        setIsExpanded(false);
-                      }
+                      setIsExpanded(false);
                     }}
                     title="Close artifact stage"
                     aria-label="Close artifact stage"
@@ -1365,7 +1358,7 @@ export default function Home() {
 
                   {/* Artifact Stage - clean canvas utilizing the entire newly formed card as working area */}
                   <div
-                    className={`w-full h-full overflow-hidden ${activeArtifact === "map" || activeArtifact === "summary" || activeArtifact === "artwork-view"
+                    className={`w-full h-full overflow-hidden ${activeArtifact === "map" || activeArtifact === "artwork-view"
                         ? "p-0 rounded-2xl"
                         : "pt-14 pb-16 px-3 md:p-5 md:pb-16 md:pr-14"
                       }`}
@@ -1509,7 +1502,6 @@ export default function Home() {
                       isLoading={isArtifactLoading}
                       chatMessages={chatMessages}
                       isChatThinking={isChatThinking}
-                      summaryData={summaryData}
                       onSelectArtifact={(type, params) => {
                         hasUserInteractedRef.current = true;
                         // Going to maps, transcriptions, or returning to current info does NOT stop narration
@@ -1525,65 +1517,57 @@ export default function Home() {
                   </div>
 
                   {/* Bottom Pill Cradle Notch: Frames the dock with balanced 10px margin */}
-                  {activeArtifact !== "summary" && (
-                    <div
-                      className="absolute -bottom-px left-1/2 -translate-x-1/2 z-20 pointer-events-none"
-                      style={{ width: 248, height: 68 }}
-                      aria-hidden="true"
+                  <div
+                    className="absolute -bottom-px left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+                    style={{ width: 248, height: 68 }}
+                    aria-hidden="true"
+                  >
+                    <svg
+                      viewBox="0 0 248 68"
+                      width="248"
+                      height="68"
+                      fill="none"
+                      className="overflow-visible"
                     >
-                      <svg
-                        viewBox="0 0 248 68"
-                        width="248"
-                        height="68"
-                        fill="none"
-                        className="overflow-visible"
-                      >
-                        <path d={`${dockPath} L 248 72 L 0 72 Z`} className="fill-background" />
-                        <path d={dockPath} className="stroke-border" strokeWidth="1" />
-                      </svg>
-                    </div>
-                  )}
+                      <path d={`${dockPath} L 248 72 L 0 72 Z`} className="fill-background" />
+                      <path d={dockPath} className="stroke-border" strokeWidth="1" />
+                    </svg>
+                  </div>
                 </div>
               </div>
               {/* One persistent avatar travels between the two positions. */}
-              {activeArtifact !== "summary" && (
-                <button
-                  type="button"
-                  className="guide-avatar absolute z-20 border-0 bg-transparent p-0 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-                  onClick={handleToggleExpanded}
-                  aria-label={isExpanded ? "Close card" : "Open card"}
-                  aria-expanded={isExpanded}
-                >
-                  <ArticulateAvatar
-                    expressionId={activeExpressionId}
-                    size={480}
-                    isListening={isListening}
-                    isMuted={isTourActive && isMuted}
-                    isSpeaking={agentStatus === "speaking"}
-                    audioLevel={audioLevel}
-                    shape={0.11}
-                    className="relative flex items-center justify-center"
-                  />
-                </button>
-              )}
+              <button
+                type="button"
+                className="guide-avatar absolute z-20 border-0 bg-transparent p-0 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+                onClick={handleToggleExpanded}
+                aria-label={isExpanded ? "Close card" : "Open card"}
+                aria-expanded={isExpanded}
+              >
+                <ArticulateAvatar
+                  expressionId={activeExpressionId}
+                  size={480}
+                  isListening={isListening}
+                  isMuted={isTourActive && isMuted}
+                  isSpeaking={agentStatus === "speaking"}
+                  audioLevel={audioLevel}
+                  shape={0.11}
+                  className="relative flex items-center justify-center"
+                />
+              </button>
 
               {/* Status Indicator: Positioned directly below Mr. T with padding */}
-              {activeArtifact !== "summary" && (
-                <div
-                  className="guide-status"
-                  inert={isExpanded}
-                  aria-hidden={isExpanded}
-                >
-                  {statusIndicator}
-                </div>
-              )}
+              <div
+                className="guide-status"
+                inert={isExpanded}
+                aria-hidden={isExpanded}
+              >
+                {statusIndicator}
+              </div>
 
               {/* Persistent Media Dock: Exact same position at bottom whether uncollapsed or collapsed */}
-              {activeArtifact !== "summary" && (
-                <div className="guide-dock" role="group" aria-label="Tour controls">
-                  {callGroup}
-                </div>
-              )}
+              <div className="guide-dock" role="group" aria-label="Tour controls">
+                {callGroup}
+              </div>
 
             </div>
           )}
