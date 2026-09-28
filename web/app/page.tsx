@@ -166,9 +166,6 @@ export default function Home() {
   // Voice Agent + audio player refs
   const agentRef = React.useRef<VoiceAgent | null>(null);
   const audioPlayerRef = React.useRef<AudioPlayer | null>(null);
-  const visionFillerReplyActiveRef = React.useRef(false);
-  const visionFillerAudioDrainingRef = React.useRef(false);
-  const pendingVisionReplyRef = React.useRef<string | null>(null);
   const agentCallbacksRef = React.useRef<VoiceAgentCallbacks | null>(null);
 
   // Greeting & reply lifecycle refs
@@ -181,6 +178,11 @@ export default function Home() {
 
   // Barge-in: immediately stop playback in speakers and drop any pending/in-flight audio chunks from interrupted turn
   const ignoreAudioUntilNextReplyRef = React.useRef<boolean>(false);
+  const pendingVisualAnalysisRef = React.useRef<{
+    artworkId: string;
+    answer: string;
+    timestamp: number;
+  } | null>(null);
 
   const bargeIn = React.useCallback(() => {
     ignoreAudioUntilNextReplyRef.current = true;
@@ -356,6 +358,10 @@ export default function Home() {
     setGuestLocationId(artPlaceId);
 
     // Track active tour stop for blue ring
+    if (activeTourArtworkIdRef.current && activeTourArtworkIdRef.current !== targetArtwork.id) {
+      const prevId = activeTourArtworkIdRef.current;
+      setCompletedArtworkIds((prev) => (prev.includes(prevId) ? prev : [...prev, prevId]));
+    }
     setActiveTourArtworkId(targetArtwork.id);
     activeTourArtworkIdRef.current = targetArtwork.id;
 
@@ -405,7 +411,66 @@ export default function Home() {
     agentRef.current?.triggerReply(
       `The visitor confirmed: "Let's go with this first!" to start their tour with ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist}. Welcome them enthusiastically to this opening stop of the exhibition and give a vivid, engaging 2-sentence curatorial breakdown of why this masterpiece is our first revolutionary milestone. Speak with poise and dive straight into the artwork without any apologies.`
     );
-  }, [selectedArtwork, activeArtworkId]);
+  }, [selectedArtwork, activeArtworkId, bargeIn]);
+
+  const handleEndGalleryTour = React.useCallback(() => {
+    bargeIn();
+    hasUserInteractedRef.current = true;
+    greetingPhaseRef.current = "done";
+
+    const rawId = activeTourArtworkIdRef.current || activeArtworkId || selectedArtwork?.id || "masaccio-holy-trinity";
+    const resolvedId = resolveArtworkId(rawId);
+    const currentArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+    const artPlaceId = `art:${currentArtwork.id}`;
+
+    // 1. Mark this gallery as completed
+    setCompletedArtworkIds((prev) => {
+      if (!prev.includes(currentArtwork.id)) {
+        const next = [...prev, currentArtwork.id];
+        completedArtworkIdsRef.current = next;
+        return next;
+      }
+      return prev;
+    });
+    setActiveTourArtworkId(null);
+    activeTourArtworkIdRef.current = null;
+
+    // 2. Set guest location to current artwork on the floor map without drawing paths
+    setMapNavigation((prev) => ({
+      ...prev,
+      startId: artPlaceId,
+      destinationId: "",
+      currentNodeId: null,
+    }));
+    guestLocationRef.current = artPlaceId;
+    setGuestLocationId(artPlaceId);
+
+    // 3. Switch back to floor map view so visitor can pick the next artwork
+    setActiveArtifact("map");
+    setIsExpanded(true);
+
+    playTactileTap();
+
+    // 4. Post visitor ending confirmation to transcript
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: `visitor-end-gallery-${Date.now()}`,
+        role: "visitor",
+        text: `Concluded tour of ${currentArtwork.title}. Where should we go next?`,
+        isPartial: false,
+        timestamp: new Date(),
+      },
+    ]);
+
+    // 5. Alba asks what they want to tour next
+    audioPlayerRef.current?.flush();
+    setAgentStatus("thinking");
+    setIsChatThinking(true);
+    agentRef.current?.triggerReply(
+      `The visitor has ended their tour of the ${currentArtwork.title} (${currentArtwork.year}) gallery and returned to the exhibition floor map. In 1 to 2 warm, engaging sentences as Alba, acknowledge concluding our time with ${currentArtwork.title}, and ask them which gallery, milestone, or artwork they would like to explore next on the floor map.`
+    );
+  }, [selectedArtwork, activeArtworkId, bargeIn]);
 
   const handleAskAboutSelection = React.useCallback(async (selection: ArtworkSelection) => {
     const artworkId = resolveArtworkId(selectedArtwork?.id || activeArtworkId);
@@ -423,13 +488,6 @@ export default function Home() {
     setIsChatThinking(true);
     setAgentStatus("thinking");
 
-    pendingVisionReplyRef.current = null;
-    visionFillerReplyActiveRef.current = Boolean(agentRef.current?.connected);
-    visionFillerAudioDrainingRef.current = false;
-    if (visionFillerReplyActiveRef.current) {
-      agentRef.current?.triggerReply("Tell the visitor you are taking a closer look at the part they circled. Say one brief, warm holding sentence, then stop.");
-    }
-
     try {
       const response = await fetch("/api/visual-question", {
         method: "POST",
@@ -437,28 +495,93 @@ export default function Home() {
         body: JSON.stringify({ artworkId, selection, question: visitorQuestion }),
       });
       const result = await response.json();
-      if (!response.ok || typeof result.answer !== "string") throw new Error(result.error || "I couldn't inspect that detail just now.");
+      if (!response.ok || typeof result.answer !== "string") {
+        throw new Error(result.error || "I couldn't inspect that detail just now.");
+      }
 
-      const reply = `The visitor circled a detail in “${artwork.title}” by ${artwork.artist} (${artwork.year}) and asked: “${visitorQuestion}”. The full artwork and selected region were analyzed by ${result.provider}. Visual analysis: “${result.answer}”. Answer the visitor warmly and naturally, grounding the explanation in those visual findings and the artwork context. Do not mention the provider or invent visual details beyond the analysis.`;
+      // Store visual analysis so any subsequent tool calls (e.g. show_hotspots) can incorporate it
+      pendingVisualAnalysisRef.current = {
+        artworkId: artwork.id,
+        answer: result.answer,
+        timestamp: Date.now(),
+      };
+
+      // Sanitize multi-line/nested quotes for AssemblyAI Voice Agent reply.create
+      const cleanAnalysis = result.answer.replace(/\s+/g, " ").replace(/"/g, "'").trim();
+      const reply = `CRITICAL: Do NOT call show_hotspots, show_info, show_map, or consult_archives. Speak your answer directly to the visitor as Alba now.
+
+The visitor circled a detail in "${artwork.title}" by ${artwork.artist} and asked: "${visitorQuestion}".
+Curatorial visual analysis: "${cleanAnalysis}".
+
+Explain in 2-3 warm, conversational sentences what they circled and its artistic significance. Speak directly aloud without apologies or meta-commentary.`;
+
       setChatMessages((previous) => [
         ...previous,
-        { id: `vision-detail-${Date.now()}`, role: "tool", toolName: "visual_analysis", label: `Looked closely at ${artwork.title}`, params: { provider: result.provider }, detail: result.answer, timestamp: new Date() },
+        {
+          id: `vision-detail-${Date.now()}`,
+          role: "tool",
+          toolName: "visual_analysis",
+          label: `Looked closely at ${artwork.title}`,
+          params: { provider: result.provider },
+          detail: result.answer,
+          timestamp: new Date(),
+        },
       ]);
-      setIsChatThinking(false);
-      setAgentStatus("listening");
-      if (visionFillerReplyActiveRef.current || visionFillerAudioDrainingRef.current) pendingVisionReplyRef.current = reply;
-      else agentRef.current?.triggerReply(reply);
+
+      audioPlayerRef.current?.flush();
+      ignoreAudioUntilNextReplyRef.current = false;
+      setAgentStatus("thinking");
+
+      if (agentRef.current?.connected) {
+        agentRef.current.triggerReply(reply);
+      } else {
+        setIsChatThinking(false);
+        setAgentStatus("listening");
+        setChatMessages((previous) => [
+          ...previous,
+          {
+            id: `agent-vision-${Date.now()}`,
+            role: "agent",
+            text: result.answer,
+            isStreaming: false,
+            speakerName: "Alba Tour Guide",
+            timestamp: new Date(),
+          },
+        ]);
+
+        // Browser speech synthesis fallback if Voice Agent WS session has not started yet
+        if (typeof window !== "undefined" && "speechSynthesis" in window && !isQuietModeRef.current) {
+          try {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(result.answer);
+            const voices = window.speechSynthesis.getVoices();
+            const preferredVoice = voices.find((v) => v.lang.startsWith("en") && (v.name.includes("Female") || v.name.includes("Natural") || v.name.includes("Samantha") || v.name.includes("Google") || v.name.includes("Victoria")));
+            if (preferredVoice) utterance.voice = preferredVoice;
+            utterance.rate = 1.0;
+            utterance.pitch = 1.05;
+            setAgentStatus("speaking");
+            utterance.onend = () => setAgentStatus("listening");
+            utterance.onerror = () => setAgentStatus("listening");
+            window.speechSynthesis.speak(utterance);
+          } catch {}
+        }
+      }
     } catch (error) {
       console.error("Artwork visual question failed:", error);
-      const reply = `The visitor circled a detail in “${artwork.title}” and asked about it. I could not get the visual analysis this time. Tell them briefly and honestly that you cannot inspect the image right now, then still help using what you know about the artwork. Do not pretend that you saw the circled detail.`;
+      const reply = `The visitor circled a detail in "${artwork.title}" and asked about it, but the visual analysis failed. In one warm sentence, apologize briefly that you could not inspect that detail right now, and invite them to ask about something else in the painting.`;
       setChatMessages((previous) => [
         ...previous,
         { id: `vision-error-${Date.now()}`, role: "tool", toolName: "visual_analysis", label: "Image analysis unavailable", timestamp: new Date() },
       ]);
-      setIsChatThinking(false);
-      setAgentStatus("listening");
-      if (visionFillerReplyActiveRef.current || visionFillerAudioDrainingRef.current) pendingVisionReplyRef.current = reply;
-      else agentRef.current?.triggerReply(reply);
+      audioPlayerRef.current?.flush();
+      ignoreAudioUntilNextReplyRef.current = false;
+      setAgentStatus("thinking");
+      if (agentRef.current?.connected) {
+        agentRef.current.triggerReply(reply);
+      } else {
+        setIsChatThinking(false);
+        setAgentStatus("listening");
+      }
     }
   }, [selectedArtwork, activeArtworkId, bargeIn]);
   const handleStartTour = async () => {
@@ -577,6 +700,9 @@ export default function Home() {
         // Vocal confirmation: "let's go with this first", "start tour", etc. triggers the start-tour flow
         const vocalConfirmRegex = /\b(let'?s go with (this|that)|let'?s (start|begin|do this)( first)?|start (here|the tour|tour|with this)|confirm( this( gallery)?)?|yes,? let'?s (start|go)|take me to|let'?s visit)\b/i;
 
+        // Vocal end gallery tour: "I'm done with this one", "next gallery", "end gallery tour", etc.
+        const endGalleryRegex = /\b(((i'?m|we'?re)\s+(done|finished)(\s+with\s+(this|the)(\s+(gallery|painting|artwork|stop|one))?)?)|(done\s+with\s+(this|the)(\s+(gallery|painting|artwork|stop|one))?)|(all\s+done\s+here)|((end|finish|wrap\s*up)\s+(this|the)\s+(gallery|tour(\s+stop)?|artwork))|(end\s+gallery\s+tour)|(end\s+tour\s+of\s+(this|the)\s+gallery)|(next\s+gallery)|(what('?s|\s+is)\s+next(\s+gallery)?)|(where\s+(to\s+next|next|should\s+we\s+go\s+next))|(what\s+should\s+we\s+(tour|see|visit)\s+next)|(what\s+do\s+we\s+tour\s+next)|(let'?s\s+move\s+on)|(ready\s+to\s+move\s+on)|(ready\s+for\s+the\s+next\s+(one|gallery|artwork|stop))|(let'?s\s+(see|check\s+out|visit|go\s+to)\s+the\s+next\s+(one|gallery|artwork|stop))|(move\s+on\s+to\s+the\s+next))\b/i;
+
         const lowerText = text.toLowerCase();
         let matchedArtId: string | undefined = undefined;
         if (lowerText.includes("fountain") || lowerText.includes("duchamp") || lowerText.includes("urinal")) {
@@ -595,6 +721,11 @@ export default function Home() {
 
         if (vocalConfirmRegex.test(text) || (matchedArtId && /\b(start|begin|go|visit|tour)\b/i.test(text))) {
           handleStartTourWithArtwork(matchedArtId);
+          return;
+        }
+
+        if (endGalleryRegex.test(text)) {
+          handleEndGalleryTour();
           return;
         }
 
@@ -686,15 +817,6 @@ export default function Home() {
         setAgentStatus("speaking");
       },
       onAgentSpeakingEnd: (interrupted) => {
-        const completedVisionFiller = visionFillerReplyActiveRef.current && !interrupted;
-        if (completedVisionFiller) {
-          visionFillerReplyActiveRef.current = false;
-          visionFillerAudioDrainingRef.current = true;
-        } else if (interrupted) {
-          visionFillerReplyActiveRef.current = false;
-          visionFillerAudioDrainingRef.current = false;
-          pendingVisionReplyRef.current = null;
-        }
         replyIndexRef.current += 1;
         const isInitialGreetingTurn = replyIndexRef.current === 1;
 
@@ -728,12 +850,6 @@ export default function Home() {
 
           // Wait for audio player to finish draining queued audio chunks in speakers
           audioPlayerRef.current?.onPlaybackComplete(() => {
-            if (completedVisionFiller) {
-              visionFillerAudioDrainingRef.current = false;
-              const queuedReply = pendingVisionReplyRef.current;
-              pendingVisionReplyRef.current = null;
-              if (queuedReply) agentRef.current?.triggerReply(queuedReply);
-            }
             setAgentStatus("listening");
             if (greetingPhaseRef.current === "greeting" && !hasUserInteractedRef.current) {
               greetingPhaseRef.current = "done";
@@ -783,7 +899,11 @@ export default function Home() {
           setIsArtifactLoading(true);
         }
 
-        if (tool.name === "show_map") {
+        if (tool.name === "end_gallery_tour" || tool.name === "finish_gallery") {
+          setIsArtifactLoading(false);
+          handleEndGalleryTour();
+          agentRef.current?.sendToolResult(tool.callId, { success: true });
+        } else if (tool.name === "show_map") {
           const routeId = (tool.arguments.routeId as string) || "rotunda";
           const showPath = Boolean(tool.arguments.showPath);
           setActiveArtifact("map");
@@ -837,6 +957,23 @@ export default function Home() {
           const availableHotspots = getArtworkHotspots(artwork.id);
           const requestedHotspot = String(tool.arguments.hotspotId || tool.arguments.detailId || tool.arguments.detail || "").trim().toLowerCase();
           const matchedHotspot = availableHotspots.find((item) => item.id.toLowerCase() === requestedHotspot || item.name.toLowerCase() === requestedHotspot);
+
+          // If the agent invoked show_hotspots for a custom user-circled detail, return the curatorial visual analysis!
+          const recentVision = pendingVisualAnalysisRef.current;
+          const isRecentVisionMatch = recentVision && (Date.now() - recentVision.timestamp < 60000);
+
+          if (!matchedHotspot && isRecentVisionMatch) {
+            setIsArtifactLoading(false);
+            agentRef.current?.sendToolResult(tool.callId, {
+              success: true,
+              detail: requestedHotspot || "circled_area",
+              analysis: recentVision.answer,
+              instruction: "Synthesize this curatorial analysis into 2 warm, natural sentences and speak them directly to the visitor as Alba.",
+            });
+            pendingVisualAnalysisRef.current = null;
+            return;
+          }
+
           if (!matchedHotspot) {
             setIsArtifactLoading(false);
             agentRef.current?.sendToolResult(tool.callId, { success: false, message: "No saved placement matches that detail.", availableHotspots: availableHotspots.map(({ id, name }) => ({ id, name })) }, true);
@@ -1391,6 +1528,7 @@ export default function Home() {
                       completedArtworkIds={completedArtworkIds}
                       onStartTour={() => handleStartTourWithArtwork()}
                       onViewArtworkFullscreen={() => setActiveArtifact("artwork-view")}
+                      onEndGalleryTour={handleEndGalleryTour}
                       onSelectArtwork={(artwork) => {
                         hasUserInteractedRef.current = true;
                         const rawId = artwork.id || activeArtworkId || "masaccio-holy-trinity";
@@ -1615,10 +1753,11 @@ export default function Home() {
           avatar={<ArticulateAvatar expressionId={activeExpressionId} size={112} isListening={isListening} isMuted={isMuted} isSpeaking={agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
           controls={callGroup}
           onBackToDetails={() => setActiveArtifact("info")}
+          onEndGalleryTour={handleEndGalleryTour}
         />
       )}
       <Dialog open={isExhibitInfoOpen} onOpenChange={setIsExhibitInfoOpen}>
-        <DialogContent showCloseButton={false} className="grid max-h-[calc(100dvh-2rem)] w-full grid-cols-1 gap-0 overflow-y-auto rounded-none border-0 bg-white p-0 sm:h-[480px] sm:max-w-[760px] sm:grid-cols-[1.15fr_0.85fr] sm:overflow-hidden">
+        <DialogContent showCloseButton={false} className="grid max-h-[calc(100dvh-2rem)] w-full grid-cols-1 gap-0 overflow-y-auto rounded-none border-0 bg-white p-0 sm:h-[480px] sm:max-w-[800px] sm:grid-cols-2 sm:overflow-hidden">
           <button
             type="button"
             aria-label="Close about exhibit"
@@ -1632,7 +1771,7 @@ export default function Home() {
             <div className="flex flex-col items-start gap-4">
               <DialogHeader className="w-full">
                 <DialogTitle className="w-full font-outfit text-3xl sm:text-4xl font-normal leading-[1.08] tracking-normal text-[#1f1e1b]">
-                  <span className="block">Turning Points in Art</span>
+                  <span className="block sm:whitespace-nowrap">Turning Points in Art</span>
                   <span className="block">History</span>
                 </DialogTitle>
               </DialogHeader>
@@ -1668,7 +1807,7 @@ export default function Home() {
               src="/about-oil-painting.png"
               alt="An oil still life of wildflowers in an ochre vase"
               fill
-              sizes="(max-width: 640px) 100vw, 380px"
+              sizes="(max-width: 640px) 100vw, 400px"
               className="object-cover object-center"
             />
           </div>
