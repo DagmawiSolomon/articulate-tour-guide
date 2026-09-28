@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArtworkInfoCard } from "./artwork-info-card";
+import { ArtworkInfoCard, type GalleryState } from "./artwork-info-card";
 import { GalleryMapView } from "./gallery-map-view";
 import { ExhibitFloorMapView, type ExhibitArtworkInfo, type ExhibitNavigationState } from "./exhibit-floor-map-view";
 import type { MapViewport } from "@/components/ui/map";
@@ -22,7 +22,7 @@ export type ArtifactType =
   | "chat"
   | "artwork-view";
 
-export type { ChatMessage };
+export type { ChatMessage, GalleryState };
 
 interface ArtifactStageProps {
   artifactType: ArtifactType;
@@ -55,6 +55,7 @@ interface ArtifactStageProps {
   onEndGalleryTour?: () => void;
   activeTourArtworkId?: string | null;
   completedArtworkIds?: string[];
+  galleryState?: GalleryState;
 }
 
 export function ArtifactStage({
@@ -83,9 +84,18 @@ export function ArtifactStage({
   onEndGalleryTour,
   activeTourArtworkId,
   completedArtworkIds,
+  galleryState,
 }: ArtifactStageProps) {
   // If an artworkId is provided, get its specific hotspot and image info
   const targetArtwork = artworkId ? TURNING_POINTS_ARTWORKS[artworkId] : null;
+  const currentArtworkId = selectedArtwork?.id || targetArtwork?.id || artworkId;
+  const derivedGalleryState: GalleryState =
+    galleryState ??
+    (activeTourArtworkId && activeTourArtworkId === currentArtworkId
+      ? "exploring"
+      : completedArtworkIds?.includes(currentArtworkId ?? "")
+      ? "completed"
+      : "unexplored");
 
   return (
     <div className="relative w-full h-full overflow-hidden">
@@ -113,6 +123,7 @@ export function ArtifactStage({
                     { label: "Date", value: targetArtwork.year },
                   ],
                 } : {}))}
+                galleryState={derivedGalleryState}
                 showTourActions={showTourActions}
                 onViewArtworkFullscreen={onViewArtworkFullscreen}
                 onEndGalleryTour={onEndGalleryTour}
