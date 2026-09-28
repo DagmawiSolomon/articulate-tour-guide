@@ -8,6 +8,8 @@ import { HugeIcon } from "@/components/ui/hugeicon";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import type { ReactNode } from "react";
 import type { ExhibitArtworkInfo } from "./exhibit-floor-map-view";
+import { getArtworkHotspots, type ArtworkHotspot } from "@/lib/artwork-hotspots";
+import { playTactileTap } from "@/lib/sounds";
 
 export interface ArtworkSelection {
   centerXPercent: number;
@@ -22,6 +24,8 @@ interface ImmersiveArtworkViewProps {
   controls: ReactNode;
   onBackToDetails: () => void;
   onAskAboutSelection: (selection: ArtworkSelection) => void;
+  activeHotspotId?: string | null;
+  onSelectHotspot?: (id: string | null) => void;
 }
 
 type Size = { width: number; height: number };
@@ -37,6 +41,8 @@ export function ImmersiveArtworkView({
   controls,
   onBackToDetails,
   onAskAboutSelection,
+  activeHotspotId,
+  onSelectHotspot,
 }: ImmersiveArtworkViewProps) {
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const draftPathRef = React.useRef<Point[]>([]);
@@ -52,6 +58,23 @@ export function ImmersiveArtworkView({
   const [isPanning, setIsPanning] = React.useState(false);
   const panOriginRef = React.useRef<Point>({ x: 0, y: 0 });
   const zoomOriginStartRef = React.useRef<Point>({ x: 0, y: 0 });
+
+  const [zoomedHotspotId, setZoomedHotspotId] = React.useState<string | null>(activeHotspotId ?? null);
+  const [isCardOpen, setIsCardOpen] = React.useState(Boolean(activeHotspotId));
+  const [hoveredHotspotId, setHoveredHotspotId] = React.useState<string | null>(null);
+  const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const hotspots = React.useMemo(() => {
+    return artwork?.id ? getArtworkHotspots(artwork.id) : [];
+  }, [artwork?.id]);
+
+  React.useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -72,6 +95,9 @@ export function ImmersiveArtworkView({
     setDraftPath([]);
     setIsDrawing(false);
     setIsPanning(false);
+    setZoomedHotspotId(null);
+    setIsCardOpen(false);
+    setHoveredHotspotId(null);
   }, [artwork?.id]);
 
   const imageBounds = React.useMemo<ImageBounds>(() => {
@@ -97,6 +123,60 @@ export function ImmersiveArtworkView({
       y: (clientY - rect.top - origin.y) / zoom + origin.y,
     };
   }, [canvasSize, zoom, zoomOrigin]);
+
+  const handleHotspotMouseEnter = (id: string) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setHoveredHotspotId(id);
+  };
+
+  const handleHotspotMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredHotspotId(null);
+    }, 120);
+  };
+
+  const handleSelectHotspot = React.useCallback((id: string) => {
+    playTactileTap();
+    if (zoomedHotspotId === id) {
+      setZoomedHotspotId(null);
+      setIsCardOpen(false);
+      setZoom(DEFAULT_INITIAL_ZOOM);
+      setZoomOrigin({ x: 0, y: 0 });
+      onSelectHotspot?.(null);
+    } else {
+      const target = hotspots.find((h) => h.id.toLowerCase() === id.toLowerCase());
+      if (target && imageBounds.width > 0) {
+        setZoomedHotspotId(target.id);
+        setIsCardOpen(true);
+        const targetX = imageBounds.left + (target.xPercent / 100) * imageBounds.width;
+        const targetY = imageBounds.top + (target.yPercent / 100) * imageBounds.height;
+        setZoomOrigin({ x: targetX, y: targetY });
+        setZoom(target.zoomScale || 2.4);
+        onSelectHotspot?.(target.id);
+      }
+    }
+  }, [zoomedHotspotId, hotspots, imageBounds, onSelectHotspot]);
+
+  // Sync external activeHotspotId prop (e.g. from Alba show_hotspots tool call)
+  React.useEffect(() => {
+    if (activeHotspotId && imageBounds.width > 0 && hotspots.length > 0) {
+      const target = hotspots.find((h) => h.id.toLowerCase() === activeHotspotId.toLowerCase());
+      if (target) {
+        setZoomedHotspotId(target.id);
+        setIsCardOpen(true);
+        const targetX = imageBounds.left + (target.xPercent / 100) * imageBounds.width;
+        const targetY = imageBounds.top + (target.yPercent / 100) * imageBounds.height;
+        setZoomOrigin({ x: targetX, y: targetY });
+        setZoom(target.zoomScale || 2.4);
+      }
+    }
+  }, [activeHotspotId, hotspots, imageBounds]);
 
   React.useEffect(() => {
     if (!isDrawing) return;
@@ -186,7 +266,7 @@ export function ImmersiveArtworkView({
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.button !== 0 || zoom <= 1) return;
-      if (event.target instanceof Element && event.target.closest(".immersive-artwork-tools, .immersive-artwork-selection-trigger, .immersive-artwork-ask")) return;
+      if (event.target instanceof Element && event.target.closest(".immersive-artwork-tools, .immersive-artwork-selection-trigger, .immersive-artwork-ask, .immersive-artwork-hotspot-marker, .immersive-artwork-hotspot-card")) return;
       event.preventDefault();
       activePointerIdRef.current = event.pointerId;
       try { canvas.setPointerCapture(event.pointerId); } catch { /* ok */ }
@@ -242,6 +322,13 @@ export function ImmersiveArtworkView({
           setSelection(null);
           setSelectionPath([]);
           setDraftPath([]);
+        } else if (isCardOpen) {
+          setIsCardOpen(false);
+        } else if (zoomedHotspotId) {
+          setZoomedHotspotId(null);
+          setZoom(DEFAULT_INITIAL_ZOOM);
+          setZoomOrigin({ x: 0, y: 0 });
+          onSelectHotspot?.(null);
         } else {
           onBackToDetails();
         }
@@ -313,6 +400,101 @@ export function ImmersiveArtworkView({
               </HoverCardContent>
             </HoverCard>
           )}
+
+          {/* Hotspot Markers Layer */}
+          {!isDrawing && imageBounds.width > 0 && hotspots.map((hotspot) => {
+            const isSelected = zoomedHotspotId === hotspot.id;
+            const isHovered = hoveredHotspotId === hotspot.id;
+            const isCardVisible = isHovered || (isSelected && isCardOpen);
+            const isAnySelected = zoomedHotspotId !== null;
+            const markerX = imageBounds.left + (hotspot.xPercent / 100) * imageBounds.width;
+            const markerY = imageBounds.top + (hotspot.yPercent / 100) * imageBounds.height;
+
+            return (
+              <div
+                key={hotspot.id}
+                className={`absolute transition-opacity duration-300 immersive-artwork-hotspot-marker ${
+                  isSelected
+                    ? "z-30 opacity-100"
+                    : isAnySelected
+                    ? "z-10 opacity-0 pointer-events-none"
+                    : "z-20 opacity-100"
+                }`}
+                style={{
+                  left: `${markerX}px`,
+                  top: `${markerY}px`,
+                  transform: "translate(-50%, -50%)",
+                }}
+                onMouseEnter={() => handleHotspotMouseEnter(hotspot.id)}
+                onMouseLeave={handleHotspotMouseLeave}
+              >
+                {/* Clean solid white dot marker */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelectHotspot(hotspot.id);
+                  }}
+                  aria-label={isSelected ? `Zoom out from ${hotspot.name}` : `Zoom in on ${hotspot.name}`}
+                  title={isSelected ? "Click to zoom out" : "Click to zoom in"}
+                  style={{
+                    transform: `scale(${Math.max(0.65, 1 / zoom)})`,
+                  }}
+                  className={`relative size-4 sm:size-5 rounded-full bg-white transition-transform duration-200 cursor-pointer shadow-md ${
+                    isSelected
+                      ? "scale-150 ring-2 ring-white/80 ring-offset-1 ring-offset-black/40"
+                      : "hover:scale-125 opacity-90 hover:opacity-100 ring-1 ring-black/20"
+                  }`}
+                />
+
+                {/* Quadrant-Aware Curatorial Popover Card */}
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    transform: `scale(${1 / zoom})`,
+                    transformOrigin: hotspot.xPercent > 50 ? "right center" : "left center",
+                  }}
+                  className={`absolute z-40 w-60 sm:w-72 rounded-2xl border border-border bg-card/95 p-3.5 shadow-xl backdrop-blur-md transition-all duration-200 immersive-artwork-hotspot-card before:absolute before:inset-y-0 before:w-4 ${
+                    hotspot.xPercent > 50 ? "before:-right-4" : "before:-left-4"
+                  } ${
+                    isCardVisible
+                      ? "pointer-events-auto opacity-100 translate-y-0"
+                      : "pointer-events-none opacity-0 translate-y-1"
+                  } ${
+                    hotspot.xPercent > 50 ? "right-full mr-3" : "left-full ml-3"
+                  } ${
+                    hotspot.yPercent > 50 ? "bottom-0" : "top-0"
+                  }`}
+                >
+                  {/* Header with Title and optional X button */}
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-[13px] font-semibold text-foreground leading-snug">
+                      {hotspot.name}
+                    </h4>
+                    {isSelected && isCardOpen && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          playTactileTap();
+                          setIsCardOpen(false);
+                        }}
+                        className="text-muted-foreground hover:text-foreground cursor-pointer p-0.5 shrink-0 rounded-md transition-colors"
+                        title="Close insight"
+                        aria-label="Close insight"
+                      >
+                        <HugeIcon icon={Cancel01Icon} size={13} />
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="mt-1 text-[11.5px] text-muted-foreground leading-relaxed">
+                    {hotspot.insight}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
         <div className="immersive-artwork-tools" role="group" aria-label="Artwork tools">
           <button
