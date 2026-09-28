@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { Cancel01Icon, Pen01Icon, SparklesIcon, ArrowRight02Icon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, Pen01Icon, SparklesIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { HugeIcon } from "@/components/ui/hugeicon";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
@@ -22,7 +22,6 @@ interface ImmersiveArtworkViewProps {
   controls: ReactNode;
   onBackToDetails: () => void;
   onAskAboutSelection: (selection: ArtworkSelection) => void;
-  onEndGalleryTour?: () => void;
 }
 
 type Size = { width: number; height: number };
@@ -38,7 +37,6 @@ export function ImmersiveArtworkView({
   controls,
   onBackToDetails,
   onAskAboutSelection,
-  onEndGalleryTour,
 }: ImmersiveArtworkViewProps) {
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const draftPathRef = React.useRef<Point[]>([]);
@@ -267,29 +265,15 @@ export function ImmersiveArtworkView({
 
   return (
     <section className="immersive-artwork-view fixed inset-0 z-[40] h-[100dvh] w-screen overflow-hidden" aria-label={`Viewing ${artwork.title}`}>
-      <div className="immersive-artwork-top-actions">
-        {onEndGalleryTour && (
-          <button
-            type="button"
-            onClick={onEndGalleryTour}
-            className="immersive-artwork-end-gallery"
-            aria-label="End tour of this gallery"
-            title="End tour of this gallery"
-          >
-            <span>End gallery tour</span>
-            <HugeIcon icon={ArrowRight02Icon} size={15} strokeWidth={2.2} />
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onBackToDetails}
-          className="immersive-artwork-close"
-          aria-label="Close artwork view"
-          title="Back to artwork card"
-        >
-          <HugeIcon icon={Cancel01Icon} size={18} strokeWidth={2} />
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onBackToDetails}
+        className="immersive-artwork-close"
+        aria-label="Close artwork view"
+        title="Back to artwork card"
+      >
+        <HugeIcon icon={Cancel01Icon} size={18} strokeWidth={2} />
+      </button>
 
       <div ref={canvasRef} className={`immersive-artwork-canvas${isDrawing ? " is-drawing" : isPanning ? " is-panning" : ""}`}>
         <div className="immersive-artwork-image-layer" style={{ transform: `scale(${zoom})`, transformOrigin: origin }}>
