@@ -134,6 +134,7 @@ export default function Home() {
   const [connectionError, setConnectionError] = React.useState<string | null>(null);
   const [micError, setMicError] = React.useState<string | null>(null);
   const [sessionExpiryDialogOpen, setSessionExpiryDialogOpen] = React.useState(false);
+  const [visualHandoffStatus, setVisualHandoffStatus] = React.useState<"idle" | "queued" | "speaking" | "failed">("idle");
   const [isMuted, setIsMuted] = React.useState(false);
   const [activeArtifact, setActiveArtifact] = React.useState<ArtifactType>("info");
   const [selectedArtwork, setSelectedArtwork] = React.useState<ExhibitArtworkInfo | null>(null);
@@ -551,6 +552,7 @@ export default function Home() {
 
   const handleAskAboutSelection = React.useCallback(async (selection: ArtworkSelection) => {
     const requestId = ++visualAnalysisRequestRef.current;
+    setVisualHandoffStatus("queued");
     const artworkId = resolveArtworkId(selectedArtwork?.id || activeArtworkId);
     const artwork = TURNING_POINTS_ARTWORKS[artworkId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
     const visitorQuestion = `Tell me about the area I circled in ${artwork.title}.`;
@@ -612,6 +614,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       setAgentStatus("thinking");
 
       if (agentRef.current?.ready) {
+        setVisualHandoffStatus("queued");
         agentRef.current.triggerReply(reply);
       } else {
         setIsChatThinking(false);
@@ -638,15 +641,21 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             if (preferredVoice) utterance.voice = preferredVoice;
             utterance.rate = 1.0;
             utterance.pitch = 1.05;
+            setVisualHandoffStatus("speaking");
             setAgentStatus("speaking");
-            utterance.onend = () => setAgentStatus("listening");
-            utterance.onerror = () => setAgentStatus("listening");
+            utterance.onend = () => { setAgentStatus("listening"); setVisualHandoffStatus("idle"); };
+            utterance.onerror = () => { setAgentStatus("listening"); setVisualHandoffStatus("failed"); };
             window.speechSynthesis.speak(utterance);
-          } catch {}
+          } catch {
+            setVisualHandoffStatus("failed");
+          }
+        } else {
+          setVisualHandoffStatus(isQuietModeRef.current ? "idle" : "failed");
         }
       }
     } catch (error) {
       if (requestId !== visualAnalysisRequestRef.current) return;
+      setVisualHandoffStatus("queued");
       console.error("Artwork visual question failed:", error);
       const reply = `The visitor circled a detail in "${artwork.title}" and asked about it, but the visual analysis failed. In one warm sentence, apologize briefly that you could not inspect that detail right now, and invite them to ask about something else in the painting.`;
       setChatMessages((previous) => [
@@ -661,11 +670,13 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       } else {
         setIsChatThinking(false);
         setAgentStatus("listening");
+        setVisualHandoffStatus("failed");
       }
     }
   }, [selectedArtwork, activeArtworkId, bargeIn]);
   const handleStartTour = async () => {
     visualAnalysisRequestRef.current += 1;
+    if (visualHandoffStatus === "queued") { setIsChatThinking(false); setVisualHandoffStatus("idle"); }
     setConnectionError(null);
     setMicError(null);
     setSessionExpiryDialogOpen(false);
@@ -901,6 +912,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         partialAgentMsgIdRef.current = `agent-partial-${Date.now()}`;
       },
       onAgentSpeakingStart: () => {
+        if (visualHandoffStatus === "queued") setVisualHandoffStatus("speaking");
         ignoreAudioUntilNextReplyRef.current = false;
         setAgentStatus("speaking");
         if (hotspotSpeechPhaseRef.current === "pending_reply") {
@@ -908,6 +920,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         }
       },
       onAgentSpeakingEnd: (interrupted) => {
+        if (visualHandoffStatus === "queued" || visualHandoffStatus === "speaking") setVisualHandoffStatus("idle");
         replyIndexRef.current += 1;
         const isInitialGreetingTurn = replyIndexRef.current === 1;
 
@@ -1742,7 +1755,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                       hotspotId={activeHotspotId}
                       isLoading={isArtifactLoading}
                       chatMessages={chatMessages}
-                      isChatThinking={isChatThinking}
+                      isChatThinking={isChatThinking || visualHandoffStatus === "queued"}
                       onSelectArtifact={(type, params) => {
                         hasUserInteractedRef.current = true;
                         // Going to maps, transcriptions, or returning to current info does NOT stop narration
