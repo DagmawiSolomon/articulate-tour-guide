@@ -32,7 +32,8 @@ import type { ExhibitArtworkInfo, ExhibitNavigationState } from "@/components/ar
 import type { MapViewport } from "@/components/ui/map";
 import { searchCuratorialArchives } from "@/lib/archive-retrieval";
 import { TURNING_POINTS_ARTWORKS, TURNING_POINTS_WINGS } from "@/lib/turning-points-data";
-import type { DetailHotspot } from "@/lib/demo-tour-data";
+import { getArtworkHotspots } from "@/lib/artwork-hotspots";
+import type { ArtworkSelection } from "@/components/artifacts/immersive-artwork-view";
 
 const WING_ROUTE_MAP: Record<string, string> = {
   "wing-perspective": "perspective",
@@ -133,7 +134,7 @@ export default function Home() {
   const [mapViewport, setMapViewport] = React.useState<MapViewport | null>(null);
   const [originMapRoute, setOriginMapRoute] = React.useState<string>("entrance");
   const [activeMapRoute, setActiveMapRoute] = React.useState<string>("entrance");
-  const [activeHotspotId, setActiveHotspotId] = React.useState<"cypress" | "star" | "steeple" | "vortex" | "moon" | undefined>(undefined);
+  const [activeHotspotId, setActiveHotspotId] = React.useState<string | undefined>(undefined);
   const [activeArtworkId, setActiveArtworkId] = React.useState<string>("masaccio-holy-trinity");
   const [comparisonPairId, setComparisonPairId] = React.useState<string>("comparison-perspective");
   // Quiet / Reading Mode: when true, visitor prefers to read and Alba remains silent
@@ -165,6 +166,9 @@ export default function Home() {
   // Voice Agent + audio player refs
   const agentRef = React.useRef<VoiceAgent | null>(null);
   const audioPlayerRef = React.useRef<AudioPlayer | null>(null);
+  const visionFillerReplyActiveRef = React.useRef(false);
+  const visionFillerAudioDrainingRef = React.useRef(false);
+  const pendingVisionReplyRef = React.useRef<string | null>(null);
   const agentCallbacksRef = React.useRef<VoiceAgentCallbacks | null>(null);
 
   // Greeting & reply lifecycle refs
@@ -403,10 +407,10 @@ export default function Home() {
     );
   }, [selectedArtwork, activeArtworkId]);
 
-  const handleAskAboutDetail = React.useCallback((hotspot: DetailHotspot) => {
+  const handleAskAboutSelection = React.useCallback(async (selection: ArtworkSelection) => {
     const artworkId = resolveArtworkId(selectedArtwork?.id || activeArtworkId);
     const artwork = TURNING_POINTS_ARTWORKS[artworkId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
-    const visitorQuestion = `Tell me about the ${hotspot.name} in ${artwork.title}.`;
+    const visitorQuestion = `Tell me about the area I circled in ${artwork.title}.`;
 
     bargeIn();
     hasUserInteractedRef.current = true;
@@ -418,9 +422,44 @@ export default function Home() {
     ]);
     setIsChatThinking(true);
     setAgentStatus("thinking");
-    agentRef.current?.triggerReply(
-      `The visitor selected the detail "${hotspot.name}" in ${artwork.title} by ${artwork.artist} (${artwork.year}) and asked: "${visitorQuestion}". Explain this specific detail using this curated context: ${hotspot.insight}. Relate it to the artwork and its historical significance. Speak directly and concisely, and do not claim to see anything beyond the selected detail and the supplied context.`
-    );
+
+    pendingVisionReplyRef.current = null;
+    visionFillerReplyActiveRef.current = Boolean(agentRef.current?.connected);
+    visionFillerAudioDrainingRef.current = false;
+    if (visionFillerReplyActiveRef.current) {
+      agentRef.current?.triggerReply("Tell the visitor you are taking a closer look at the part they circled. Say one brief, warm holding sentence, then stop.");
+    }
+
+    try {
+      const response = await fetch("/api/visual-question", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artworkId, selection, question: visitorQuestion }),
+      });
+      const result = await response.json();
+      if (!response.ok || typeof result.answer !== "string") throw new Error(result.error || "I couldn't inspect that detail just now.");
+
+      const reply = `The visitor circled a detail in “${artwork.title}” by ${artwork.artist} (${artwork.year}) and asked: “${visitorQuestion}”. The full artwork and selected region were analyzed by ${result.provider}. Visual analysis: “${result.answer}”. Answer the visitor warmly and naturally, grounding the explanation in those visual findings and the artwork context. Do not mention the provider or invent visual details beyond the analysis.`;
+      setChatMessages((previous) => [
+        ...previous,
+        { id: `vision-detail-${Date.now()}`, role: "tool", toolName: "visual_analysis", label: `Looked closely at ${artwork.title}`, params: { provider: result.provider }, detail: result.answer, timestamp: new Date() },
+      ]);
+      setIsChatThinking(false);
+      setAgentStatus("listening");
+      if (visionFillerReplyActiveRef.current || visionFillerAudioDrainingRef.current) pendingVisionReplyRef.current = reply;
+      else agentRef.current?.triggerReply(reply);
+    } catch (error) {
+      console.error("Artwork visual question failed:", error);
+      const reply = `The visitor circled a detail in “${artwork.title}” and asked about it. I could not get the visual analysis this time. Tell them briefly and honestly that you cannot inspect the image right now, then still help using what you know about the artwork. Do not pretend that you saw the circled detail.`;
+      setChatMessages((previous) => [
+        ...previous,
+        { id: `vision-error-${Date.now()}`, role: "tool", toolName: "visual_analysis", label: "Image analysis unavailable", timestamp: new Date() },
+      ]);
+      setIsChatThinking(false);
+      setAgentStatus("listening");
+      if (visionFillerReplyActiveRef.current || visionFillerAudioDrainingRef.current) pendingVisionReplyRef.current = reply;
+      else agentRef.current?.triggerReply(reply);
+    }
   }, [selectedArtwork, activeArtworkId, bargeIn]);
   const handleStartTour = async () => {
     playCallStart();
@@ -647,6 +686,15 @@ export default function Home() {
         setAgentStatus("speaking");
       },
       onAgentSpeakingEnd: (interrupted) => {
+        const completedVisionFiller = visionFillerReplyActiveRef.current && !interrupted;
+        if (completedVisionFiller) {
+          visionFillerReplyActiveRef.current = false;
+          visionFillerAudioDrainingRef.current = true;
+        } else if (interrupted) {
+          visionFillerReplyActiveRef.current = false;
+          visionFillerAudioDrainingRef.current = false;
+          pendingVisionReplyRef.current = null;
+        }
         replyIndexRef.current += 1;
         const isInitialGreetingTurn = replyIndexRef.current === 1;
 
@@ -680,6 +728,12 @@ export default function Home() {
 
           // Wait for audio player to finish draining queued audio chunks in speakers
           audioPlayerRef.current?.onPlaybackComplete(() => {
+            if (completedVisionFiller) {
+              visionFillerAudioDrainingRef.current = false;
+              const queuedReply = pendingVisionReplyRef.current;
+              pendingVisionReplyRef.current = null;
+              if (queuedReply) agentRef.current?.triggerReply(queuedReply);
+            }
             setAgentStatus("listening");
             if (greetingPhaseRef.current === "greeting" && !hasUserInteractedRef.current) {
               greetingPhaseRef.current = "done";
@@ -779,8 +833,16 @@ export default function Home() {
         } else if (tool.name === "show_hotspots") {
           const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
           const artId = resolveArtworkId(rawId);
-          const hotspotId = (tool.arguments.hotspotId as any) || "vortex";
           const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+          const availableHotspots = getArtworkHotspots(artwork.id);
+          const requestedHotspot = String(tool.arguments.hotspotId || tool.arguments.detailId || tool.arguments.detail || "").trim().toLowerCase();
+          const matchedHotspot = availableHotspots.find((item) => item.id.toLowerCase() === requestedHotspot || item.name.toLowerCase() === requestedHotspot);
+          if (!matchedHotspot) {
+            setIsArtifactLoading(false);
+            agentRef.current?.sendToolResult(tool.callId, { success: false, message: "No saved placement matches that detail.", availableHotspots: availableHotspots.map(({ id, name }) => ({ id, name })) }, true);
+            return;
+          }
+          const hotspotId = matchedHotspot.id;
           const artPlaceId = `art:${artwork.id}`;
           setActiveArtworkId(artwork.id);
           setActiveArtifact("hotspots");
@@ -797,13 +859,13 @@ export default function Home() {
               id: `tool-${Date.now()}`,
               role: "tool",
               toolName: "show_hotspots",
-              label: `Detail Zoom: ${hotspotId} (${artwork.title})`,
+              label: `Detail: ${matchedHotspot.name} (${artwork.title})`,
               artifactType: "hotspots",
               params: tool.arguments,
               timestamp: new Date(),
             },
           ]);
-          agentRef.current?.sendToolResult(tool.callId, { success: true, activeHotspot: hotspotId, artwork: artwork.title });
+          agentRef.current?.sendToolResult(tool.callId, { success: true, activeHotspot: { id: hotspotId, name: matchedHotspot.name }, artwork: artwork.title });
         } else if (tool.name === "show_info" || tool.name === "show_artwork_info") {
           const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
           const artId = resolveArtworkId(rawId);
@@ -1552,8 +1614,7 @@ export default function Home() {
       {isTourActive && activeArtifact === "artwork-view" && (
         <ImmersiveArtworkView
           artwork={selectedArtwork}
-          hotspots={TURNING_POINTS_ARTWORKS[resolveArtworkId(selectedArtwork?.id || activeArtworkId)]?.hotspots ?? []}
-          onAskAboutDetail={handleAskAboutDetail}
+          onAskAboutSelection={handleAskAboutSelection}
           avatar={<ArticulateAvatar expressionId={activeExpressionId} size={112} isListening={isListening} isMuted={isMuted} isSpeaking={agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
           controls={callGroup}
           onBackToDetails={() => setActiveArtifact("info")}
