@@ -409,14 +409,17 @@ function SummarySkeleton() {
 export function ArtifactSkeleton({ artifactType, showTourActions, isImageExpanded }: ArtifactSkeletonProps) {
   return (
     <div className="artifact-animate-in w-full h-full" aria-label="Loading artifact" aria-busy="true">
-      {artifactType === "info"       && <InfoSkeleton showTourActions={showTourActions} isImageExpanded={isImageExpanded} />}
-      {artifactType === "map"        && <MapSkeleton />}
-      {artifactType === "comparison" && <ComparisonSkeleton />}
-      {artifactType === "timeline"   && <TimelineSkeleton />}
-      {artifactType === "hotspots"   && <HotspotsSkeleton />}
-      {artifactType === "quote"      && <QuoteSkeleton />}
-      {artifactType === "chat"       && <ChatSkeleton />}
-      {artifactType === "summary"    && <SummarySkeleton />}
+      {artifactType === "info"         && <InfoSkeleton showTourActions={showTourActions} isImageExpanded={isImageExpanded} />}
+      {artifactType === "map"          && <MapSkeleton />}
+      {artifactType === "comparison"   && <ComparisonSkeleton />}
+      {artifactType === "timeline"     && <TimelineSkeleton />}
+      {artifactType === "hotspots"     && <HotspotsSkeleton />}
+      {artifactType === "chat"         && <ChatSkeleton />}
+      {artifactType === "artwork-view" && (
+        <div className="w-full h-full rounded-2xl overflow-hidden bg-muted/20">
+          <Shimmer className="w-full h-full rounded-none" />
+        </div>
+      )}
     </div>
   );
 }

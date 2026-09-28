@@ -10,8 +10,6 @@ import { TimelineView } from "./timeline-view";
 import { DetailHotspotsView } from "./detail-hotspots-view";
 import { ArtifactSkeleton } from "./artifact-skeleton";
 import { ChatHistoryView, type ChatMessage } from "./chat-history-view";
-import { QuoteView } from "./quote-view";
-import { SummaryView } from "./summary-view";
 import { TURNING_POINTS_ARTWORKS } from "@/lib/turning-points-data";
 import { getArtworkHotspots } from "@/lib/artwork-hotspots";
 
@@ -22,8 +20,6 @@ export type ArtifactType =
   | "timeline"
   | "hotspots"
   | "chat"
-  | "quote"
-  | "summary"
   | "artwork-view";
 
 export type { ChatMessage };
@@ -50,8 +46,6 @@ interface ArtifactStageProps {
   chatMessages?: ChatMessage[];
   /** When true shows the thinking indicator in chat. */
   isChatThinking?: boolean;
-  /** Summary data for the tour end summary. */
-  summaryData?: any;
   /** Callback to switch or open an artifact */
   onSelectArtifact?: (type: ArtifactType, params?: Record<string, any>) => void;
   showTourActions?: boolean;
@@ -80,7 +74,6 @@ export function ArtifactStage({
   isLoading = false,
   chatMessages = [],
   isChatThinking = false,
-  summaryData = null,
   showTourActions = true,
   onSelectArtifact,
   onStartTour,
@@ -150,8 +143,6 @@ export function ArtifactStage({
                 hotspots={getArtworkHotspots(targetArtwork?.id || artworkId || "")}
               />
             )}
-            {artifactType === "quote" && <QuoteView activeLetterId={letterId} />}
-            {artifactType === "summary" && <SummaryView data={summaryData} />}
             {artifactType === "chat" && (
               <ChatHistoryView
                 messages={chatMessages}
