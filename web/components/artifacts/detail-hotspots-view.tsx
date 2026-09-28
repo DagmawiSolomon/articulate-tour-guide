@@ -2,30 +2,31 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { DETAIL_HOTSPOTS, type DetailHotspot, ARTWORK_DATA } from "@/lib/demo-tour-data";
+import { ARTWORK_DATA } from "@/lib/demo-tour-data";
+import type { ArtworkHotspot } from "@/lib/artwork-hotspots";
 import { HugeIcon } from "@/components/ui/hugeicon";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { playTactileTap } from "@/lib/sounds";
 
-interface DetailHotspotsViewProps {
-  activeHotspotId?: DetailHotspot["id"] | string;
-  onSelectHotspot?: (id: DetailHotspot["id"]) => void;
+interface ArtworkHotspotsViewProps {
+  activeHotspotId?: ArtworkHotspot["id"] | string;
+  onSelectHotspot?: (id: ArtworkHotspot["id"]) => void;
   imageSrc?: string;
   imageAlt?: string;
-  hotspots?: DetailHotspot[];
+  hotspots?: ArtworkHotspot[];
 }
 
-export function DetailHotspotsView({
+export function ArtworkHotspotsView({
   activeHotspotId,
   onSelectHotspot,
   imageSrc = ARTWORK_DATA.imageSrc,
   imageAlt = ARTWORK_DATA.title,
-  hotspots = DETAIL_HOTSPOTS,
-}: DetailHotspotsViewProps) {
+  hotspots = [],
+}: ArtworkHotspotsViewProps) {
   // Starts completely unselected so the entire unzoomed image is displayed by default
-  const [zoomedId, setZoomedId] = React.useState<DetailHotspot["id"] | null>(null);
+  const [zoomedId, setZoomedId] = React.useState<ArtworkHotspot["id"] | null>(null);
   const [isCardOpen, setIsCardOpen] = React.useState<boolean>(false);
-  const [hoveredId, setHoveredId] = React.useState<DetailHotspot["id"] | null>(null);
+  const [hoveredId, setHoveredId] = React.useState<ArtworkHotspot["id"] | null>(null);
 
   // Dynamic natural aspect ratio detected on image load — works for ANY image
   const [naturalRatio, setNaturalRatio] = React.useState<number>(1280 / 1014);
@@ -108,7 +109,7 @@ export function DetailHotspotsView({
     };
   }, []);
 
-  const handleMouseEnter = (id: DetailHotspot["id"]) => {
+  const handleMouseEnter = (id: ArtworkHotspot["id"]) => {
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
@@ -128,19 +129,19 @@ export function DetailHotspotsView({
   // Synchronize when activeHotspotId changes externally (e.g. from docent tool calls)
   React.useEffect(() => {
     if (activeHotspotId && hotspots.some((h) => h.id === activeHotspotId)) {
-      setZoomedId(activeHotspotId as DetailHotspot["id"]);
+      setZoomedId(activeHotspotId as ArtworkHotspot["id"]);
       setIsCardOpen(true);
     }
   }, [activeHotspotId, hotspots]);
 
-  const selectedHotspot: DetailHotspot | undefined =
+  const selectedHotspot: ArtworkHotspot | undefined =
     hotspots.find((h) => h.id === zoomedId);
 
   const selectedHotspotPos = selectedHotspot
     ? getHotspotScreenPos(selectedHotspot.xPercent, selectedHotspot.yPercent)
     : null;
 
-  const handleSelect = (id: DetailHotspot["id"]) => {
+  const handleSelect = (id: ArtworkHotspot["id"]) => {
     playTactileTap();
     if (zoomedId === id) {
       // Toggle zoom out if already zoomed in on this hotspot
@@ -286,3 +287,6 @@ export function DetailHotspotsView({
     </div>
   );
 }
+
+export { ArtworkHotspotsView as DetailHotspotsView };
+export type { ArtworkHotspotsViewProps as DetailHotspotsViewProps };

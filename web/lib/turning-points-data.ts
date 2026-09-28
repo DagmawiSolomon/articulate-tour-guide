@@ -1,5 +1,3 @@
-import type { DetailHotspot } from "./demo-tour-data";
-
 export interface TurningPointArtwork {
   id: string;
   title: string;
@@ -16,7 +14,6 @@ export interface TurningPointArtwork {
   imageSrc: string;
   wingId: string;
   historicalPivot: string;
-  hotspots: DetailHotspot[];
 }
 
 export interface ExhibitionWing {
@@ -172,48 +169,6 @@ export const TURNING_POINTS_ARTWORKS: Record<string, TurningPointArtwork> = {
     imageSrc: "/artworks/masaccio-holy-trinity.jpg",
     wingId: "wing-perspective",
     historicalPivot: "The birth of single-point linear perspective in painting. The observer's eye is locked into an exact geometric relationship with the sacred space.",
-    hotspots: [
-      {
-        id: "vortex" as any,
-        name: "Coffered Barrel Vault",
-        tag: "Brunelleschian Geometry",
-        xPercent: 50,
-        yPercent: 24,
-        zoomScale: 2.2,
-        zoomOrigin: "50% 24%",
-        insight: "Calculated with exact mathematical orthogonal lines receding into a single vanishing point placed at eye level of the observer on the chapel floor."
-      },
-      {
-        id: "cypress" as any,
-        name: "God the Father & The Dove",
-        tag: "The Eternal Axis",
-        xPercent: 50,
-        yPercent: 12,
-        zoomScale: 2.4,
-        zoomOrigin: "50% 12%",
-        insight: "God stands on an architectural ledge behind the cross, with the Holy Spirit depicted as a dove hovering immediately between the Father's collar and the Son's halo."
-      },
-      {
-        id: "star" as any,
-        name: "The Lenzi Patrons",
-        tag: "Secular Infiltration",
-        xPercent: 18,
-        yPercent: 62,
-        zoomScale: 2.0,
-        zoomOrigin: "18% 62%",
-        insight: "Domenico Lenzi and his wife kneel outside the architectural triumphal arch in earthly space, human-sized, marking the rise of civic merchant patronage."
-      },
-      {
-        id: "steeple" as any,
-        name: "The Memento Mori Skeleton",
-        tag: "Tomb & Inscription",
-        xPercent: 50,
-        yPercent: 88,
-        zoomScale: 2.1,
-        zoomOrigin: "50% 88%",
-        insight: "The lower sarcophagus bears an open skeleton with the Italian verse warning that death is the universal equalizer for every viewer walking past."
-      }
-    ]
   },
   "caravaggio-calling-st-matthew": {
     id: "caravaggio-calling-st-matthew",
@@ -233,48 +188,6 @@ export const TURNING_POINTS_ARTWORKS: Record<string, TurningPointArtwork> = {
     imageSrc: "/artworks/caravaggio-calling-st-matthew.jpg",
     wingId: "wing-shadow",
     historicalPivot: "Tenebrism as narrative engine. Divine revelation is not a halo of light around a saint, but a ruthless physical beam piercing everyday corruption.",
-    hotspots: [
-      {
-        id: "star" as any,
-        name: "The Shaft of Divine Light",
-        tag: "Tenebrist Beam",
-        xPercent: 68,
-        yPercent: 20,
-        zoomScale: 2.2,
-        zoomOrigin: "68% 20%",
-        insight: "A raking beam of intense illumination originates from an unseen window above Christ, cutting through dust to highlight faces and coins while leaving corners in total blackout."
-      },
-      {
-        id: "cypress" as any,
-        name: "Christ's Pointing Hand",
-        tag: "Michelangelo Quote",
-        xPercent: 86,
-        yPercent: 44,
-        zoomScale: 2.6,
-        zoomOrigin: "86% 44%",
-        insight: "Christ's limp index finger is an inverted, mirror citation of Michelangelo's hand of Adam from the Sistine Chapel ceiling, casting Christ as the second Adam."
-      },
-      {
-        id: "vortex" as any,
-        name: "Matthew's Hesitant Gesture",
-        tag: "\"Who, Me?\"",
-        xPercent: 44,
-        yPercent: 50,
-        zoomScale: 2.4,
-        zoomOrigin: "44% 50%",
-        insight: "Levi (Matthew) points to himself in astonishment. The contrast between his lavish fur collar and the barefoot humility of Peter captures the shock of grace."
-      },
-      {
-        id: "steeple" as any,
-        name: "The Moneylender's Spectacles",
-        tag: "Spiritual Blindness",
-        xPercent: 26,
-        yPercent: 54,
-        zoomScale: 2.3,
-        zoomOrigin: "26% 54%",
-        insight: "An elderly tax official perches eyeglasses on his nose, entirely engrossed in counting coins, completely oblivious to Christ standing two paces away."
-      }
-    ]
   },
   "van-gogh-starry-night": {
     id: "van-gogh-starry-night",
@@ -294,48 +207,6 @@ export const TURNING_POINTS_ARTWORKS: Record<string, TurningPointArtwork> = {
     imageSrc: "/artworks/van-gogh-starry-night.jpg",
     wingId: "wing-feeling",
     historicalPivot: "The turn inward: art ceases to record optical appearance and becomes the direct conduit of psychological and cosmic emotion.",
-    hotspots: [
-      {
-        id: "cypress" as any,
-        name: "Cypress Tree",
-        tag: "Obelisk of Mourning",
-        xPercent: 22,
-        yPercent: 62,
-        zoomScale: 2.4,
-        zoomOrigin: "22% 62%",
-        insight: "Traditional Mediterranean cemetery motif anchoring the foreground, bridging earth and sky like a dark, living flame."
-      },
-      {
-        id: "vortex" as any,
-        name: "Celestial Swirl",
-        tag: "Cosmic Turbulence",
-        xPercent: 54,
-        yPercent: 32,
-        zoomScale: 2.2,
-        zoomOrigin: "54% 32%",
-        insight: "Eleven pulsating stars and an undulating vortex that physicists note maps precisely onto Kolmogorov hydrodynamic turbulence."
-      },
-      {
-        id: "star" as any,
-        name: "Morning Star (Venus)",
-        tag: "Beacon of Hope",
-        xPercent: 72,
-        yPercent: 48,
-        zoomScale: 2.5,
-        zoomOrigin: "72% 48%",
-        insight: "Painted with a brilliant white-yellow halo just above the horizon, corresponding to Van Gogh's observation in his June letters to Theo."
-      },
-      {
-        id: "steeple" as any,
-        name: "Village Church Spire",
-        tag: "Memory of Brabant",
-        xPercent: 58,
-        yPercent: 68,
-        zoomScale: 2.3,
-        zoomOrigin: "58% 68%",
-        insight: "An idealized architectural motif evoking Dutch Protestant church towers from his youth, unlike the flat tiled roofs of Provence."
-      }
-    ]
   },
   "picasso-demoiselles": {
     id: "picasso-demoiselles",
@@ -355,48 +226,6 @@ export const TURNING_POINTS_ARTWORKS: Record<string, TurningPointArtwork> = {
     imageSrc: "/artworks/picasso-demoiselles.jpg",
     wingId: "wing-cubism",
     historicalPivot: "The total destruction of single-point Renaissance perspective. Space is no longer a vacuum containing objects, but a solid crystal smashed into shards.",
-    hotspots: [
-      {
-        id: "vortex" as any,
-        name: "The African Mask Head",
-        tag: "Primitivist Rupture",
-        xPercent: 82,
-        yPercent: 24,
-        zoomScale: 2.3,
-        zoomOrigin: "82% 24%",
-        insight: "Painted after Picasso's June 1907 visit to the Trocadéro Ethnographic Museum; the features borrow directly from Dan and Etoumbi ritual reliquaries."
-      },
-      {
-        id: "cypress" as any,
-        name: "The Squatting Figure",
-        tag: "Simultaneous Viewpoint",
-        xPercent: 74,
-        yPercent: 76,
-        zoomScale: 2.4,
-        zoomOrigin: "74% 76%",
-        insight: "Her back is turned squarely to the spectator, yet her head is swiveled 180 degrees to confront us directly—the seminal Cubist synthesis of multiple perspectives in one body."
-      },
-      {
-        id: "star" as any,
-        name: "The Sliced Melon Still Life",
-        tag: "Pointed Blade of Flesh",
-        xPercent: 50,
-        yPercent: 92,
-        zoomScale: 2.2,
-        zoomOrigin: "50% 92%",
-        insight: "A precarious cluster of grapes, apple, and razor-sharp melon wedge thrusts toward the lower canvas edge like a dagger, echoing the angular aggression of the bodies."
-      },
-      {
-        id: "steeple" as any,
-        name: "Iberian Classical Face",
-        tag: "Archaic Spanish Roots",
-        xPercent: 32,
-        yPercent: 34,
-        zoomScale: 2.2,
-        zoomOrigin: "32% 34%",
-        insight: "The central figures retain the heavy eyelid almond shapes and flat profiles derived from 6th-century BCE Iberian stone sculptures excavated at Osuna."
-      }
-    ]
   },
   "pollock-autumn-rhythm": {
     id: "pollock-autumn-rhythm",
@@ -416,38 +245,6 @@ export const TURNING_POINTS_ARTWORKS: Record<string, TurningPointArtwork> = {
     imageSrc: "/artworks/pollock-autumn-rhythm.jpg",
     wingId: "wing-concept",
     historicalPivot: "The canvas transformed from an illusionistic window into an arena of action. Art is no longer a representation of an object, but the physical record of bodily event.",
-    hotspots: [
-      {
-        id: "vortex" as any,
-        name: "The Skein Web of Enamel",
-        tag: "Controlled Chance",
-        xPercent: 48,
-        yPercent: 46,
-        zoomScale: 2.3,
-        zoomOrigin: "48% 46%",
-        insight: "Layered ribbons of black, brown, white, and teal enamel paint interact fluidly; viscosity and velocity determine line thickness without hair brushes touching canvas."
-      },
-      {
-        id: "star" as any,
-        name: "Raw Unprimed Cotton Duck",
-        tag: "Material Honesty",
-        xPercent: 12,
-        yPercent: 22,
-        zoomScale: 2.4,
-        zoomOrigin: "12% 22%",
-        insight: "Unpainted canvas breathes through the dense web, absorbing thin solvent stains while resisting thicker gloss enamel pools."
-      },
-      {
-        id: "cypress" as any,
-        name: "Barn Floor Trace & Debris",
-        tag: "Studio Archaeology",
-        xPercent: 82,
-        yPercent: 80,
-        zoomScale: 2.5,
-        zoomOrigin: "82% 80%",
-        insight: "Micro-inspection reveals cigarette ash, matches, and studio dust trapped forever inside dried lacquer skin—evidence of total physical immersion."
-      }
-    ]
   },
   "duchamp-fountain": {
     id: "duchamp-fountain",
@@ -467,38 +264,6 @@ export const TURNING_POINTS_ARTWORKS: Record<string, TurningPointArtwork> = {
     imageSrc: "/artworks/duchamp-fountain.jpg",
     wingId: "wing-concept",
     historicalPivot: "The birth of Conceptual Art. The artwork transforms from an object of physical craft into an intellectual provocation and test of institutional framing.",
-    hotspots: [
-      {
-        id: "vortex" as any,
-        name: "The 'R. MUTT 1917' Signature",
-        tag: "Pseudonymous Provocation",
-        xPercent: 28,
-        yPercent: 78,
-        zoomScale: 2.5,
-        zoomOrigin: "28% 78%",
-        insight: "Inscribed in black enamel referencing the J.L. Mott Iron Works commercial plumbing supplier, fused with the popular Mutt and Jeff newspaper cartoon."
-      },
-      {
-        id: "star" as any,
-        name: "Inverted Ninety-Degree Orientation",
-        tag: "Functional Erasure",
-        xPercent: 50,
-        yPercent: 45,
-        zoomScale: 2.2,
-        zoomOrigin: "50% 45%",
-        insight: "Rotated 90 degrees flat on its back onto a pedestal, entirely extinguishing its sanitary plumbing purpose to force contemplation of pure industrial form."
-      },
-      {
-        id: "cypress" as any,
-        name: "Industrial Sanitary Porcelain",
-        tag: "Anti-Retinal Ready-Made",
-        xPercent: 70,
-        yPercent: 32,
-        zoomScale: 2.4,
-        zoomOrigin: "70% 32%",
-        insight: "Duchamp deliberately attacked 'retinal art' designed to seduce the eye, forcing the museum institution to confront mass-manufactured readymades."
-      }
-    ]
   }
 };
 

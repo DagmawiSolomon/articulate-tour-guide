@@ -13,6 +13,7 @@ import { ChatHistoryView, type ChatMessage } from "./chat-history-view";
 import { QuoteView } from "./quote-view";
 import { SummaryView } from "./summary-view";
 import { TURNING_POINTS_ARTWORKS } from "@/lib/turning-points-data";
+import { getArtworkHotspots } from "@/lib/artwork-hotspots";
 
 export type ArtifactType =
   | "info"
@@ -146,7 +147,7 @@ export function ArtifactStage({
                 activeHotspotId={hotspotId}
                 imageSrc={targetArtwork?.imageSrc}
                 imageAlt={targetArtwork?.title}
-                hotspots={targetArtwork?.hotspots}
+                hotspots={getArtworkHotspots(targetArtwork?.id || artworkId || "")}
               />
             )}
             {artifactType === "quote" && <QuoteView activeLetterId={letterId} />}

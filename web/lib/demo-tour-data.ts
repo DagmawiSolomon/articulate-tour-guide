@@ -43,17 +43,6 @@ export interface TimelineMilestone {
   isCurrent?: boolean;
 }
 
-export interface DetailHotspot {
-  id: "cypress" | "star" | "steeple" | "vortex" | "moon";
-  name: string;
-  tag: string;
-  xPercent: number;
-  yPercent: number;
-  zoomScale: number;
-  zoomOrigin: string;
-  insight: string;
-}
-
 export const ARTWORK_DATA: ArtworkMetadata = {
   title: "The Starry Night",
   originalTitle: "La Nuit étoilée",
@@ -316,64 +305,6 @@ export const TIMELINE_MILESTONES: TimelineMilestone[] = [
     artworkTitle: "Wheatfield with Crows",
     description: "Agitated skies, vast undulating wheatfields, and seventy feverish final canvases under Dr. Gachet's care.",
     imageSrc: "/assets/timeline/auvers.jpg",
-  },
-];
-
-export const DETAIL_HOTSPOTS: DetailHotspot[] = [
-  {
-    id: "cypress",
-    name: "The Cypress Tree",
-    tag: "Symbol of Grief & Eternity",
-    xPercent: 24,
-    yPercent: 55,
-    zoomScale: 2.1,
-    zoomOrigin: "24% 55%",
-    insight:
-      "In Mediterranean culture, the cypress is the traditional tree of mourning. Van Gogh transforms it into a living dark flame bridging earth and cosmos.",
-  },
-  {
-    id: "star",
-    name: "Venus / The Morning Star",
-    tag: "Astronomical Alignment",
-    xPercent: 63,
-    yPercent: 44,
-    zoomScale: 2.3,
-    zoomOrigin: "63% 44%",
-    insight:
-      "In June 1889, astronomical models show Venus was at maximum brilliance before sunrise. Van Gogh recorded seeing it luminous and large from his window.",
-  },
-  {
-    id: "steeple",
-    name: "Dutch Village Church",
-    tag: "Brabant Nostalgia",
-    xPercent: 52,
-    yPercent: 74,
-    zoomScale: 2.4,
-    zoomOrigin: "52% 74%",
-    insight:
-      "Churches in Provence lack tall Gothic steeples; Van Gogh painted this spire from nostalgic memories of his father's Dutch Reformed parish.",
-  },
-  {
-    id: "vortex",
-    name: "Cosmic Sky Vortex",
-    tag: "Atmospheric Turbulence",
-    xPercent: 46,
-    yPercent: 28,
-    zoomScale: 2.2,
-    zoomOrigin: "46% 28%",
-    insight:
-      "The central undulating spiral evokes oceanic dynamics and fluid turbulence, painted with concentric rhythmic strokes of French ultramarine and cobalt.",
-  },
-  {
-    id: "moon",
-    name: "Crescent Moon & Sun Orb",
-    tag: "Celestial Fusion",
-    xPercent: 86,
-    yPercent: 18,
-    zoomScale: 2.5,
-    zoomOrigin: "86% 18%",
-    insight:
-      "Van Gogh synthesizes sun and moon into a fiery golden crescent radiating pulsating halo concentric waves across an illuminated night sky.",
   },
 ];
 
