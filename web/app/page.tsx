@@ -949,6 +949,18 @@ export default function Home() {
           ]);
           agentRef.current?.sendToolResult(tool.callId, { success: true, pair: pairId });
         } else if (tool.name === "show_timeline") {
+          const eraId = (tool.arguments.activeEraId as string) || (tool.arguments.eraId as string) || (tool.arguments.artworkId as string);
+          const eraToArtworkMap: Record<string, string> = {
+            "1427": "masaccio-holy-trinity",
+            "1600": "caravaggio-calling-st-matthew",
+            "1889": "van-gogh-starry-night",
+            "1907": "picasso-demoiselles",
+            "1950": "pollock-autumn-rhythm",
+          };
+          const resolvedArtworkId = eraToArtworkMap[eraId] || (TURNING_POINTS_ARTWORKS[eraId] ? eraId : undefined);
+          if (resolvedArtworkId) {
+            setActiveArtworkId(resolvedArtworkId);
+          }
           setActiveArtifact("timeline");
           setChatMessages((prev) => [
             ...prev,
@@ -962,7 +974,7 @@ export default function Home() {
               timestamp: new Date(),
             },
           ]);
-          agentRef.current?.sendToolResult(tool.callId, { success: true });
+          agentRef.current?.sendToolResult(tool.callId, { success: true, activeArtworkId: resolvedArtworkId });
         } else if (tool.name === "consult_archives") {
           const query = (tool.arguments.query as string) || "";
           const category = tool.arguments.category as string | undefined;
