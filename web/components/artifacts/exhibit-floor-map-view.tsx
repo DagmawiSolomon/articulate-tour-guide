@@ -327,10 +327,10 @@ export function ExhibitFloorMapView({
           const isActive = activeTourArtworkId === work.id;
           const isCompleted = completedArtworkIds?.includes(work.id);
           const ringClasses = isActive
-            ? "border-white ring-[3px] ring-blue-500"
+            ? "border-white ring-[3px] ring-blue-600"
             : isCompleted
-            ? "border-white ring-[3px] ring-emerald-500"
-            : "border-white ring-1 ring-[#333a37]";
+            ? "border-white ring-[3px] ring-emerald-600"
+            : "border-white ring-2 ring-stone-300";
 
           return <MapMarker key={work.id} longitude={longitude} latitude={latitude} anchor="center">
             <button type="button" aria-label={`Open ${work.title} by ${work.artist}, ${work.year}`} title={work.title} onClick={()=>onSelectArtwork?.(artworkInfo(work))} className="group relative flex size-[62px] items-center justify-center rounded-full border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#20211f]">
