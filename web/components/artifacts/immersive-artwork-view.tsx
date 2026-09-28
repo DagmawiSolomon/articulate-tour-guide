@@ -147,6 +147,11 @@ export function ImmersiveArtworkView({
         setZoomOrigin({ x: targetX, y: targetY });
         setZoom(target.zoomScale || 2.4);
       }
+    } else if (!activeHotspotId) {
+      setZoomedHotspotId(null);
+      setIsCardOpen(false);
+      setZoom(DEFAULT_INITIAL_ZOOM);
+      setZoomOrigin({ x: 0, y: 0 });
     }
   }, [activeHotspotId, hotspots, imageBounds]);
 
