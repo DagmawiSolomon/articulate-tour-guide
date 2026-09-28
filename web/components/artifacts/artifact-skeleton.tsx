@@ -37,7 +37,10 @@ function Shimmer({ className }: { className?: string }) {
 function InfoSkeleton({ showTourActions = true }: { showTourActions?: boolean }) {
   return (
     <div className="w-full h-full flex items-center justify-center p-2 sm:p-4 overflow-hidden">
-      <div className="relative w-full max-w-[780px] rounded-2xl border border-border/70 shadow-xs flex flex-col lg:flex-row overflow-hidden">
+      <div className="relative w-full max-w-[850px] flex items-start gap-3 sm:gap-4">
+        {/* Placeholder spacer matching back button geometry to prevent layout shift */}
+        <div className="shrink-0 size-9 sm:size-10 mt-1 sm:mt-2" aria-hidden="true" />
+        <div className="relative flex-1 min-w-0 max-w-[780px] rounded-2xl border border-border/70 shadow-xs flex flex-col lg:flex-row overflow-hidden">
         {/* Left side: Image shimmer (equal 50% size, matching border) */}
         <div className="w-full lg:w-1/2 h-[320px] sm:h-[360px] lg:h-[380px] border-b lg:border-b-0 lg:border-r border-border/50 overflow-hidden bg-muted/20 shrink-0">
           <Shimmer className="w-full h-full rounded-none" />
@@ -89,6 +92,7 @@ function InfoSkeleton({ showTourActions = true }: { showTourActions?: boolean })
         </div>
       </div>
     </div>
+  </div>
   );
 }
 
