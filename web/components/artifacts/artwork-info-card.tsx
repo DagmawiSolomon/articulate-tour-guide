@@ -49,20 +49,25 @@ export function ArtworkInfoCard({
   const state: GalleryState = galleryState ?? (showTourActions ? "unexplored" : "exploring");
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center p-2 sm:p-4 overflow-hidden">
-      {onReturnToMap && (
-        <button
-          type="button"
-          onClick={onReturnToMap}
-          aria-label="Go back to map"
-          title="Go back to map"
-          className="absolute left-3 top-3 sm:left-5 sm:top-5 z-30 flex size-10 items-center justify-center rounded-full border border-border bg-white text-foreground shadow-none transition-colors hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer"
-        >
-          <HugeIcon icon={ArrowLeft02Icon} size={18} strokeWidth={2} />
-        </button>
-      )}
+    <div className="relative w-full h-full flex items-center justify-center p-2 sm:p-4 overflow-visible">
+      <div className="relative w-full max-w-[850px] flex items-start gap-3 sm:gap-4">
+        {onReturnToMap && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              playTactileTap();
+              onReturnToMap();
+            }}
+            aria-label="Go back to map"
+            title="Go back to map"
+            className="shrink-0 flex size-9 sm:size-10 items-center justify-center rounded-full border border-border bg-white text-foreground shadow-xs transition-colors hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer mt-1 sm:mt-2"
+          >
+            <HugeIcon icon={ArrowLeft02Icon} size={18} strokeWidth={2} />
+          </button>
+        )}
 
-      <div className="relative w-full max-w-[780px] rounded-2xl border border-border/70 shadow-xs overflow-hidden flex flex-col lg:flex-row items-center justify-center bg-card">
+        <div className="relative flex-1 min-w-0 max-w-[780px] rounded-2xl border border-border/70 shadow-xs overflow-hidden flex flex-col lg:flex-row items-center justify-center bg-card">
         {/* Left side: Artwork Image (clicking opens full-screen view) */}
         <div
           className={`relative overflow-hidden w-full lg:w-1/2 h-[320px] sm:h-[360px] lg:h-[380px] border-b lg:border-b-0 lg:border-r border-border/50 bg-muted/20 group ${
@@ -247,5 +252,6 @@ export function ArtworkInfoCard({
         </div>
       </div>
     </div>
+  </div>
   );
 }
