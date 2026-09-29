@@ -166,7 +166,7 @@ export function ImmersiveArtworkView({
 
     const finishStroke = (points: Point[]) => {
       if (points.length < 3) return;
-      onUiContextChange?.("circled a detail in " + (artwork?.title || "the artwork"), true);
+      onUiContextChange?.("circled a detail in " + (artwork?.title || "the artwork"), false);
       const xs = points.map((point) => point.x);
       const ys = points.map((point) => point.y);
       const left = Math.min(...xs);
@@ -487,7 +487,7 @@ export function ImmersiveArtworkView({
             aria-label={isDrawing ? "Cancel drawing" : "Circle a detail"}
             aria-pressed={isDrawing}
             title={isDrawing ? "Cancel drawing" : "Circle a detail"}
-            onClick={() => { onUiContextChange?.("started or cleared a detail selection", true); setIsDrawing((active) => !active); setDraftPath([]); setSelection(null); setSelectionPath([]); }}
+            onClick={() => { onUiContextChange?.("started or cleared a detail selection", false); setIsDrawing((active) => !active); setDraftPath([]); setSelection(null); setSelectionPath([]); }}
           >
             <HugeiconsIcon icon={Pen01Icon} size={19} strokeWidth={1.8} />
           </button>
