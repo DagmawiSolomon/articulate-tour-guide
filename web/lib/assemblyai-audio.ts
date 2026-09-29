@@ -15,6 +15,8 @@ export function createAudioPlayer() {
   let ctx: AudioContext | null = null;
   let nextStartTime = 0;
   const activeSources = new Set<AudioBufferSourceNode>();
+  let outputAnalyser: AnalyserNode | null = null;
+  let outputDataArray = new Uint8Array(512);
   let completionTimer: NodeJS.Timeout | null = null;
   let currentGeneration = 0;
 
@@ -26,6 +28,11 @@ export function createAudioPlayer() {
         window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       ctx = new AudioCtxClass();
+      outputAnalyser = ctx.createAnalyser();
+      outputAnalyser.fftSize = 512;
+      outputAnalyser.smoothingTimeConstant = 0.2;
+      outputDataArray = new Uint8Array(outputAnalyser.fftSize);
+      outputAnalyser.connect(ctx.destination);
       nextStartTime = 0;
     }
     return ctx;
@@ -95,7 +102,7 @@ export function createAudioPlayer() {
 
     const source = audioCtx.createBufferSource();
     source.buffer = buffer;
-    source.connect(audioCtx.destination);
+    source.connect(outputAnalyser ?? audioCtx.destination);
 
     activeSources.add(source);
     source.onended = () => {
@@ -164,6 +171,7 @@ export function createAudioPlayer() {
         ctx.close();
       } catch {}
       ctx = null;
+      outputAnalyser = null;
     }
   }
 
@@ -178,8 +186,20 @@ export function createAudioPlayer() {
     }
   }
 
+  function getOutputAudioLevel() {
+    if (!ctx || ctx.state !== "running" || !outputAnalyser) return 0;
+    outputAnalyser.getByteTimeDomainData(outputDataArray);
+    let sumSquares = 0;
+    for (let i = 0; i < outputDataArray.length; i++) {
+      const sample = (outputDataArray[i] - 128) / 128;
+      sumSquares += sample * sample;
+    }
+    return Math.sqrt(sumSquares / outputDataArray.length);
+  }
+
   return {
     playChunk,
+    getOutputAudioLevel,
     flush,
     close,
     resume,
