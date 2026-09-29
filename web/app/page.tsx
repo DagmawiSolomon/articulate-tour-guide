@@ -88,6 +88,8 @@ import { useMicAudioLevel } from "@/hooks/use-mic-audio-level";
 type AgentStatus = "listening" | "thinking" | "speaking";
 type VoiceConnectionState = "idle" | "connecting" | "connected" | "failed";
 
+const VOICE_SESSION_LIMIT_MS = 180_000;
+
 type GalleryStates = Record<string, "unexplored" | "exploring" | "completed">;
 
 type TourPageState = {
@@ -221,6 +223,8 @@ export default function Home() {
   const [connectionError, setConnectionError] = React.useState<string | null>(null);
   const [micError, setMicError] = React.useState<string | null>(null);
   const [sessionExpiryDialogOpen, setSessionExpiryDialogOpen] = React.useState(false);
+  const sessionExpiryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionReadyAtRef = React.useRef<number | null>(null);
   const [visualHandoffStatus, setVisualHandoffStatus] = React.useState<"idle" | "queued" | "speaking" | "failed">("idle");
   const [isMuted, setIsMuted] = React.useState(false);
   const [activeArtifact, setActiveArtifact] = useTourPageField(tourPageState, dispatchTourPageState, "activeArtifact");
@@ -533,6 +537,9 @@ export default function Home() {
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       }
+      if (sessionExpiryTimerRef.current) {
+        clearTimeout(sessionExpiryTimerRef.current);
+      }
       agentRef.current?.end();
       audioPlayerRef.current?.close();
     };
@@ -825,6 +832,19 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     // 3. Connect Voice Agent session
     const callbacks: VoiceAgentCallbacks = {
       onReady: (sessionId) => {
+        sessionReadyAtRef.current = Date.now();
+        if (sessionExpiryTimerRef.current) clearTimeout(sessionExpiryTimerRef.current);
+        sessionExpiryTimerRef.current = setTimeout(() => {
+          sessionExpiryTimerRef.current = null;
+          const expiredAgent = agentRef.current;
+          agentRef.current = null;
+          expiredAgent?.end();
+          handleUnexpectedSessionEnd({
+            type: "expired",
+            code: "client_session_cap",
+            message: "Voice session reached the 180-second session limit.",
+          });
+        }, VOICE_SESSION_LIMIT_MS);
         transitionVoiceConnection("connected");
         setAgentStatus("listening");
         setConnectionError(null);
@@ -1404,18 +1424,47 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
   };
 
   const handleUnexpectedSessionEnd = (reason: VoiceAgentEndReason) => {
+    if (sessionExpiryTimerRef.current) {
+      clearTimeout(sessionExpiryTimerRef.current);
+      sessionExpiryTimerRef.current = null;
+    }
     transitionVoiceConnection("failed");
     setIsChatThinking(false);
     setAgentStatus("listening");
     setActiveExpressionId("neutral");
     stopMic();
     agentRef.current = null;
-    const isExpired = reason.type === "expired";
+    const sessionAge = sessionReadyAtRef.current === null ? 0 : Date.now() - sessionReadyAtRef.current;
+    const isExpired = reason.type === "expired" || sessionAge >= VOICE_SESSION_LIMIT_MS - 1000;
+    sessionReadyAtRef.current = null;
     setConnectionError(isExpired ? "This voice session reached its 180-second limit. You can continue exploring or start a new session." : reason.type === "disconnected" ? "Alba's connection was interrupted. Your tour remains open; retry to talk with her again." : reason.message || "Alba's voice session ended. Your tour remains open.");
     if (isExpired) setSessionExpiryDialogOpen(true);
   };
 
+  React.useEffect(() => {
+    const handleOffline = () => {
+      if (voiceConnectionRef.current === "connected" || voiceConnectionRef.current === "connecting") {
+        agentRef.current?.end();
+        agentRef.current = null;
+        handleUnexpectedSessionEnd({
+          type: "disconnected",
+          code: 1006,
+          message: "Network connection lost. Your tour remains open; check your connection to speak with Alba again.",
+        });
+      }
+    };
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   const handleRetryConnection = async () => {
+    sessionReadyAtRef.current = null;
+    if (sessionExpiryTimerRef.current) {
+      clearTimeout(sessionExpiryTimerRef.current);
+      sessionExpiryTimerRef.current = null;
+    }
     setConnectionError(null);
     transitionVoiceConnection("connecting");
     try {
@@ -1433,6 +1482,11 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
   };
 
   const handleConfirmEndTour = async () => {
+    sessionReadyAtRef.current = null;
+    if (sessionExpiryTimerRef.current) {
+      clearTimeout(sessionExpiryTimerRef.current);
+      sessionExpiryTimerRef.current = null;
+    }
     visualAnalysisRequestRef.current += 1;
     transitionVoiceConnection("idle");
     setConnectionError(null);
