@@ -166,13 +166,20 @@ export function ImmersiveArtworkView({
 
     const finishStroke = (points: Point[]) => {
       if (points.length < 3) return;
-      onUiContextChange?.("circled a detail in " + (artwork?.title || "the artwork"), false);
       const xs = points.map((point) => point.x);
       const ys = points.map((point) => point.y);
       const left = Math.min(...xs);
       const top = Math.min(...ys);
-      const width = Math.max(Math.max(...xs) - left, 24);
-      const height = Math.max(Math.max(...ys) - top, 24);
+      const rawWidth = Math.max(...xs) - left;
+      const rawHeight = Math.max(...ys) - top;
+
+      // Filter out accidental taps or micro-jitters (< 12px bounding box)
+      if (rawWidth < 12 && rawHeight < 12) return;
+
+      const width = Math.max(rawWidth, 24);
+      const height = Math.max(rawHeight, 24);
+
+      onUiContextChange?.("circled a detail in " + (artwork?.title || "the artwork"), false);
       setSelectionPath(points);
       setSelection({
         centerXPercent: clamp(((left + width / 2 - imageBounds.left) / imageBounds.width) * 100, 0, 100),
@@ -188,7 +195,7 @@ export function ImmersiveArtworkView({
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.button !== 0 || !imageBounds.width || !imageBounds.height) return;
-      if (event.target instanceof Element && event.target.closest(".immersive-artwork-tools, .immersive-artwork-selection-trigger")) return;
+      if (event.target instanceof Element && event.target.closest(".immersive-artwork-tools, .immersive-artwork-selection-trigger, .immersive-artwork-close")) return;
       event.preventDefault();
       activePointerIdRef.current = event.pointerId;
       try { canvas.setPointerCapture(event.pointerId); } catch { /* Window listeners also track movement. */ }
@@ -203,7 +210,7 @@ export function ImmersiveArtworkView({
       if (activePointerIdRef.current !== event.pointerId) return;
       const point = getLayerPoint(event.clientX, event.clientY);
       const previous = draftPathRef.current[draftPathRef.current.length - 1];
-      if (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 2) return;
+      if (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 3) return;
       const nextPath = [...draftPathRef.current, point];
       draftPathRef.current = nextPath;
       setDraftPath(nextPath);
@@ -211,9 +218,14 @@ export function ImmersiveArtworkView({
 
     const onPointerUp = (event: PointerEvent) => {
       if (activePointerIdRef.current !== event.pointerId) return;
+      try {
+        if (canvas.hasPointerCapture(event.pointerId)) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      } catch { /* ok */ }
       const point = getLayerPoint(event.clientX, event.clientY);
       const previous = draftPathRef.current[draftPathRef.current.length - 1];
-      const points = previous && Math.hypot(point.x - previous.x, point.y - previous.y) >= 2
+      const points = previous && Math.hypot(point.x - previous.x, point.y - previous.y) >= 3
         ? [...draftPathRef.current, point]
         : draftPathRef.current;
       activePointerIdRef.current = null;
@@ -225,6 +237,11 @@ export function ImmersiveArtworkView({
 
     const onPointerCancel = (event: PointerEvent) => {
       if (activePointerIdRef.current !== event.pointerId) return;
+      try {
+        if (canvas.hasPointerCapture(event.pointerId)) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      } catch { /* ok */ }
       activePointerIdRef.current = null;
       draftPathRef.current = [];
       setDraftPath([]);
@@ -252,7 +269,7 @@ export function ImmersiveArtworkView({
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.button !== 0 || zoom <= 1) return;
-      if (event.target instanceof Element && event.target.closest(".immersive-artwork-tools, .immersive-artwork-selection-trigger, .immersive-artwork-ask, .immersive-artwork-hotspot-marker, .immersive-artwork-hotspot-card")) return;
+      if (event.target instanceof Element && event.target.closest(".immersive-artwork-tools, .immersive-artwork-selection-trigger, .immersive-artwork-ask, .immersive-artwork-hotspot-marker, .immersive-artwork-hotspot-card, .immersive-artwork-close")) return;
       event.preventDefault();
       activePointerIdRef.current = event.pointerId;
       try { canvas.setPointerCapture(event.pointerId); } catch { /* ok */ }
@@ -276,6 +293,11 @@ export function ImmersiveArtworkView({
 
     const onPointerUp = (event: PointerEvent) => {
       if (activePointerIdRef.current !== event.pointerId) return;
+      try {
+        if (canvas.hasPointerCapture(event.pointerId)) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      } catch { /* ok */ }
       activePointerIdRef.current = null;
       setIsPanning(false);
       onUiContextChange?.("panned the artwork", false);
@@ -283,6 +305,11 @@ export function ImmersiveArtworkView({
 
     const onPointerCancel = (event: PointerEvent) => {
       if (activePointerIdRef.current !== event.pointerId) return;
+      try {
+        if (canvas.hasPointerCapture(event.pointerId)) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      } catch { /* ok */ }
       activePointerIdRef.current = null;
       setIsPanning(false);
     };
