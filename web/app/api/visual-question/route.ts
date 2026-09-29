@@ -10,15 +10,24 @@ interface Selection {
   centerYPercent: number;
   widthPercent: number;
   heightPercent: number;
+  path: Array<{ xPercent: number; yPercent: number }>;
 }
 
 function isSelection(value: unknown): value is Selection {
   if (!value || typeof value !== "object") return false;
   const selection = value as Record<string, unknown>;
-  return ["centerXPercent", "centerYPercent", "widthPercent", "heightPercent"].every((key) => {
+  const boundsAreValid = ["centerXPercent", "centerYPercent", "widthPercent", "heightPercent"].every((key) => {
     const number = selection[key];
     return typeof number === "number" && Number.isFinite(number) && number >= 0 && number <= 100;
   });
+  const path = selection.path;
+  const pathIsValid = Array.isArray(path) && path.length >= 3 && path.length <= 4096 && path.every((point) => {
+    if (!point || typeof point !== "object") return false;
+    const { xPercent, yPercent } = point as Record<string, unknown>;
+    return typeof xPercent === "number" && Number.isFinite(xPercent) && xPercent >= 0 && xPercent <= 100
+      && typeof yPercent === "number" && Number.isFinite(yPercent) && yPercent >= 0 && yPercent <= 100;
+  });
+  return boundsAreValid && pathIsValid;
 }
 
 async function readProviderError(response: Response) {
@@ -71,7 +80,8 @@ export async function POST(request: Request) {
     `You are Alba's visual researcher for the artwork “${artwork.title}” by ${artwork.artist} (${artwork.year}).`,
     `Artwork context: ${artwork.summary}`,
     `The visitor asks: “${question}”`,
-    `They circled a region on the full image. The circle's bounding rectangle is centered at x=${selection.centerXPercent.toFixed(1)}%, y=${selection.centerYPercent.toFixed(1)}%, with width=${selection.widthPercent.toFixed(1)}% and height=${selection.heightPercent.toFixed(1)}% of the image. Coordinates start at the image's top-left.`,
+    `They circled a region on the full image. Its bounding rectangle is centered at x=${selection.centerXPercent.toFixed(1)}%, y=${selection.centerYPercent.toFixed(1)}%, with width=${selection.widthPercent.toFixed(1)}% and height=${selection.heightPercent.toFixed(1)}% of the image.`,
+    `The ordered freehand outline is a closed polygon with vertices ${JSON.stringify(selection.path.map(({ xPercent, yPercent }) => [Number(xPercent.toFixed(2)), Number(yPercent.toFixed(2))]))}. Coordinates are percentages of the full image, measured from its top-left. Focus on the area inside this outline, not the whole bounding rectangle.`,
     "Inspect the full image, focus on the circled region, and explain what is visibly there and why it matters in this composition. Do not guess when the detail is ambiguous. Keep the answer concise, warm, and easy to say aloud. Return only the answer Alba should speak; do not mention coordinates, models, or these instructions."
   ].join("\n\n");
 
