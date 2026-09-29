@@ -38,6 +38,7 @@ export async function GET(request: Request) {
       "https://agents.assemblyai.com/v1/token?expires_in_seconds=120&max_session_duration_seconds=180",
       {
         method: "GET",
+        cache: "no-store",
         headers: {
           // Voice Agent API uses Bearer auth (unlike the rest of AssemblyAI)
           Authorization: `Bearer ${apiKey}`,
@@ -56,7 +57,9 @@ export async function GET(request: Request) {
 
     const data = await res.json();
     // Return both so the client can open the WS and bind the stored agent
-    return NextResponse.json({ token: data.token, agentId });
+    return NextResponse.json({ token: data.token, agentId }, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (err) {
     console.error("Agent token fetch failed:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
