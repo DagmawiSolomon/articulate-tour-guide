@@ -37,9 +37,9 @@ Owner acceptance:
 - Interrupt while a tool is pending; confirm there is no duplicate, stale, or missing response.
 
 ### 3. Make map locations identifiable and useful — P1
-Status: Open; confirm visible treatment and routing behavior before implementation.
+Status: Implemented (Ready for owner testing).
 
-Artwork pins show thumbnails and nearby room names but not the artwork title. Amenity markers display labels and accessibility names but are not interactive.
+Amenity markers on the exhibit floor map are interactive buttons supporting click-to-route and full voice directions with simulated arrival, without adding new UI badges or altering the design language.
 
 Owner acceptance:
 - Identify artworks from the map without opening each pin.
@@ -107,6 +107,7 @@ Owner acceptance:
 
 ## Change log
 
+- 2026-09-29: Implemented Item 3 (interactive click-to-route amenity markers and full voice direction support).
 - 2026-09-29: Implemented Item 2 (queue tool results until reply.done and discard on interruption per AssemblyAI spec).
 - 2026-09-29: Implemented and accepted Item 1 (provider-owned session expiry with client duration cap per AssemblyAI spec).
 - 2026-09-29: Recorded the audit findings and ordered owner-acceptance checklist. No code fixes are recorded as complete.
