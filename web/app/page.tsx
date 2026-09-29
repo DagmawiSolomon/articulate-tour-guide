@@ -177,6 +177,32 @@ type PendingArtifactToolResult = {
   visibleArtifacts: ArtifactType[];
 };
 
+const QUIET_MODE_PHRASES = [
+  "prefer to read", "rather read", "want to read", "be quiet", "stop talking", "stop speaking", "stay quiet", "quiet mode", "silent mode", "silence please", "shut up", "hush",
+  "prefiero leer", "quiero leer", "quisiera leer", "silencio por favor", "por favor silencio", "quedate en silencio", "callate", "deja de hablar", "no hables", "modo silencioso", "modo silencio",
+  "je prefere lire", "je veux lire", "reste silencieuse", "reste silencieux", "tais toi", "arrete de parler", "mode silencieux", "mode silence", "silence s il te plait",
+  "ich mochte lesen", "ich will lesen", "sei still", "bitte sei leise", "hor auf zu sprechen", "ruhe bitte", "ruhemodus", "stummmodus",
+  "preferisco leggere", "voglio leggere", "per favore fai silenzio", "stai zitta", "stai zitto", "smetti di parlare", "modalita silenziosa", "modalita silenzio",
+];
+
+const RESUME_MODE_PHRASES = [
+  "speak again", "talk again", "unmute alba", "resume speaking", "turn off quiet mode", "exit reading mode", "disable quiet mode",
+  "habla de nuevo", "puedes hablar", "vuelve a hablar", "reanuda la guia", "continua hablando", "sal del modo silencioso", "puedes seguir",
+  "parle a nouveau", "tu peux parler", "reprends la parole", "recommence a parler", "sors du mode silencieux", "reprends la visite",
+  "sprich wieder", "du kannst wieder sprechen", "sprich weiter", "rede weiter", "beende den ruhemodus", "verlasse den ruhemodus",
+  "parla di nuovo", "puoi parlare", "riprendi a parlare", "continua a parlare", "esci dalla modalita silenziosa", "riprendi la visita",
+];
+
+function matchesVoicePhrases(text: string, phrases: string[]) {
+  const normalizedText = text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  return phrases.some((phrase) => normalizedText.includes(phrase));
+}
+
 const LISTENING_EMOTIONS: ExpressionId[] = [
   "listening",
   "interested",
@@ -937,16 +963,14 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         greetingPhaseRef.current = "done";
 
         // Immediate silence if visitor asks to read or tells Alba to be quiet
-        const quietRegex = /\b(prefer to read|rather read|want to read|be quiet|stop talking|stop speaking|stay quiet|quiet mode|silent mode|silence please|shut up|hush)\b/i;
-        const resumeRegex = /\b(speak again|talk again|unmute alba|resume speaking|turn off quiet mode|exit reading mode|disable quiet mode)\b/i;
-        if (quietRegex.test(text)) {
+        if (matchesVoicePhrases(text, QUIET_MODE_PHRASES)) {
           if (!isQuietModeRef.current) {
             isQuietModeRef.current = true;
             setIsQuietMode(true);
             audioPlayerRef.current?.flush();
             setAgentStatus("listening");
           }
-        } else if (resumeRegex.test(text)) {
+        } else if (matchesVoicePhrases(text, RESUME_MODE_PHRASES)) {
           if (isQuietModeRef.current) {
             isQuietModeRef.current = false;
             setIsQuietMode(false);
@@ -1015,16 +1039,14 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           return;
         }
 
-        const quietRegex = /\b(prefer to read|rather read|want to read|be quiet|stop talking|stop speaking|stay quiet|quiet mode|silent mode|silence please|shut up|hush)\b/i;
-        const resumeRegex = /\b(speak again|talk again|unmute alba|resume speaking|turn off quiet mode|exit reading mode|disable quiet mode)\b/i;
-        if (quietRegex.test(text)) {
+        if (matchesVoicePhrases(text, QUIET_MODE_PHRASES)) {
           if (!isQuietModeRef.current) {
             isQuietModeRef.current = true;
             setIsQuietMode(true);
             audioPlayerRef.current?.flush();
             setAgentStatus("listening");
           }
-        } else if (resumeRegex.test(text)) {
+        } else if (matchesVoicePhrases(text, RESUME_MODE_PHRASES)) {
           if (isQuietModeRef.current) {
             isQuietModeRef.current = false;
             setIsQuietMode(false);
