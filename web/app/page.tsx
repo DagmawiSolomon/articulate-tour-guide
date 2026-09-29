@@ -1928,14 +1928,25 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                   <Alert>
                     <HugeIcon icon={InformationCircleIcon} size={16} />
                     <AlertTitle>{voiceConnection === "failed" ? "Voice session unavailable" : "Microphone unavailable"}</AlertTitle>
-                    <AlertDescription>{voiceConnection === "failed" ? connectionError : micError}</AlertDescription>
-                    {micError && !connectionError && (
-                      <AlertAction>
-                        <Button type="button" variant="ghost" size="icon-xs" aria-label="Dismiss microphone alert" onClick={() => setMicError(null)}>
-                          <HugeIcon icon={Cancel01Icon} size={14} />
-                        </Button>
-                      </AlertAction>
-                    )}
+                    <AlertDescription>
+                      {voiceConnection === "failed"
+                        ? "Unable to connect to Alba. Please refresh the page to retry, or ask museum staff for assistance."
+                        : "Microphone access is unavailable. Please enable microphone permissions in your browser settings to speak with Alba."}
+                    </AlertDescription>
+                    <AlertAction>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label="Dismiss alert"
+                        onClick={() => {
+                          setConnectionError(null);
+                          setMicError(null);
+                        }}
+                      >
+                        <HugeIcon icon={Cancel01Icon} size={14} />
+                      </Button>
+                    </AlertAction>
                   </Alert>
                 </div>
               )}
