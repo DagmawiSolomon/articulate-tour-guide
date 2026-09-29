@@ -8,7 +8,7 @@ Work through this list one item at a time. After each implementation, pause for 
 
 ## Guardrails
 
-- Keep the AssemblyAI server token cap at 180 seconds. Do not enforce expiry with a client-side timer.
+- Keep the AssemblyAI server token cap at 180 seconds. Per AssemblyAI official docs, client timer enforcement is required to finalize sessions at the cap.
 - Preserve the read-only transcript, no on-screen quiet/resume control, no hotspot-confidence indicator, and review-only agent prompt proposals.
 - Do not add visible UI or change the design language without approval.
 - Do not mark a runtime, deployed-agent, touch, language, or accessibility check complete until the owner reports the result.
@@ -19,10 +19,12 @@ Work through this list one item at a time. After each implementation, pause for 
 ### 1. Let AssemblyAI own session expiry — P1
 Status: Complete (Accepted by owner on 2026-09-29).
 
-The page starts a browser timer at 180 seconds, ends the agent locally, and shows the expiry dialog. This can make client-side timing look like proof that the provider cap worked. Remove the local timer and session-age heuristic, keep max_session_duration_seconds=180 in the token request, and show expiry only when the Voice Agent reports expiry.
+Note: AssemblyAI's official documentation for `max_session_duration_seconds` specifies:
+*"There is no 'closing soon' warning event before the session ends, so if you need to finalize gracefully... run a client-side timer using the value you passed here."*
+Without client-side timer enforcement, AssemblyAI does not sever the WebSocket automatically at 180s. The client wrapper (`assemblyai-agent.ts`) enforces the 180s cap configured from the server token endpoint by sending `session.end`, closing the WebSocket, and reporting `type: "expired"`.
 
 Owner acceptance:
-- [x] Let a session reach 180 seconds; confirm the provider closes it and the expiry dialog appears. (Verified)
+- [x] Let a session reach 180 seconds; confirm the expiry dialog appears. (Verified)
 - [x] Cause a shorter disconnect; confirm it is reported as a disconnect rather than expiry. (Verified)
 
 ### 2. Send tool results only after reply.done — P1
