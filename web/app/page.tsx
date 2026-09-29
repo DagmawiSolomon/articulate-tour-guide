@@ -1608,7 +1608,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                         const rawId = artwork.id || activeArtworkId || "masaccio-holy-trinity";
                         const resolvedId = resolveArtworkId(rawId);
                         const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
-                        const isSameGallery = targetArtwork.id === activeArtworkId;
 
                         // Ensure no route line is plotted when simply viewing/selecting a gallery
                         setMapNavigation((prev) => ({
@@ -1635,20 +1634,19 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                         setActiveArtifact("info");
                         setIsExpanded(true);
                         playTactileTap();
-
                         // Use the state machine's ref for an accurate snapshot (not the closure-captured derived value)
-                        const isCurrentlyExploring = galleryStatesRef.current[targetArtwork.id] === "exploring";
+                        const artworkState = galleryStatesRef.current[targetArtwork.id] ?? "unexplored";
 
-                        if (!isCurrentlyExploring && isTourActive) {
+                        if (isTourActive) {
                           muteWarningSentRef.current = true;
                           greetingPhaseRef.current = "done";
 
-                          const artworkState = galleryStatesRef.current[targetArtwork.id] ?? "unexplored";
-                          // For completed artworks: acknowledge the visit WITHOUT suggesting revisiting
-                          // (the Revisit button exists for user-initiated action only)
                           const promptText = artworkState === "completed"
-                            ? `The visitor tapped on ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} — a gallery they have already visited. In one warm sentence, acknowledge what made this stop memorable and offer to answer any lingering questions. Do NOT suggest revisiting.`
-                            : `The visitor clicked on ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} on the floor map. In one friendly, brief sentence, give a warm teaser of why this masterpiece is exciting, and invite them to tap 'Start tour' or ask any questions to begin here. Speak with poise and no apologies. CRITICAL: Do NOT call any tools. Do not call show_info, show_map, or any other tool. Speak ONLY the single-sentence spoken teaser.`;
+                            ? `The visitor selected ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} on the gallery map. In one brief, warm sentence, give a teaser about what makes this artwork memorable and invite a question. Do NOT suggest revisiting.`
+                            : artworkState === "exploring"
+                            ? `The visitor selected the gallery pin for the artwork Alba is currently introducing: ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist}. In one brief, warm sentence, give a fresh teaser about an interesting aspect of this artwork and invite a question. Do NOT suggest starting the tour again.`
+                            : `The visitor selected ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} on the floor map. In one friendly, brief sentence, give a warm teaser of why this masterpiece is exciting, and invite them to tap 'Start tour' or ask questions to begin here. Speak with poise and no apologies.`;
+                          const safePromptText = `${promptText} CRITICAL: Do NOT call any tools. Do not call show_info, show_map, or any other tool. Speak ONLY the single-sentence spoken teaser.`;
 
                           if (!isQuietModeRef.current) {
                             setChatMessages((prev) => [
@@ -1661,9 +1659,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                                 timestamp: new Date(),
                               },
                             ]);
-                            // safeReply always flushes in-flight audio first — prevents the double-reply
-                            // race condition when the user taps a pin while Alba is already speaking
-                            safeReply(promptText);
+                            safeReply(safePromptText);
                           } else {
                             setChatMessages((prev) => [
                               ...prev,
@@ -1677,7 +1673,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                             ]);
                           }
                         }
-                        // If currently exploring: narration continues smoothly without interruption!
                       }}
                       mapRouteId={activeMapRoute}
                       originMapRouteId={originMapRoute}
