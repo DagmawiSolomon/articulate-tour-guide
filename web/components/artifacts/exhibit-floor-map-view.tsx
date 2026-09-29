@@ -15,10 +15,18 @@ export interface ExhibitArtworkInfo {
 }
 
 export interface ExhibitNavigationState {
-  startId: string;
+  currentLocationId: string;
+  routeOriginId: string;
   destinationId: string;
   currentNodeId?: string | null;
 }
+
+export const INITIAL_EXHIBIT_NAVIGATION: ExhibitNavigationState = {
+  currentLocationId: "entrance",
+  routeOriginId: "entrance",
+  destinationId: "",
+  currentNodeId: null,
+};
 
 interface ExhibitFloorMapViewProps {
   onSelectArtwork?: (artwork: ExhibitArtworkInfo) => void;
@@ -34,11 +42,12 @@ type Point = [number, number];
 const toCoordinate = (x: number, y: number): Point => [(x - 600) * 0.00005, (340 - y) * 0.00005];
 type ExhibitWork = {
   id: string; title: string; artist: string; year: string; room: string;
+  roomX: number; roomY: number; routeId: string;
   image: string; x: number; y: number; description: string; accessNode: string;
 };
 type AmenityKind = "information" | "restroom" | "accessible" | "stairs" | "elevator" | "cafe" | "shop" | "seat" | "water" | "exit";
 type Amenity = {
-  id: string; label: string; kind: AmenityKind; x: number; y: number;
+  id: string; label: string; kind: AmenityKind; routeId?: string; x: number; y: number;
   accessNode: string; accessPath: Point[];
 };
 type Place = {
@@ -46,14 +55,6 @@ type Place = {
   accessPath: Point[]; kind: "artwork" | AmenityKind;
 };
 
-const roomLabels = [
-  { name: "Wing 1: Perspective", x: 220, y: 260 },
-  { name: "Wing 2: Shadow", x: 420, y: 260 },
-  { name: "Wing 3: Feeling", x: 600, y: 260 },
-  { name: "Wing 4: Cubism", x: 785, y: 260 },
-  { name: "Wing 5: Concept", x: 995, y: 260 },
-  { name: "Archives & Rotunda", x: 245, y: 520 },
-];
 const nodes: Record<string, Point> = {
   entrance: [90,335], west: [250,335], midwest: [470,335], center: [680,335], east: [900,335], farEast: [1100,335],
   lowerWest: [260,375], lowerCenter: [620,375], lowerEast: [930,375],
@@ -70,6 +71,7 @@ const works: ExhibitWork[] = [
     artist: "Masaccio",
     year: "1427",
     room: "Wing 1: Perspective",
+    roomX: 220, roomY: 260, routeId: "perspective",
     image: "/artworks/masaccio-holy-trinity.jpg",
     x: 220,
     y: 205,
@@ -82,6 +84,7 @@ const works: ExhibitWork[] = [
     artist: "Caravaggio",
     year: "1600",
     room: "Wing 2: Shadow",
+    roomX: 420, roomY: 260, routeId: "shadow",
     image: "/artworks/caravaggio-calling-st-matthew.jpg",
     x: 420,
     y: 205,
@@ -94,6 +97,7 @@ const works: ExhibitWork[] = [
     artist: "Vincent van Gogh",
     year: "1889",
     room: "Wing 3: Feeling",
+    roomX: 600, roomY: 260, routeId: "feeling",
     image: "/artworks/van-gogh-starry-night.jpg",
     x: 600,
     y: 205,
@@ -106,6 +110,7 @@ const works: ExhibitWork[] = [
     artist: "Pablo Picasso",
     year: "1907",
     room: "Wing 4: Cubism",
+    roomX: 785, roomY: 260, routeId: "cubism",
     image: "/artworks/picasso-demoiselles.jpg",
     x: 785,
     y: 205,
@@ -118,6 +123,7 @@ const works: ExhibitWork[] = [
     artist: "Jackson Pollock",
     year: "1950",
     room: "Wing 5: Concept",
+    roomX: 995, roomY: 260, routeId: "concept",
     image: "/artworks/pollock-autumn-rhythm.jpg",
     x: 995,
     y: 205,
@@ -130,6 +136,7 @@ const works: ExhibitWork[] = [
     artist: "Marcel Duchamp",
     year: "1917",
     room: "Archives & Rotunda",
+    roomX: 245, roomY: 520, routeId: "rotunda",
     image: "/artworks/duchamp-fountain.jpg",
     x: 245,
     y: 465,
@@ -140,7 +147,7 @@ const works: ExhibitWork[] = [
 
 const amenities: Amenity[] = [
   { id:"information",label:"Information",kind:"information",x:350,y:335,accessNode:"west",accessPath:[[250,335],[350,335]] },
-  { id:"restrooms",label:"Restrooms",kind:"restroom",x:455,y:335,accessNode:"midwest",accessPath:[[470,335],[455,335]] },
+  { id:"restrooms",label:"Restrooms",kind:"restroom",routeId:"restrooms",x:455,y:335,accessNode:"midwest",accessPath:[[470,335],[455,335]] },
   { id:"accessible-restroom",label:"Accessible Restroom",kind:"accessible",x:560,y:335,accessNode:"midwest",accessPath:[[470,335],[535,335],[560,335]] },
   { id:"stairs",label:"Stairs",kind:"stairs",x:135,y:405,accessNode:"west",accessPath:[[250,335],[220,335],[170,370],[135,405]] },
   { id:"elevator",label:"Elevator",kind:"elevator",x:1040,y:405,accessNode:"farEast",accessPath:[[1100,335],[1080,370],[1040,405]] },
@@ -151,6 +158,7 @@ const amenities: Amenity[] = [
   { id:"main-entrance",label:"Main Entrance",kind:"exit",x:90,y:335,accessNode:"entrance",accessPath:[[90,335]] },
   { id:"exit-east",label:"East Exit",kind:"exit",x:1125,y:335,accessNode:"farEast",accessPath:[[1100,335],[1125,335]] },
 ];
+const roomLabels = works.map(({ room, roomX, roomY }) => ({ name: room, x: roomX, y: roomY }));
 const places: Place[] = [
   { id:"entrance",label:"Main Entrance",x:90,y:335,accessNode:"entrance",accessPath:[[90,335]],kind:"exit" },
   ...works.map((work): Place => ({
@@ -162,6 +170,13 @@ const places: Place[] = [
   })),
   ...amenities.map((amenity): Place => ({ id:`facility:${amenity.id}`,label:amenity.label,x:amenity.x,y:amenity.y,accessNode:amenity.accessNode,accessPath:amenity.accessPath,kind:amenity.kind })),
 ];
+
+export function getExhibitRouteDestination(routeId: string): string | undefined {
+  const artwork = works.find((work) => work.routeId === routeId);
+  if (artwork) return `art:${artwork.id}`;
+  const amenity = amenities.find((place) => place.routeId === routeId);
+  return amenity ? `facility:${amenity.id}` : undefined;
+}
 
 const mapStyle: MapLibreGL.StyleSpecification = {
   version:8,
@@ -221,9 +236,9 @@ function shortestPath(start:string,end:string): string[] {
 function buildRoute(state:ExhibitNavigationState): Point[] {
   if(!state.destinationId) return [];
   const destination=places.find((place)=>place.id===state.destinationId);
-  const origin=state.startId==="current"
+  const origin=state.routeOriginId==="current"
     ? state.currentNodeId ? {accessNode:state.currentNodeId,accessPath:[nodes[state.currentNodeId]]} : null
-    : places.find((place)=>place.id===state.startId);
+    : places.find((place)=>place.id===state.routeOriginId);
   if(!origin||!destination) return [];
   const nodeRoute=shortestPath(origin.accessNode,destination.accessNode);
   if(!nodeRoute.length) return [];
@@ -266,7 +281,7 @@ export function ExhibitFloorMapView({
   completedArtworkIds,
 }:ExhibitFloorMapViewProps) {
   const [mapInstance,setMapInstance]=React.useState<MapLibreGL.Map|null>(null);
-  const [internalNavigation,setInternalNavigation]=React.useState<ExhibitNavigationState>({startId:"entrance",destinationId:"",currentNodeId:null});
+  const [internalNavigation,setInternalNavigation]=React.useState<ExhibitNavigationState>(INITIAL_EXHIBIT_NAVIGATION);
   const navigationState=controlledNavigationState??internalNavigation;
   const onNavigationStateChange=controlledNavigationChange??setInternalNavigation;
   const mapViewport=initialViewport??{center:[-0.002,-0.001] as [number,number],zoom:14.1,pitch:0,bearing:0};
@@ -346,13 +361,11 @@ export function ExhibitFloorMapView({
           return <MapMarker key={room.name} longitude={longitude} latitude={latitude} anchor="center"><span aria-hidden="true" className="whitespace-nowrap text-xs font-semibold tracking-[0.02em] text-[#172027] [text-shadow:0_1px_2px_white,0_-1px_2px_white,1px_0_2px_white,-1px_0_2px_white]">{room.name}</span></MapMarker>;
         })}
 
-        {amenities
-          .filter((amenity) => !["information", "restrooms", "accessible-restroom", "seating", "water", "main-entrance", "exit-east"].includes(amenity.id))
-          .map((amenity) => {
+        {amenities.map((amenity) => {
             const [longitude, latitude] = toCoordinate(amenity.x, amenity.y);
             return (
               <MapMarker key={amenity.id} longitude={longitude} latitude={latitude} anchor="center">
-                <div aria-label={amenity.label} title={amenity.label} className="flex items-center gap-1.5 px-1 py-0.5 text-left text-[#172027]">
+                <div role="img" aria-label={amenity.label} title={amenity.label} className="flex items-center gap-1.5 px-1 py-0.5 text-left text-[#172027]">
                   <AmenityIcon kind={amenity.kind} className="size-[21px] shrink-0 stroke-[2.1px]" />
                   <span className="whitespace-nowrap bg-[#fafafa]/95 px-0.5 text-[10px] font-medium leading-tight">{amenity.label}</span>
                 </div>
