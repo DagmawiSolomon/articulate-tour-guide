@@ -724,6 +724,7 @@ body {
   inset: 0;
   overflow: hidden;
   cursor: grab;
+  touch-action: none;
 }
 .immersive-artwork-canvas.is-panning {
   cursor: grabbing;
