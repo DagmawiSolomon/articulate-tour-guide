@@ -16,6 +16,7 @@ export interface ArtworkSelection {
   centerYPercent: number;
   widthPercent: number;
   heightPercent: number;
+  path: Array<{ xPercent: number; yPercent: number }>;
 }
 
 interface ImmersiveArtworkViewProps {
@@ -174,6 +175,10 @@ export function ImmersiveArtworkView({
         centerYPercent: clamp(((top + height / 2 - imageBounds.top) / imageBounds.height) * 100, 0, 100),
         widthPercent: clamp((width / imageBounds.width) * 100, 1, 100),
         heightPercent: clamp((height / imageBounds.height) * 100, 1, 100),
+        path: points.map((point) => ({
+          xPercent: clamp(((point.x - imageBounds.left) / imageBounds.width) * 100, 0, 100),
+          yPercent: clamp(((point.y - imageBounds.top) / imageBounds.height) * 100, 0, 100),
+        })),
       });
     };
 
@@ -360,7 +365,10 @@ export function ImmersiveArtworkView({
               <HoverCardTrigger
                 delay={120}
                 closeDelay={260}
-                aria-label="Hover to ask Alba about the circled detail"
+                aria-label="Open Ask Alba for the circled detail"
+                onPointerDown={(event) => {
+                  if (event.pointerType === "touch") event.currentTarget.focus();
+                }}
                 className="immersive-artwork-selection-trigger"
                 style={{
                   left: imageBounds.left + imageBounds.width * selection.centerXPercent / 100,
