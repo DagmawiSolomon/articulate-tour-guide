@@ -45,7 +45,7 @@ const WING_ROUTE_MAP: Record<string, string> = {
   "wing-concept": "concept",
 };
 
-function resolveArtworkId(idOrQuery?: string): string {
+function resolveArtworkId(idOrQuery?: string): string | null {
   if (!idOrQuery) return "masaccio-holy-trinity";
   if (TURNING_POINTS_ARTWORKS[idOrQuery]) return idOrQuery;
   const q = idOrQuery.toLowerCase().trim();
@@ -67,7 +67,7 @@ function resolveArtworkId(idOrQuery?: string): string {
   if (q.includes("pollock") || q.includes("autumn") || q.includes("rhythm")) {
     return "pollock-autumn-rhythm";
   }
-  return idOrQuery;
+  return null;
 }
 import {
   initSounds,
@@ -169,6 +169,13 @@ function useTourPageField<Key extends keyof TourPageState>(
 
   return [state[key], setValue];
 }
+
+type PendingArtifactToolResult = {
+  callId: string;
+  result: unknown;
+  isError?: boolean;
+  visibleArtifacts: ArtifactType[];
+};
 
 const LISTENING_EMOTIONS: ExpressionId[] = [
   "listening",
@@ -292,6 +299,7 @@ export default function Home() {
   const [isArtifactLoading, setIsArtifactLoading] = React.useState(false);
   // Chat history state — messages accumulate as the tour progresses.
   const [chatMessages, setChatMessages] = useTourPageField(tourPageState, dispatchTourPageState, "chatMessages");
+  const pendingArtifactToolResultsRef = React.useRef<PendingArtifactToolResult[]>([]);
   const [isChatThinking, setIsChatThinking] = useTourPageField(tourPageState, dispatchTourPageState, "isChatThinking");
   // Partial visitor transcript ID — updated in place as partials arrive
   const partialMsgIdRef = React.useRef<string>("visitor-partial");
@@ -300,6 +308,26 @@ export default function Home() {
   const agentRef = React.useRef<VoiceAgent | null>(null);
   const audioPlayerRef = React.useRef<AudioPlayer | null>(null);
   const agentCallbacksRef = React.useRef<VoiceAgentCallbacks | null>(null);
+
+  React.useEffect(() => {
+    if (pendingArtifactToolResultsRef.current.length === 0) return;
+
+    const remaining: PendingArtifactToolResult[] = [];
+    for (const pending of pendingArtifactToolResultsRef.current) {
+      if (!pending.visibleArtifacts.includes(activeArtifact)) {
+        agentRef.current?.sendToolResult(
+          pending.callId,
+          { success: false, status: "artifact_not_visible" },
+          true
+        );
+      } else if (isExpanded && !isArtifactLoading) {
+        agentRef.current?.sendToolResult(pending.callId, pending.result, pending.isError);
+      } else {
+        remaining.push(pending);
+      }
+    }
+    pendingArtifactToolResultsRef.current = remaining;
+  }, [activeArtifact, isExpanded, isArtifactLoading, chatMessages]);
 
   // Greeting & reply lifecycle refs
   const greetingPhaseRef = React.useRef<"idle" | "greeting" | "done">("idle");
@@ -575,7 +603,8 @@ export default function Home() {
 
     const rawId = overrideArtworkId || selectedArtwork?.id || activeArtworkId || "masaccio-holy-trinity";
     const resolvedId = resolveArtworkId(rawId);
-    const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+    if (!resolvedId) return;
+    const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId];
     const artPlaceId = `art:${targetArtwork.id}`;
     syncVisitorUiContext("started the tour at " + targetArtwork.title, true);
 
@@ -635,7 +664,8 @@ export default function Home() {
     // Resolve the currently exploring artwork via the ref (closure-safe, always current)
     const rawId = activeTourArtworkIdRef.current || activeArtworkId || selectedArtwork?.id || "masaccio-holy-trinity";
     const resolvedId = resolveArtworkId(rawId);
-    const currentArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+    if (!resolvedId) return;
+    const currentArtwork = TURNING_POINTS_ARTWORKS[resolvedId];
     const artPlaceId = `art:${currentArtwork.id}`;
     syncVisitorUiContext("ended the tour of " + currentArtwork.title + " and returned to the floor map", true);
 
@@ -677,7 +707,8 @@ export default function Home() {
     const requestId = ++visualAnalysisRequestRef.current;
     setVisualHandoffStatus("queued");
     const artworkId = resolveArtworkId(selectedArtwork?.id || activeArtworkId);
-    const artwork = TURNING_POINTS_ARTWORKS[artworkId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+    if (!artworkId) return;
+    const artwork = TURNING_POINTS_ARTWORKS[artworkId];
     const visitorQuestion = `Tell me about the area I circled in ${artwork.title}.`;
 
     bargeIn();
@@ -1142,6 +1173,29 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           agentRef.current?.sendToolResult(tool.callId, { success: false, status: "stale_context" }, true);
           return;
         }
+        const showToolFailure = (message: string, artifactType: "info" | "hotspots", extra: Record<string, unknown> = {}) => {
+          setIsArtifactLoading(false);
+          setActiveArtifact("chat");
+          setIsExpanded(true);
+          setChatMessages((previous) => [
+            ...previous,
+            {
+              id: "tool-error-" + Date.now(),
+              role: "tool",
+              toolName: tool.name,
+              label: "Could not display requested content",
+              artifactType,
+              detail: message,
+              timestamp: new Date(),
+            },
+          ]);
+          pendingArtifactToolResultsRef.current.push({
+            callId: tool.callId,
+            result: { success: false, message, ...extra },
+            isError: true,
+            visibleArtifacts: ["chat"],
+          });
+        };
         console.log("[AssemblyAI] Executing tool call:", tool.name, tool.arguments);
         // Only trigger artifact loading skeleton for actual content changes, NOT if previewing an info card
         if (tool.name !== "show_info" && tool.name !== "show_artwork_info") {
@@ -1155,7 +1209,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         } else if (tool.name === "show_map") {
           const routeId = (tool.arguments.routeId as string) || "rotunda";
           const showPath = Boolean(tool.arguments.showPath);
-
           const routeDestinationMap: Record<string, string> = {
             perspective: "art:masaccio-holy-trinity",
             shadow: "art:caravaggio-calling-st-matthew",
@@ -1170,6 +1223,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           const mapPatch: TourPageStatePatch = {
             activeArtifact: "map",
             activeMapRoute: routeId,
+            isExpanded: true,
           };
           if (showPath && destId) {
             mapPatch.mapNavigation = {
@@ -1199,11 +1253,15 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
               timestamp: new Date(),
             },
           ]);
-          agentRef.current?.sendToolResult(tool.callId, { success: true, destination: routeId });
+          pendingArtifactToolResultsRef.current.push({ callId: tool.callId, result: { success: true, destination: routeId }, visibleArtifacts: ["map"] });
         } else if (tool.name === "show_hotspots") {
           const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
           const artId = resolveArtworkId(rawId);
-          const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+          if (!artId || !TURNING_POINTS_ARTWORKS[artId]) {
+            showToolFailure("No artwork matches " + rawId + ".", "hotspots");
+            return;
+          }
+          const artwork = TURNING_POINTS_ARTWORKS[artId];
           const availableHotspots = getArtworkHotspots(artwork.id);
           const requestedHotspot = String(tool.arguments.hotspotId || tool.arguments.detailId || tool.arguments.detail || "").trim().toLowerCase();
           const matchedHotspot = availableHotspots.find((item) => item.id.toLowerCase() === requestedHotspot || item.name.toLowerCase() === requestedHotspot);
@@ -1225,8 +1283,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           }
 
           if (!matchedHotspot) {
-            setIsArtifactLoading(false);
-            agentRef.current?.sendToolResult(tool.callId, { success: false, message: "No saved placement matches that detail.", availableHotspots: availableHotspots.map(({ id, name }) => ({ id, name })) }, true);
+            showToolFailure("No saved placement matches " + requestedHotspot + ".", "hotspots", { availableHotspots: availableHotspots.map(({ id, name }) => ({ id, name })) });
             return;
           }
           const hotspotId = matchedHotspot.id;
@@ -1271,11 +1328,15 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
               timestamp: new Date(),
             },
           ]);
-          agentRef.current?.sendToolResult(tool.callId, { success: true, activeHotspot: { id: hotspotId, name: matchedHotspot.name }, artwork: artwork.title });
+          pendingArtifactToolResultsRef.current.push({ callId: tool.callId, result: { success: true, activeHotspot: { id: hotspotId, name: matchedHotspot.name }, artwork: artwork.title }, visibleArtifacts: ["artwork-view"] });
         } else if (tool.name === "show_info" || tool.name === "show_artwork_info") {
           const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
           const artId = resolveArtworkId(rawId);
-          const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+          if (!artId || !TURNING_POINTS_ARTWORKS[artId]) {
+            showToolFailure("No artwork matches " + rawId + ".", "info");
+            return;
+          }
+          const artwork = TURNING_POINTS_ARTWORKS[artId];
           // If the visitor is viewing the artwork in fullscreen, don't kick them out back to card info.
           const artworkPatch: TourPageStatePatch = {
             activeArtworkId: artwork.id,
@@ -1314,7 +1375,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
               timestamp: new Date(),
             },
           ]);
-          agentRef.current?.sendToolResult(tool.callId, { success: true, artwork: artwork.title });
+          pendingArtifactToolResultsRef.current.push({ callId: tool.callId, result: { success: true, artwork: artwork.title }, visibleArtifacts: ["info", "artwork-view"] });
         } else if (tool.name === "set_quiet_mode") {
           const quiet = Boolean(tool.arguments.quiet);
           isQuietModeRef.current = quiet;
@@ -1344,6 +1405,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           const pairId = (tool.arguments.pairId as string) || "comparison-perspective";
           setComparisonPairId(pairId);
           setActiveArtifact("comparison");
+          setIsExpanded(true);
           setChatMessages((prev) => [
             ...prev,
             {
@@ -1356,7 +1418,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
               timestamp: new Date(),
             },
           ]);
-          agentRef.current?.sendToolResult(tool.callId, { success: true, pair: pairId });
+          pendingArtifactToolResultsRef.current.push({ callId: tool.callId, result: { success: true, pair: pairId }, visibleArtifacts: ["comparison"] });
         } else if (tool.name === "show_timeline") {
           // Guard: don't hijack the screen while the visitor is actively exploring an artwork.
           // The agent can mention historical context in speech; the timeline view is only shown
@@ -1378,6 +1440,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
               setActiveArtworkId(resolvedArtworkId);
             }
             setActiveArtifact("timeline");
+            setIsExpanded(true);
             setChatMessages((prev) => [
               ...prev,
               {
@@ -1390,7 +1453,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                 timestamp: new Date(),
               },
             ]);
-            agentRef.current?.sendToolResult(tool.callId, { success: true, activeArtworkId: resolvedArtworkId });
+            pendingArtifactToolResultsRef.current.push({ callId: tool.callId, result: { success: true, activeArtworkId: resolvedArtworkId }, visibleArtifacts: ["timeline"] });
           }
         } else if (tool.name === "consult_archives") {
           const query = (tool.arguments.query as string) || "";
@@ -1892,7 +1955,8 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                         greetingPhaseRef.current = "done";
                         const rawId = artwork.id || activeArtworkId || "masaccio-holy-trinity";
                         const resolvedId = resolveArtworkId(rawId);
-                        const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+                        if (!resolvedId || !TURNING_POINTS_ARTWORKS[resolvedId]) return;
+                        const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId];
                         syncVisitorUiContext("selected the " + targetArtwork.title + " gallery", false);
 
                         // Keep gallery selection and its card view in one state transition without plotting a route.
