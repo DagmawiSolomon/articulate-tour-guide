@@ -82,7 +82,7 @@ import {
 import { createVoiceAgent, type VoiceAgent, type VoiceAgentCallbacks } from "@/lib/assemblyai-agent";
 import { createAudioPlayer, type AudioPlayer } from "@/lib/assemblyai-audio";
 import { BayerDitherBackground } from "@/components/ui/bayer-dither-background";
-import { useMicAudioLevel } from "@/hooks/use-mic-audio-level";
+import { useOutputAudioLevel } from "@/hooks/use-output-audio-level";
 
 type AgentStatus = "listening" | "thinking" | "speaking";
 
@@ -334,7 +334,8 @@ export default function Home() {
 
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
   const [micStream, setMicStream] = React.useState<MediaStream | null>(null);
-  const audioLevel = useMicAudioLevel(micStream, isTourActive && !isMuted);
+  const getOutputAudioLevel = React.useCallback(() => audioPlayerRef.current?.getOutputAudioLevel() ?? 0, []);
+  const audioLevel = useOutputAudioLevel(getOutputAudioLevel, isTourActive && agentStatus === "speaking");
 
   const stopMic = React.useCallback(() => {
     isMutedRef.current = true;
