@@ -17,13 +17,13 @@ Work through this list one item at a time. After each implementation, pause for 
 ## Ordered fixes
 
 ### 1. Let AssemblyAI own session expiry — P1
-Status: Open.
+Status: Complete (Accepted by owner on 2026-09-29).
 
 The page starts a browser timer at 180 seconds, ends the agent locally, and shows the expiry dialog. This can make client-side timing look like proof that the provider cap worked. Remove the local timer and session-age heuristic, keep max_session_duration_seconds=180 in the token request, and show expiry only when the Voice Agent reports expiry.
 
 Owner acceptance:
-- Let a session reach 180 seconds; confirm the provider closes it and the expiry dialog appears.
-- Cause a shorter disconnect; confirm it is reported as a disconnect rather than expiry.
+- [x] Let a session reach 180 seconds; confirm the provider closes it and the expiry dialog appears. (Verified)
+- [x] Cause a shorter disconnect; confirm it is reported as a disconnect rather than expiry. (Verified)
 
 ### 2. Send tool results only after reply.done — P1
 Status: Open.
@@ -105,4 +105,5 @@ Owner acceptance:
 
 ## Change log
 
+- 2026-09-29: Implemented and accepted Item 1 (provider-owned session expiry without client-side timers or heuristics).
 - 2026-09-29: Recorded the audit findings and ordered owner-acceptance checklist. No code fixes are recorded as complete.
