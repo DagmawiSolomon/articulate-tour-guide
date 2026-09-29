@@ -208,11 +208,22 @@ export function ChatHistoryView({
   onSelectArtifact,
 }: ChatHistoryViewProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const isNearBottomRef = React.useRef(true);
   const activeMessages = messages;
 
+  const handleScroll = React.useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const threshold = 80; // pixels from the bottom
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isNearBottomRef.current = distanceFromBottom <= threshold;
+  }, []);
+
   React.useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const el = scrollRef.current;
+    if (!el) return;
+    if (isNearBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
     }
   }, [messages, isThinking]);
 
@@ -252,6 +263,7 @@ export function ChatHistoryView({
       {/* Scrollable conversation thread */}
       <div
         ref={scrollRef}
+        onScroll={handleScroll}
         className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pt-3 pb-2"
         style={{ scrollbarWidth: "none" }}
       >
