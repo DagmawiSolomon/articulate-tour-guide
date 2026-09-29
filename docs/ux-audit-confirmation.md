@@ -83,15 +83,21 @@ This document tracks the step-by-step verification procedures, pass/fail accepta
 ---
 
 ## Item 5: Clarify the Artwork-Card Action (P2)
-**Status**: Awaiting Owner Confirmation
+**Status**: Implemented & Ready for Verification
 
-### Background & Proposal
-- **Current copy**: The primary button on an artwork card currently reads `"Start tour"` or `"End gallery tour"`.
-- **UX Issue**: When already in a museum tour, clicking "Start tour" on a card can sound like it restarts the entire app tour rather than beginning an in-depth exploration of that specific artwork.
-- **Candidate copy**: `"Explore this artwork"` (with secondary action `"End gallery tour"` when active).
+### Verification Steps
+1. Navigate to any artwork card (e.g. via floor map or voice navigation).
+2. Confirm the primary action button text reads:
+   - `"Explore this artwork"` (with arrow icon) when the artwork is unexplored.
+3. Tap or click `"Explore this artwork"`:
+   - Confirm it triggers the artwork-specific deep dive and transitions to exploring mode.
+4. Test voice teaser:
+   - Select an artwork pin on the floor map.
+   - Confirm Alba's verbal invitation says: *"tap 'Explore this artwork' or ask questions to begin here"*.
 
-### Confirmation Needed
-- Confirm whether to update button text from `"Start tour"` to `"Explore this artwork"`.
+### Acceptance Criteria
+- [ ] Artwork card action clearly states "Explore this artwork" instead of generic "Start tour".
+- [ ] Alba's spoken prompt aligns with the button copy.
 
 ---
 
@@ -113,15 +119,22 @@ This document tracks the step-by-step verification procedures, pass/fail accepta
 ---
 
 ## Item 7: Improve Circle-to-Ask Usability (P2)
-**Status**: Awaiting Owner Confirmation
+**Status**: Implemented & Ready for Verification
 
-### Background & Proposal
-- **Context**: The fullscreen circle-to-ask visual inquiry tool is activated via mouse/touch drag on the artwork detail view.
-- **Guardrail**: Guardrails stipulate: *"Do not add a tooltip, onboarding copy, or control without approval."*
-- **Proposal**: Optimize touch gesture recognition (e.g. minimum stroke distance, touch-action CSS, smoother bounding-box calculation) without adding any visible onboarding UI or extra buttons.
+### Verification Steps
+1. Navigate to the fullscreen immersive artwork view (from detail hotspots or artwork card).
+2. Activate the circle inquiry pen tool (or draw directly).
+3. Test accidental taps vs intentional strokes on touch devices:
+   - Tap briefly without drawing a shape: confirm micro-taps and jitter (< 12px bounding box) are ignored and do NOT pop up a false Ask Alba card.
+   - Draw an intentional loop or circle around an artwork detail: confirm points track smoothly without viewport scrolling jitter (`touch-action: none`).
+   - Release: confirm the selection box frames the region accurately and pointer capture releases cleanly.
+4. Zoom in and test panning:
+   - Drag to pan across zoomed artwork; confirm canvas pans without page scrolling interference.
 
-### Confirmation Needed
-- Confirm whether adjusting touch-event precision and gesture stroke thresholds without adding visible controls meets approval.
+### Acceptance Criteria
+- [ ] Touch gestures don't fight native browser viewport scrolling.
+- [ ] Micro-taps / jitter are filtered out.
+- [ ] No visible UI tooltips or new controls added.
 
 ---
 
@@ -144,9 +157,10 @@ This document tracks the step-by-step verification procedures, pass/fail accepta
 ---
 
 ## Item 9: Review Comparison-View Interaction (P2)
-**Status**: Awaiting Owner Confirmation
+**Status**: Resolved & Accepted
 
-### Background & Proposal
-- **Current state**: Comparison view displays static side-by-side cards comparing two artworks.
-- **Prior audit suggestion**: An interactive before/after split slider or synced pan/zoom.
-- **Owner Decision Needed**: Decide whether the existing side-by-side comparative layout is sufficient for the demo, or if an interactive split slider should be developed.
+### Decision & Acceptance
+- **Confirmed Direction**: Static side-by-side comparative layout is clean, legible, and sufficient for the demo day presentation.
+- **Outcome**: Preserved existing side-by-side cards without adding unnecessary split sliders or visual distractions.
+- **Acceptance**:
+  - [x] Static side-by-side comparison verified and accepted for demo.

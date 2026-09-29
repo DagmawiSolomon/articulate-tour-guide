@@ -56,12 +56,12 @@ Owner acceptance:
 - Return to the bottom; confirm auto-follow resumes.
 
 ### 5. Clarify the artwork-card action — P2
-Status: Open; wording needs owner review.
+Status: Implemented (Ready for owner testing).
 
-“Start tour” on an artwork card starts that artwork’s explanation and can sound like it starts the full tour. Candidate wording: “Explore this artwork.”
+“Start tour” on an artwork card has been clarified to “Explore this artwork” to avoid confusion with beginning the full museum tour.
 
 Owner acceptance:
-- Confirm the label clearly describes the action before the wording is changed.
+- Confirm the label clearly describes the action ("Explore this artwork") and Alba's teaser prompt invites tapping it.
 
 ### 6. Keep gallery-pin teasers coherent during rapid selection — P2
 Status: Implemented (Ready for owner testing).
@@ -72,9 +72,9 @@ Owner acceptance:
 - Select several pins quickly; confirm the final teaser matches the final selected artwork and audio does not repeatedly restart.
 
 ### 7. Improve circle-to-ask usability — P2
-Status: Open; any visible guidance requires owner approval.
+Status: Implemented (Ready for owner testing).
 
-The fullscreen circle tool is subtle, and touch drawing precision needs review.
+Touch drawing precision refined under the hood: filtered out micro-tap jitter (< 12px), added `touch-action: none` to canvas to prevent mobile viewport scroll interference, and ensured pointer capture releases cleanly. No visible UI controls or tooltips added.
 
 Owner acceptance:
 - Locate and use the tool with mouse, keyboard, and touch.
@@ -90,12 +90,12 @@ Owner acceptance:
 - Tab to a milestone, select it with the keyboard, and confirm the selected artwork changes.
 
 ### 9. Review comparison-view interaction — P2
-Status: Open; product direction needs review.
+Status: Accepted (Owner confirmed static side-by-side comparison is sufficient for demo day).
 
-The comparison view remains static side-by-side cards. The prior UX audit suggested an interactive slider and visual grounding for Alba’s narration.
+The comparison view remains static side-by-side cards. Owner reviewed and confirmed this clean, legible baseline is accepted for demo day without adding unnecessary sliders or visual distractions.
 
 Owner acceptance:
-- Decide whether static comparison is sufficient for the demo before adding controls or highlighting.
+- Static side-by-side comparison approved for demo presentation.
 
 ## Separate runtime checks
 
@@ -107,6 +107,9 @@ Owner acceptance:
 
 ## Change log
 
+- 2026-09-29: Accepted Item 9 (static side-by-side comparison cards confirmed for demo day).
+- 2026-09-29: Implemented Item 7 (refine touch drawing precision, filter micro-jitters, touch-action none).
+- 2026-09-29: Implemented Item 5 (rename artwork card button to "Explore this artwork" and update teaser prompt).
 - 2026-09-29: Implemented Item 8 (make timeline milestones semantic, keyboard-navigable buttons with aria attributes).
 - 2026-09-29: Implemented Item 6 (debounce gallery pin teaser dispatch on rapid artwork switching).
 - 2026-09-29: Implemented Item 4 (preserve transcript reading scroll position when scrolled up).
