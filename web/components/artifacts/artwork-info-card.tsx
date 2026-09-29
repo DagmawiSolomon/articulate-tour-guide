@@ -208,7 +208,6 @@ export function ArtworkInfoCard({
                         style={{ background: "var(--ink)", color: "#fff" }}
                       >
                         End gallery tour
-                        <HugeIcon icon={ArrowRight02Icon} size={13} color="#ffffff" className="text-white" strokeWidth={2.2} />
                       </button>
                     )}
                   </>
