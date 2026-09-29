@@ -132,6 +132,12 @@ export default function Home() {
   const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("neutral");
   const [agentStatus, setAgentStatus] = React.useState<AgentStatus>("listening");
   const [voiceConnection, setVoiceConnection] = React.useState<VoiceConnectionState>("idle");
+  const voiceConnectionRef = React.useRef<VoiceConnectionState>("idle");
+  const transitionVoiceConnection = React.useCallback((state: VoiceConnectionState) => {
+    voiceConnectionRef.current = state;
+    setVoiceConnection(state);
+  }, []);
+  const isVoiceReady = voiceConnection === "connected";
   const [connectionError, setConnectionError] = React.useState<string | null>(null);
   const [micError, setMicError] = React.useState<string | null>(null);
   const [sessionExpiryDialogOpen, setSessionExpiryDialogOpen] = React.useState(false);
@@ -267,17 +273,11 @@ export default function Home() {
    */
   const safeReply = React.useCallback((prompt: string) => {
     const agent = agentRef.current;
-    if (!agent?.ready) {
-      if (agent?.connected) {
-        setVoiceConnection("failed");
-        setConnectionError("Alba is not connected. Retry to continue the voice tour.");
-      }
-      return;
-    }
+    if (voiceConnectionRef.current !== "connected" || !agent) return;
     ignoreAudioUntilNextReplyRef.current = true;
     audioPlayerRef.current?.flush();
     setAgentStatus("thinking");
-    agentRef.current?.triggerReply(prompt);
+    agent.triggerReply(prompt);
   }, []);
 
   /**
@@ -303,7 +303,7 @@ export default function Home() {
 
   // Auto-progress conversational states and cycle emotions according to active agentStatus
   React.useEffect(() => {
-    if (!isTourActive) {
+    if (!isVoiceReady) {
       setAgentStatus("listening");
       setActiveExpressionId("neutral");
       return;
@@ -347,11 +347,11 @@ export default function Home() {
     return () => {
       if (emotionInterval) clearInterval(emotionInterval);
     };
-  }, [isTourActive, agentStatus, isMuted]);
+  }, [isVoiceReady, agentStatus, isMuted]);
 
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
   const [micStream, setMicStream] = React.useState<MediaStream | null>(null);
-  const audioLevel = useMicAudioLevel(micStream, isTourActive && !isMuted);
+  const audioLevel = useMicAudioLevel(micStream, isVoiceReady && !isMuted);
 
   const stopMic = React.useCallback(() => {
     isMutedRef.current = true;
@@ -403,7 +403,7 @@ export default function Home() {
   }, []);
 
   const toggleMic = React.useCallback(async () => {
-    if (isTogglingMicRef.current) return;
+    if (!isVoiceReady || isTogglingMicRef.current) return;
     isTogglingMicRef.current = true;
 
     try {
@@ -427,7 +427,7 @@ export default function Home() {
     } finally {
       isTogglingMicRef.current = false;
     }
-  }, [isMuted, agentStatus, startMic, stopMic]);
+  }, [isVoiceReady, isMuted, agentStatus, startMic, stopMic]);
 
   React.useEffect(() => {
     initSounds();
@@ -614,9 +614,10 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       ignoreAudioUntilNextReplyRef.current = false;
       setAgentStatus("thinking");
 
-      if (agentRef.current?.ready) {
+      const connectedAgent = agentRef.current;
+      if (voiceConnectionRef.current === "connected" && connectedAgent) {
         setVisualHandoffStatus("queued");
-        agentRef.current.triggerReply(reply);
+        connectedAgent.triggerReply(reply);
       } else {
         setIsChatThinking(false);
         setAgentStatus("listening");
@@ -666,8 +667,9 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       audioPlayerRef.current?.flush();
       ignoreAudioUntilNextReplyRef.current = false;
       setAgentStatus("thinking");
-      if (agentRef.current?.ready) {
-        agentRef.current.triggerReply(reply);
+      const connectedAgent = agentRef.current;
+      if (voiceConnectionRef.current === "connected" && connectedAgent) {
+        connectedAgent.triggerReply(reply);
       } else {
         setIsChatThinking(false);
         setAgentStatus("listening");
@@ -681,7 +683,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     setConnectionError(null);
     setMicError(null);
     setSessionExpiryDialogOpen(false);
-    setVoiceConnection("connecting");
+    transitionVoiceConnection("connecting");
     playCallStart();
     setIsTourActive(true);
     // Alba starts large in the center! Stage expands only after greeting or manual action
@@ -732,7 +734,8 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     // 3. Connect Voice Agent session
     const callbacks: VoiceAgentCallbacks = {
       onReady: (sessionId) => {
-        setVoiceConnection("connected");
+        transitionVoiceConnection("connected");
+        setAgentStatus("listening");
         setConnectionError(null);
         setActiveExpressionId(isMutedRef.current ? "muted" : "listening");
         console.log("[AssemblyAI] Tour session ready:", sessionId);
@@ -741,12 +744,13 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         }
       },
       onUserSpeakingStart: () => {
+        if (voiceConnectionRef.current !== "connected") return;
         bargeIn();
         hasUserInteractedRef.current = true;
         greetingPhaseRef.current = "done";
       },
       onTranscriptPartial: (text) => {
-        if (!text) return;
+        if (voiceConnectionRef.current !== "connected" || !text) return;
         hasUserInteractedRef.current = true;
         greetingPhaseRef.current = "done";
 
@@ -793,7 +797,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         });
       },
       onTranscriptFinal: (text) => {
-        if (!text?.trim()) return;
+        if (voiceConnectionRef.current !== "connected" || !text?.trim()) return;
         hasUserInteractedRef.current = true;
         greetingPhaseRef.current = "done";
 
@@ -862,7 +866,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         setAgentStatus("thinking");
       },
       onAgentTranscriptPartial: (text) => {
-        if (!text) return;
+        if (voiceConnectionRef.current !== "connected" || !text) return;
         setIsChatThinking(false);
         setAgentStatus("speaking");
 
@@ -894,7 +898,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         });
       },
       onAgentTranscriptFinal: (text) => {
-        if (!text?.trim()) return;
+        if (voiceConnectionRef.current !== "connected" || !text?.trim()) return;
         setIsChatThinking(false);
         setChatMessages((prev) => {
           const filtered = prev.filter((m) => m.id !== partialAgentMsgIdRef.current);
@@ -913,6 +917,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         partialAgentMsgIdRef.current = `agent-partial-${Date.now()}`;
       },
       onAgentSpeakingStart: () => {
+        if (voiceConnectionRef.current !== "connected") return;
         if (visualHandoffStatus === "queued") setVisualHandoffStatus("speaking");
         ignoreAudioUntilNextReplyRef.current = false;
         setAgentStatus("speaking");
@@ -921,6 +926,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         }
       },
       onAgentSpeakingEnd: (interrupted) => {
+        if (voiceConnectionRef.current !== "connected") return;
         if (visualHandoffStatus === "queued" || visualHandoffStatus === "speaking") setVisualHandoffStatus("idle");
         replyIndexRef.current += 1;
         const isInitialGreetingTurn = replyIndexRef.current === 1;
@@ -980,11 +986,15 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         }
       },
       onAgentAudio: (base64) => {
-        // If quiet reading mode is enabled or turn was interrupted by barge-in, suppress audio playback completely
-        if (isQuietModeRef.current || ignoreAudioUntilNextReplyRef.current) return;
+        // Ignore audio after the authoritative voice connection has ended.
+        if (voiceConnectionRef.current !== "connected" || isQuietModeRef.current || ignoreAudioUntilNextReplyRef.current) return;
         audioPlayerRef.current?.playChunk(base64);
       },
       onToolCall: (tool) => {
+        if (voiceConnectionRef.current !== "connected") {
+          setIsArtifactLoading(false);
+          return;
+        }
         console.log("[AssemblyAI] Executing tool call:", tool.name, tool.arguments);
         // Only trigger artifact loading skeleton for actual content changes, NOT if previewing an info card
         if (tool.name !== "show_info" && tool.name !== "show_artwork_info") {
@@ -1273,7 +1283,9 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       },
       onError: (code, message) => {
         console.warn("[AssemblyAI] Agent error:", code, message);
-        setVoiceConnection("failed");
+        transitionVoiceConnection("failed");
+        setAgentStatus("listening");
+        setIsChatThinking(false);
         setActiveExpressionId("neutral");
         setConnectionError(message || "Alba could not connect. Check your connection and retry.");
       },
@@ -1291,14 +1303,17 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       }
     } catch (err) {
       console.warn("[AssemblyAI] Agent connection skipped or failed:", err);
-      setVoiceConnection("failed");
+      transitionVoiceConnection("failed");
+      setAgentStatus("listening");
+      setIsChatThinking(false);
       setActiveExpressionId("neutral");
       setConnectionError(err instanceof Error ? err.message : "Alba could not connect. Check your connection and retry.");
     }
   };
 
   const handleUnexpectedSessionEnd = (reason: VoiceAgentEndReason) => {
-    setVoiceConnection("failed");
+    transitionVoiceConnection("failed");
+    setIsChatThinking(false);
     setAgentStatus("listening");
     setActiveExpressionId("neutral");
     stopMic();
@@ -1310,7 +1325,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
 
   const handleRetryConnection = async () => {
     setConnectionError(null);
-    setVoiceConnection("connecting");
+    transitionVoiceConnection("connecting");
     try {
       agentRef.current?.end();
       agentRef.current = null;
@@ -1319,14 +1334,15 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       agentRef.current = agent;
       if (!isMutedRef.current && mediaStreamRef.current) agent.startAudio(mediaStreamRef.current);
     } catch (err) {
-      setVoiceConnection("failed");
+      transitionVoiceConnection("failed");
+      setIsChatThinking(false);
       setConnectionError(err instanceof Error ? err.message : "Alba could not connect. Check your connection and retry.");
     }
   };
 
   const handleConfirmEndTour = async () => {
     visualAnalysisRequestRef.current += 1;
-    setVoiceConnection("idle");
+    transitionVoiceConnection("idle");
     setConnectionError(null);
     setMicError(null);
     setSessionExpiryDialogOpen(false);
@@ -1367,8 +1383,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
   const activeTourArtworkId = Object.keys(galleryStates).find((k) => galleryStates[k] === "exploring") ?? null;
   const completedArtworkIds = Object.keys(galleryStates).filter((k) => galleryStates[k] === "completed");
 
-  const isListening = isTourActive && voiceConnection === "connected" && !isMuted && activeExpressionId === "listening";
-  const isVoiceReady = isTourActive && voiceConnection === "connected" && Boolean(agentRef.current?.ready);
+  const isListening = isVoiceReady && !isMuted && activeExpressionId === "listening";
 
   // Original top-right inverted border radius (outer edge of circle matches top and right borders)
   const btnRadius = tuning.closeSize / 2;
@@ -1500,8 +1515,8 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     });
   };
 
-  const isEffectivelyMuted = isTourActive && isMuted;
-  const statusLabel = isQuietMode ? "Quiet" : voiceConnection === "connecting" ? "Connecting..." : voiceConnection === "failed" ? "Unable to connect" : isEffectivelyMuted ? "Muted" : agentStatus;
+  const isEffectivelyMuted = isVoiceReady && isMuted;
+  const statusLabel = voiceConnection === "connecting" ? "Connecting..." : voiceConnection === "failed" ? "Unable to connect" : !isVoiceReady ? "Idle" : isQuietMode ? "Quiet" : isEffectivelyMuted ? "Muted" : agentStatus;
 
   const statusIndicator = (
     <div
@@ -1799,12 +1814,12 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                 aria-expanded={isExpanded}
               >
                 <ArticulateAvatar
-                  expressionId={voiceConnection === "connecting" ? "neutral" : activeExpressionId}
+                  expressionId={isVoiceReady ? activeExpressionId : "neutral"}
                   size={480}
                   isListening={isListening}
-                  isMuted={isTourActive && isMuted}
-                  isConnecting={isTourActive && voiceConnection === "connecting"}
-                  isSpeaking={agentStatus === "speaking"}
+                  isMuted={isVoiceReady && isMuted}
+                  isConnecting={voiceConnection === "connecting"}
+                  isSpeaking={isVoiceReady && agentStatus === "speaking"}
                   audioLevel={audioLevel}
                   shape={0.11}
                   className="relative flex items-center justify-center"
@@ -1872,7 +1887,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         <ImmersiveArtworkView
           artwork={selectedArtwork}
           onAskAboutSelection={handleAskAboutSelection}
-          avatar={<ArticulateAvatar expressionId={voiceConnection === "connecting" ? "neutral" : activeExpressionId} size={112} isListening={isListening} isMuted={isMuted} isConnecting={voiceConnection === "connecting"} isSpeaking={agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
+          avatar={<ArticulateAvatar expressionId={isVoiceReady ? activeExpressionId : "neutral"} size={112} isListening={isListening} isMuted={isVoiceReady && isMuted} isConnecting={voiceConnection === "connecting"} isSpeaking={isVoiceReady && agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
           controls={callGroup}
           onBackToDetails={() => {
             visualAnalysisRequestRef.current += 1;
