@@ -135,7 +135,11 @@ export default function Home() {
   const [mapViewport, setMapViewport] = React.useState<MapViewport | null>(null);
   const [originMapRoute, setOriginMapRoute] = React.useState<string>("entrance");
   const [activeMapRoute, setActiveMapRoute] = React.useState<string>("entrance");
-  const [activeHotspotId, setActiveHotspotId] = React.useState<string | undefined>(undefined);
+  const [activeHotspotSelection, setActiveHotspotSelection] = React.useState<{ artworkId: string; hotspotId: string } | null>(null);
+  const activeHotspotId = activeHotspotSelection && activeHotspotSelection.artworkId === selectedArtwork?.id ? activeHotspotSelection.hotspotId : undefined;
+  React.useEffect(() => {
+    setActiveHotspotSelection((current) => current && current.artworkId !== selectedArtwork?.id ? null : current);
+  }, [selectedArtwork?.id]);
   const [activeArtworkId, setActiveArtworkId] = React.useState<string>("masaccio-holy-trinity");
   const [comparisonPairId, setComparisonPairId] = React.useState<string>("comparison-perspective");
   // Quiet / Reading Mode: when true, visitor prefers to read and Alba remains silent
@@ -201,7 +205,7 @@ export default function Home() {
     // Only dismiss if visitor barged in during or after Alba's active explanation (never on pre-reply turn transition)
     if (hotspotSpeechPhaseRef.current === "explaining" || hotspotSpeechPhaseRef.current === "draining") {
       hotspotSpeechPhaseRef.current = "idle";
-      setActiveHotspotId(null);
+      setActiveHotspotSelection(null);
     }
   }, []);
 
@@ -888,7 +892,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           greetingPhaseRef.current = "done";
           if (hotspotSpeechPhaseRef.current === "explaining" || hotspotSpeechPhaseRef.current === "draining") {
             hotspotSpeechPhaseRef.current = "idle";
-            setActiveHotspotId(null);
+            setActiveHotspotSelection(null);
           }
         } else {
           if (hotspotSpeechPhaseRef.current === "explaining") {
@@ -912,7 +916,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
               if (hotspotDismissTimerRef.current) clearTimeout(hotspotDismissTimerRef.current);
               // Detail explanation complete: retain detail for comfortable viewing, then gracefully clear
               hotspotDismissTimerRef.current = setTimeout(() => {
-                setActiveHotspotId(null);
+                setActiveHotspotSelection(null);
                 hotspotDismissTimerRef.current = null;
               }, 4000);
             }
@@ -1003,14 +1007,23 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         } else if (tool.name === "show_hotspots") {
           const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
           const artId = resolveArtworkId(rawId);
-          const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
+          const artwork = TURNING_POINTS_ARTWORKS[artId];
+          if (!artwork) {
+            setIsArtifactLoading(false);
+            agentRef.current?.sendToolResult(tool.callId, {
+              success: false,
+              message: "No hotspot placements are available for that artwork.",
+              availableHotspots: [],
+            }, true);
+            return;
+          }
           const availableHotspots = getArtworkHotspots(artwork.id);
           const requestedHotspot = String(tool.arguments.hotspotId || tool.arguments.detailId || tool.arguments.detail || "").trim().toLowerCase();
           const matchedHotspot = availableHotspots.find((item) => item.id.toLowerCase() === requestedHotspot || item.name.toLowerCase() === requestedHotspot);
 
           // If the agent invoked show_hotspots for a custom user-circled detail, return the curatorial visual analysis!
           const recentVision = pendingVisualAnalysisRef.current;
-          const isRecentVisionMatch = recentVision && (Date.now() - recentVision.timestamp < 60000);
+          const isRecentVisionMatch = recentVision && recentVision.artworkId === artwork.id && (Date.now() - recentVision.timestamp < 60000);
 
           if (!matchedHotspot && isRecentVisionMatch) {
             setIsArtifactLoading(false);
@@ -1048,7 +1061,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             hotspotDismissTimerRef.current = null;
           }
           setActiveArtifact("artwork-view");
-          setActiveHotspotId(hotspotId);
+          setActiveHotspotSelection({ artworkId: artwork.id, hotspotId });
           hotspotSpeechPhaseRef.current = "pending_reply";
           setIsExpanded(true);
           // Track guest location without triggering an unrequested path route line
@@ -1693,7 +1706,12 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                         }
                         setActiveArtifact(type);
                         if (params?.routeId) setActiveMapRoute(params.routeId as any);
-                        if (params?.hotspotId) setActiveHotspotId(params.hotspotId as any);
+                        if (params?.hotspotId) {
+                          setActiveHotspotSelection({
+                            artworkId: typeof params.artworkId === "string" ? resolveArtworkId(params.artworkId) : (selectedArtwork?.id || activeArtworkId),
+                            hotspotId: String(params.hotspotId),
+                          });
+                        }
                         playTactileTap();
                       }}
                     />
@@ -1785,11 +1803,13 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           avatar={<ArticulateAvatar expressionId={activeExpressionId} size={112} isListening={isListening} isMuted={isMuted} isSpeaking={agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
           controls={callGroup}
           onBackToDetails={() => {
-            setActiveHotspotId(null);
+            setActiveHotspotSelection(null);
             setActiveArtifact("info");
           }}
           activeHotspotId={activeHotspotId}
-          onSelectHotspot={setActiveHotspotId}
+          onSelectHotspot={(hotspotId) => setActiveHotspotSelection(
+            hotspotId && selectedArtwork?.id ? { artworkId: selectedArtwork.id, hotspotId } : null
+          )}
         />
       )}
       <Dialog open={isExhibitInfoOpen} onOpenChange={setIsExhibitInfoOpen}>

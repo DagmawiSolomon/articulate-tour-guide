@@ -2,7 +2,7 @@
   "masaccio-holy-trinity": [
     {
       "id": "vortex",
-      "name": "Coffered Barrel Vault",
+      "name": "The coffered ceiling",
       "tag": "Brunelleschian Geometry",
       "xPercent": 50,
       "yPercent": 24,
@@ -12,27 +12,27 @@
     },
     {
       "id": "cypress",
-      "name": "God the Father & The Dove",
+      "name": "God and the dove",
       "tag": "The Eternal Axis",
       "xPercent": 50,
-      "yPercent": 12,
+      "yPercent": 30,
       "zoomScale": 2.4,
-      "zoomOrigin": "50% 12%",
+      "zoomOrigin": "50% 30%",
       "insight": "God stands on an architectural ledge behind the cross, with the Holy Spirit depicted as a dove hovering immediately between the Father's collar and the Son's halo."
     },
     {
       "id": "star",
-      "name": "The Lenzi Patrons",
+      "name": "The kneeling patrons",
       "tag": "Secular Infiltration",
       "xPercent": 18,
       "yPercent": 62,
-      "zoomScale": 2.0,
+      "zoomScale": 2,
       "zoomOrigin": "18% 62%",
       "insight": "Domenico Lenzi and his wife kneel outside the architectural triumphal arch in earthly space, human-sized, marking the rise of civic merchant patronage."
     },
     {
       "id": "steeple",
-      "name": "The Memento Mori Skeleton",
+      "name": "The skeleton in the tomb",
       "tag": "Tomb & Inscription",
       "xPercent": 50,
       "yPercent": 88,
@@ -44,7 +44,7 @@
   "caravaggio-calling-st-matthew": [
     {
       "id": "star",
-      "name": "The Shaft of Divine Light",
+      "name": "The beam of light",
       "tag": "Tenebrist Beam",
       "xPercent": 68,
       "yPercent": 20,
@@ -54,7 +54,7 @@
     },
     {
       "id": "cypress",
-      "name": "Christ's Pointing Hand",
+      "name": "Christ's pointing hand",
       "tag": "Michelangelo Quote",
       "xPercent": 86,
       "yPercent": 44,
@@ -64,7 +64,7 @@
     },
     {
       "id": "vortex",
-      "name": "Matthew's Hesitant Gesture",
+      "name": "Matthew pointing to himself",
       "tag": "\"Who, Me?\"",
       "xPercent": 44,
       "yPercent": 50,
@@ -74,7 +74,7 @@
     },
     {
       "id": "steeple",
-      "name": "The Moneylender's Spectacles",
+      "name": "The man counting coins",
       "tag": "Spiritual Blindness",
       "xPercent": 26,
       "yPercent": 54,
@@ -86,7 +86,7 @@
   "van-gogh-starry-night": [
     {
       "id": "cypress",
-      "name": "Cypress Tree",
+      "name": "The cypress tree",
       "tag": "Obelisk of Mourning",
       "xPercent": 22,
       "yPercent": 62,
@@ -96,7 +96,7 @@
     },
     {
       "id": "vortex",
-      "name": "Celestial Swirl",
+      "name": "The swirling sky",
       "tag": "Cosmic Turbulence",
       "xPercent": 54,
       "yPercent": 32,
@@ -106,7 +106,7 @@
     },
     {
       "id": "star",
-      "name": "Morning Star (Venus)",
+      "name": "The bright star near the horizon",
       "tag": "Beacon of Hope",
       "xPercent": 72,
       "yPercent": 48,
@@ -116,19 +116,19 @@
     },
     {
       "id": "steeple",
-      "name": "Village Church Spire",
+      "name": "The church steeple",
       "tag": "Memory of Brabant",
       "xPercent": 58,
-      "yPercent": 68,
+      "yPercent": 79,
       "zoomScale": 2.3,
-      "zoomOrigin": "58% 68%",
+      "zoomOrigin": "58% 79%",
       "insight": "An idealized architectural motif evoking Dutch Protestant church towers from his youth, unlike the flat tiled roofs of Provence."
     }
   ],
   "picasso-demoiselles": [
     {
       "id": "vortex",
-      "name": "The African Mask Head",
+      "name": "The mask-like face",
       "tag": "Primitivist Rupture",
       "xPercent": 82,
       "yPercent": 24,
@@ -138,17 +138,17 @@
     },
     {
       "id": "cypress",
-      "name": "The Squatting Figure",
+      "name": "The crouching figure",
       "tag": "Simultaneous Viewpoint",
-      "xPercent": 74,
-      "yPercent": 76,
+      "xPercent": 85,
+      "yPercent": 62,
       "zoomScale": 2.4,
-      "zoomOrigin": "74% 76%",
+      "zoomOrigin": "85% 62%",
       "insight": "Her back is turned squarely to the spectator, yet her head is swiveled 180 degrees to confront us directly—the seminal Cubist synthesis of multiple perspectives in one body."
     },
     {
       "id": "star",
-      "name": "The Sliced Melon Still Life",
+      "name": "The fruit at the bottom",
       "tag": "Pointed Blade of Flesh",
       "xPercent": 50,
       "yPercent": 92,
@@ -158,7 +158,7 @@
     },
     {
       "id": "steeple",
-      "name": "Iberian Classical Face",
+      "name": "The central-left face",
       "tag": "Archaic Spanish Roots",
       "xPercent": 32,
       "yPercent": 34,
@@ -170,7 +170,7 @@
   "pollock-autumn-rhythm": [
     {
       "id": "vortex",
-      "name": "The Skein Web of Enamel",
+      "name": "The web of paint lines",
       "tag": "Controlled Chance",
       "xPercent": 48,
       "yPercent": 46,
@@ -180,7 +180,7 @@
     },
     {
       "id": "star",
-      "name": "Raw Unprimed Cotton Duck",
+      "name": "The unpainted canvas",
       "tag": "Material Honesty",
       "xPercent": 12,
       "yPercent": 22,
@@ -190,7 +190,7 @@
     },
     {
       "id": "cypress",
-      "name": "Barn Floor Trace & Debris",
+      "name": "Paint near the lower right",
       "tag": "Studio Archaeology",
       "xPercent": 82,
       "yPercent": 80,
@@ -202,7 +202,7 @@
   "duchamp-fountain": [
     {
       "id": "vortex",
-      "name": "The 'R. MUTT 1917' Signature",
+      "name": "The R. Mutt signature",
       "tag": "Pseudonymous Provocation",
       "xPercent": 28,
       "yPercent": 78,
@@ -212,7 +212,7 @@
     },
     {
       "id": "star",
-      "name": "Inverted Ninety-Degree Orientation",
+      "name": "The porcelain basin turned on its back",
       "tag": "Functional Erasure",
       "xPercent": 50,
       "yPercent": 45,
@@ -222,7 +222,7 @@
     },
     {
       "id": "cypress",
-      "name": "Industrial Sanitary Porcelain",
+      "name": "The porcelain form",
       "tag": "Anti-Retinal Ready-Made",
       "xPercent": 70,
       "yPercent": 32,
