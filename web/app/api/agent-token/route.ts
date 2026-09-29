@@ -34,21 +34,21 @@ export async function GET(request: Request) {
   try {
     // Mint a temporary token — expires in 120s (redemption window only)
     // max_session_duration_seconds: 180 = 3 min hard cap per session (prevents runaway costs)
-    const res = await fetch(
-      "https://agents.assemblyai.com/v1/token?expires_in_seconds=120&max_session_duration_seconds=180",
-      {
-        method: "GET",
-        cache: "no-store",
-        headers: {
-          // Voice Agent API uses Bearer auth (unlike the rest of AssemblyAI)
-          Authorization: `Bearer ${apiKey}`,
-        },
-      }
-    );
+    const tokenUrl = "https://agents.assemblyai.com/v1/token?expires_in_seconds=120&max_session_duration_seconds=180";
+    console.log("[api/agent-token] Requesting token with URL:", tokenUrl);
+
+    const res = await fetch(tokenUrl, {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        // Voice Agent API uses Bearer auth (unlike the rest of AssemblyAI)
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
 
     if (!res.ok) {
       const body = await res.text();
-      console.error("AssemblyAI token error:", res.status, body);
+      console.error("[api/agent-token] AssemblyAI token error:", res.status, body);
       return NextResponse.json(
         { error: "Failed to mint agent token" },
         { status: 502 }
@@ -56,8 +56,13 @@ export async function GET(request: Request) {
     }
 
     const data = await res.json();
-    // Return both so the client can open the WS and bind the stored agent
-    return NextResponse.json({ token: data.token, agentId }, {
+    console.log("[api/agent-token] Minted token successfully. Keys in response:", Object.keys(data));
+    // Return token, agentId, and configured maxSessionDurationSeconds
+    return NextResponse.json({
+      token: data.token,
+      agentId,
+      maxSessionDurationSeconds: 180,
+    }, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (err) {
