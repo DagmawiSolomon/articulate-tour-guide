@@ -17,6 +17,7 @@ export interface ArticulateAvatarProps {
   onClick?: () => void;
   isListening?: boolean;
   isMuted?: boolean;
+  isConnecting?: boolean;
   isSpeaking?: boolean;
   audioLevel?: number;
   className?: string;
@@ -32,6 +33,7 @@ export function ArticulateAvatar({
   onClick,
   isListening = false,
   isMuted = false,
+  isConnecting = false,
   isSpeaking = false,
   audioLevel = 0,
   className,
@@ -70,7 +72,7 @@ export function ArticulateAvatar({
         className={`relative rounded-full flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isListening ? "avatar-listening" : ""
         } ${isSpeaking ? "avatar-speaking" : ""} ${
-          isMuted ? "avatar-muted opacity-60 filter contrast-[0.92] scale-[0.96] translate-y-1.5" : "opacity-100"
+          isMuted ? "avatar-muted opacity-60 filter contrast-[0.92] scale-[0.96] translate-y-1.5" : "opacity-100"} ${isConnecting ? "grayscale brightness-110" : ""
         }`}
         style={{
           width: currentSize,

@@ -3,6 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { HugeIcon } from "@/components/ui/hugeicon";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -79,12 +80,93 @@ import {
   playTactileTap,
   playToggle,
 } from "@/lib/sounds";
-import { createVoiceAgent, type VoiceAgent, type VoiceAgentCallbacks } from "@/lib/assemblyai-agent";
+import { createVoiceAgent, type VoiceAgent, type VoiceAgentCallbacks, type VoiceAgentEndReason } from "@/lib/assemblyai-agent";
 import { createAudioPlayer, type AudioPlayer } from "@/lib/assemblyai-audio";
 import { BayerDitherBackground } from "@/components/ui/bayer-dither-background";
 import { useMicAudioLevel } from "@/hooks/use-mic-audio-level";
 
 type AgentStatus = "listening" | "thinking" | "speaking";
+type VoiceConnectionState = "idle" | "connecting" | "connected" | "failed";
+
+type GalleryStates = Record<string, "unexplored" | "exploring" | "completed">;
+
+type TourPageState = {
+  isExpanded: boolean;
+  isTourActive: boolean;
+  activeArtifact: ArtifactType;
+  selectedArtwork: ExhibitArtworkInfo | null;
+  activeArtworkId: string;
+  galleryStates: GalleryStates;
+  guestLocationId: string;
+  mapNavigation: ExhibitNavigationState;
+  originMapRoute: string;
+  activeMapRoute: string;
+  chatMessages: ChatMessage[];
+  isChatThinking: boolean;
+};
+
+type TourPageStatePatch = {
+  [Key in keyof TourPageState]?: React.SetStateAction<TourPageState[Key]>;
+};
+
+type TourPageStateAction =
+  | { type: "set"; key: keyof TourPageState; value: unknown }
+  | { type: "patch"; patch: TourPageStatePatch };
+
+const INITIAL_TOUR_PAGE_STATE: TourPageState = {
+  isExpanded: false,
+  isTourActive: false,
+  activeArtifact: "info",
+  selectedArtwork: null,
+  activeArtworkId: "masaccio-holy-trinity",
+  galleryStates: {},
+  guestLocationId: "entrance",
+  mapNavigation: { startId: "entrance", destinationId: "", currentNodeId: null },
+  originMapRoute: "entrance",
+  activeMapRoute: "entrance",
+  chatMessages: [],
+  isChatThinking: false,
+};
+
+function resolveTourPageStateUpdate<Value>(previous: Value, update: React.SetStateAction<Value>): Value {
+  return typeof update === "function"
+    ? (update as (previous: Value) => Value)(previous)
+    : update;
+}
+
+function tourPageStateReducer(state: TourPageState, action: TourPageStateAction): TourPageState {
+  if (action.type === "set") {
+    const previous = state[action.key];
+    const value = typeof action.value === "function"
+      ? (action.value as (previous: unknown) => unknown)(previous)
+      : action.value;
+    return { ...state, [action.key]: value } as TourPageState;
+  }
+
+  const nextState = { ...state };
+  (Object.keys(action.patch) as Array<keyof TourPageState>).forEach((key) => {
+    const update = action.patch[key];
+    if (update === undefined) return;
+    const previous = state[key];
+    const value = typeof update === "function"
+      ? (update as (previous: unknown) => unknown)(previous)
+      : update;
+    Object.assign(nextState, { [key]: value });
+  });
+  return nextState;
+}
+
+function useTourPageField<Key extends keyof TourPageState>(
+  state: TourPageState,
+  dispatch: React.Dispatch<TourPageStateAction>,
+  key: Key,
+): [TourPageState[Key], React.Dispatch<React.SetStateAction<TourPageState[Key]>>] {
+  const setValue = React.useCallback((value: React.SetStateAction<TourPageState[Key]>) => {
+    dispatch({ type: "set", key, value });
+  }, [dispatch, key]);
+
+  return [state[key], setValue];
+}
 
 const LISTENING_EMOTIONS: ExpressionId[] = [
   "listening",
@@ -121,37 +203,79 @@ const MUTED_EMOTIONS: ExpressionId[] = [
 ];
 
 export default function Home() {
-  const [isExpanded, setIsExpanded] = React.useState(false);
-  const [isTourActive, setIsTourActive] = React.useState(false);
+  const [tourPageState, dispatchTourPageState] = React.useReducer(tourPageStateReducer, INITIAL_TOUR_PAGE_STATE);
+  const [isExpanded] = useTourPageField(tourPageState, dispatchTourPageState, "isExpanded");
+  const [isTourActive, setIsTourActive] = useTourPageField(tourPageState, dispatchTourPageState, "isTourActive");
   const [visitorName, setVisitorName] = React.useState("Visitor");
   const [isEndDialogOpen, setIsEndDialogOpen] = React.useState(false);
   const [isExhibitInfoOpen, setIsExhibitInfoOpen] = React.useState(false);
   const [activeExpressionId, setActiveExpressionId] = React.useState<ExpressionId>("neutral");
   const [agentStatus, setAgentStatus] = React.useState<AgentStatus>("listening");
+  const [voiceConnection, setVoiceConnection] = React.useState<VoiceConnectionState>("idle");
+  const voiceConnectionRef = React.useRef<VoiceConnectionState>("idle");
+  const transitionVoiceConnection = React.useCallback((state: VoiceConnectionState) => {
+    voiceConnectionRef.current = state;
+    setVoiceConnection(state);
+  }, []);
+  const isVoiceReady = voiceConnection === "connected";
+  const [connectionError, setConnectionError] = React.useState<string | null>(null);
+  const [micError, setMicError] = React.useState<string | null>(null);
+  const [sessionExpiryDialogOpen, setSessionExpiryDialogOpen] = React.useState(false);
+  const [visualHandoffStatus, setVisualHandoffStatus] = React.useState<"idle" | "queued" | "speaking" | "failed">("idle");
   const [isMuted, setIsMuted] = React.useState(false);
-  const [activeArtifact, setActiveArtifact] = React.useState<ArtifactType>("info");
-  const [selectedArtwork, setSelectedArtwork] = React.useState<ExhibitArtworkInfo | null>(null);
-  const [mapNavigation, setMapNavigation] = React.useState<ExhibitNavigationState>({ startId: "entrance", destinationId: "", currentNodeId: null });
+  const [activeArtifact, setActiveArtifact] = useTourPageField(tourPageState, dispatchTourPageState, "activeArtifact");
+  const [selectedArtwork, setSelectedArtwork] = useTourPageField(tourPageState, dispatchTourPageState, "selectedArtwork");
+  const [mapNavigation, setMapNavigation] = useTourPageField(tourPageState, dispatchTourPageState, "mapNavigation");
   const [mapViewport, setMapViewport] = React.useState<MapViewport | null>(null);
-  const [originMapRoute, setOriginMapRoute] = React.useState<string>("entrance");
-  const [activeMapRoute, setActiveMapRoute] = React.useState<string>("entrance");
+  const [originMapRoute, setOriginMapRoute] = useTourPageField(tourPageState, dispatchTourPageState, "originMapRoute");
+  const [activeMapRoute, setActiveMapRoute] = useTourPageField(tourPageState, dispatchTourPageState, "activeMapRoute");
   const [activeHotspotId, setActiveHotspotId] = React.useState<string | undefined>(undefined);
-  const [activeArtworkId, setActiveArtworkId] = React.useState<string>("masaccio-holy-trinity");
+  const [activeArtworkId, setActiveArtworkId] = useTourPageField(tourPageState, dispatchTourPageState, "activeArtworkId");
   const [comparisonPairId, setComparisonPairId] = React.useState<string>("comparison-perspective");
   // Quiet / Reading Mode: when true, visitor prefers to read and Alba remains silent
   const [isQuietMode, setIsQuietMode] = React.useState<boolean>(false);
   const isQuietModeRef = React.useRef<boolean>(false);
-  // Guest location tracking: begins at entrance and updates as galleries/artworks are visited
-  const [guestLocationId, setGuestLocationId] = React.useState<string>("entrance");
-  const guestLocationRef = React.useRef<string>("entrance");
+  // Guest location ref mirrors reducer state for immediate tool-call decisions.
+  const guestLocationRef = React.useRef<string>(INITIAL_TOUR_PAGE_STATE.guestLocationId);
+  const isExpandedRef = React.useRef<boolean>(INITIAL_TOUR_PAGE_STATE.isExpanded);
   // ── Gallery State Machine ────────────────────────────────────────────────
   // Single source of truth for all artwork tour states.
   // Replaces the previous 3 pairs of state+ref (activeTourArtworkId, completedArtworkIds, startedArtworkIds).
-  const [galleryStates, setGalleryStates] = React.useState<Record<string, "unexplored" | "exploring" | "completed">>({});
-  const galleryStatesRef = React.useRef<Record<string, "unexplored" | "exploring" | "completed">>({}); 
-  // Cache refs kept in sync inside the setGalleryStates updater — safe to read inside callbacks.
+  const [galleryStates] = useTourPageField(tourPageState, dispatchTourPageState, "galleryStates");
+  const galleryStatesRef = React.useRef<GalleryStates>(INITIAL_TOUR_PAGE_STATE.galleryStates);
+  // Derived refs mirror reducer gallery state for immediate callback reads.
   const activeTourArtworkIdRef = React.useRef<string | null>(null);
   const completedArtworkIdsRef = React.useRef<string[]>([]);
+
+  const patchTourPageState = React.useCallback((patch: TourPageStatePatch) => {
+    const resolvedPatch: TourPageStatePatch = { ...patch };
+
+    if (patch.isExpanded !== undefined) {
+      const next = resolveTourPageStateUpdate(isExpandedRef.current, patch.isExpanded);
+      isExpandedRef.current = next;
+      resolvedPatch.isExpanded = next;
+    }
+    if (patch.guestLocationId !== undefined) {
+      const next = resolveTourPageStateUpdate(guestLocationRef.current, patch.guestLocationId);
+      guestLocationRef.current = next;
+      resolvedPatch.guestLocationId = next;
+    }
+    if (patch.galleryStates !== undefined) {
+      const next = resolveTourPageStateUpdate(galleryStatesRef.current, patch.galleryStates);
+      galleryStatesRef.current = next;
+      activeTourArtworkIdRef.current = Object.keys(next).find((id) => next[id] === "exploring") ?? null;
+      completedArtworkIdsRef.current = Object.keys(next).filter((id) => next[id] === "completed");
+      resolvedPatch.galleryStates = next;
+    }
+
+    dispatchTourPageState({ type: "patch", patch: resolvedPatch });
+  }, []);
+
+  const setIsExpanded = React.useCallback((update: React.SetStateAction<boolean>) => {
+    patchTourPageState({ isExpanded: update });
+  }, [patchTourPageState]);
+
+
   // Auto-reset timer for the artifact loading skeleton — prevents permanently stuck skeletons.
   const loadingTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   // When start tour is clicked, card collapses for fullscreen Alba explanation, then auto-uncollapses
@@ -163,8 +287,8 @@ export default function Home() {
   // Will be wired to real events once voice is connected.
   const [isArtifactLoading, setIsArtifactLoading] = React.useState(false);
   // Chat history state — messages accumulate as the tour progresses.
-  const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([]);
-  const [isChatThinking, setIsChatThinking] = React.useState(false);
+  const [chatMessages, setChatMessages] = useTourPageField(tourPageState, dispatchTourPageState, "chatMessages");
+  const [isChatThinking, setIsChatThinking] = useTourPageField(tourPageState, dispatchTourPageState, "isChatThinking");
   // Partial visitor transcript ID — updated in place as partials arrive
   const partialMsgIdRef = React.useRef<string>("visitor-partial");
   const partialAgentMsgIdRef = React.useRef<string>("agent-partial");
@@ -183,6 +307,7 @@ export default function Home() {
 
   // Barge-in: immediately stop playback in speakers and drop any pending/in-flight audio chunks from interrupted turn
   const ignoreAudioUntilNextReplyRef = React.useRef<boolean>(false);
+  const visualAnalysisRequestRef = React.useRef(0);
   const pendingVisualAnalysisRef = React.useRef<{
     artworkId: string;
     answer: string;
@@ -208,23 +333,21 @@ export default function Home() {
   // ── State Machine Helpers ─────────────────────────────────────────────────
 
   /**
-   * Atomically transition: any currently "exploring" artwork → "completed",
-   * then set the target artwork to "exploring". This is the only way a tour starts.
-   * Keeps all cache refs in sync inside the updater (closure-safe).
+   * Atomically transition the active stop and any related page state.
    */
-  const startExploring = React.useCallback((artworkId: string) => {
-    setGalleryStates((prev) => {
-      const next = { ...prev };
-      Object.keys(next).forEach((id) => {
-        if (next[id] === "exploring" && id !== artworkId) next[id] = "completed";
-      });
-      next[artworkId] = "exploring";
-      galleryStatesRef.current = next;
-      activeTourArtworkIdRef.current = artworkId;
-      completedArtworkIdsRef.current = Object.keys(next).filter((k) => next[k] === "completed");
-      return next;
+  const startExploring = React.useCallback((artworkId: string, patch: TourPageStatePatch = {}) => {
+    patchTourPageState({
+      ...patch,
+      galleryStates: (prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((id) => {
+          if (next[id] === "exploring" && id !== artworkId) next[id] = "completed";
+        });
+        next[artworkId] = "exploring";
+        return next;
+      },
     });
-  }, []);
+  }, [patchTourPageState]);
 
   /**
    * Atomically transition a single artwork to a target state.
@@ -233,23 +356,13 @@ export default function Home() {
   const setArtworkGalleryState = React.useCallback((
     artworkId: string,
     toState: "unexplored" | "exploring" | "completed",
+    patch: TourPageStatePatch = {},
   ) => {
-    setGalleryStates((prev) => {
-      const next = { ...prev, [artworkId]: toState };
-      galleryStatesRef.current = next;
-      activeTourArtworkIdRef.current = Object.keys(next).find((k) => next[k] === "exploring") ?? null;
-      completedArtworkIdsRef.current = Object.keys(next).filter((k) => next[k] === "completed");
-      return next;
+    patchTourPageState({
+      ...patch,
+      galleryStates: (prev) => ({ ...prev, [artworkId]: toState }),
     });
-  }, []);
-
-  /** Reset all gallery states (used on full tour end). */
-  const resetGalleryStates = React.useCallback(() => {
-    setGalleryStates({});
-    galleryStatesRef.current = {};
-    activeTourArtworkIdRef.current = null;
-    completedArtworkIdsRef.current = [];
-  }, []);
+  }, [patchTourPageState]);
 
   /**
    * Safe reply — always flushes in-flight audio before triggering a new agent reply.
@@ -257,10 +370,12 @@ export default function Home() {
    * Use this instead of calling audioPlayerRef.current?.flush() + triggerReply() separately.
    */
   const safeReply = React.useCallback((prompt: string) => {
+    const agent = agentRef.current;
+    if (voiceConnectionRef.current !== "connected" || !agent) return;
     ignoreAudioUntilNextReplyRef.current = true;
     audioPlayerRef.current?.flush();
     setAgentStatus("thinking");
-    agentRef.current?.triggerReply(prompt);
+    agent.triggerReply(prompt);
   }, []);
 
   /**
@@ -286,7 +401,7 @@ export default function Home() {
 
   // Auto-progress conversational states and cycle emotions according to active agentStatus
   React.useEffect(() => {
-    if (!isTourActive) {
+    if (!isVoiceReady) {
       setAgentStatus("listening");
       setActiveExpressionId("neutral");
       return;
@@ -330,11 +445,11 @@ export default function Home() {
     return () => {
       if (emotionInterval) clearInterval(emotionInterval);
     };
-  }, [isTourActive, agentStatus, isMuted]);
+  }, [isVoiceReady, agentStatus, isMuted]);
 
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
   const [micStream, setMicStream] = React.useState<MediaStream | null>(null);
-  const audioLevel = useMicAudioLevel(micStream, isTourActive && !isMuted);
+  const audioLevel = useMicAudioLevel(micStream, isVoiceReady && !isMuted);
 
   const stopMic = React.useCallback(() => {
     isMutedRef.current = true;
@@ -371,12 +486,14 @@ export default function Home() {
         // Start streaming audio to the agent
         agentRef.current?.startAudio(stream);
         setMicStream(stream);
+        setMicError(null);
         isMutedRef.current = false;
         setIsMuted(false);
         return stream;
       }
     } catch (err) {
       console.warn("Microphone access error or denied:", err);
+      setMicError("Microphone access was denied. Allow microphone access and retry.");
       isMutedRef.current = true;
       setIsMuted(true);
     }
@@ -384,7 +501,7 @@ export default function Home() {
   }, []);
 
   const toggleMic = React.useCallback(async () => {
-    if (isTogglingMicRef.current) return;
+    if (!isVoiceReady || isTogglingMicRef.current) return;
     isTogglingMicRef.current = true;
 
     try {
@@ -408,7 +525,7 @@ export default function Home() {
     } finally {
       isTogglingMicRef.current = false;
     }
-  }, [isMuted, agentStatus, startMic, stopMic]);
+  }, [isVoiceReady, isMuted, agentStatus, startMic, stopMic]);
 
   React.useEffect(() => {
     initSounds();
@@ -432,22 +549,7 @@ export default function Home() {
     const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
     const artPlaceId = `art:${targetArtwork.id}`;
 
-    // 1. Update guest location without drawing a route line
-    setMapNavigation((prev) => ({
-      ...prev,
-      startId: artPlaceId,
-      destinationId: "",
-      currentNodeId: null,
-    }));
-    guestLocationRef.current = artPlaceId;
-    setGuestLocationId(artPlaceId);
-
-    // 2. Atomically: any currently "exploring" artwork → "completed", target → "exploring".
-    //    This is the ONLY place this transition happens — single source of truth.
-    startExploring(targetArtwork.id);
-
-    setActiveArtworkId(targetArtwork.id);
-    setSelectedArtwork({
+    const artworkSelection: ExhibitArtworkInfo = {
       id: targetArtwork.id,
       title: targetArtwork.title,
       imageSrc: targetArtwork.imageSrc,
@@ -456,14 +558,26 @@ export default function Home() {
         { label: "Artist", value: targetArtwork.artist },
         { label: "Date", value: targetArtwork.year },
       ],
-    });
-
+    };
+    const artworkPatch: TourPageStatePatch = {
+      mapNavigation: (prev) => ({
+        ...prev,
+        startId: artPlaceId,
+        destinationId: "",
+        currentNodeId: null,
+      }),
+      guestLocationId: artPlaceId,
+      activeArtworkId: targetArtwork.id,
+      selectedArtwork: artworkSelection,
+      activeArtifact: "artwork-view",
+      isExpanded: true,
+    };
     if (targetArtwork.wingId && WING_ROUTE_MAP[targetArtwork.wingId]) {
-      setActiveMapRoute(WING_ROUTE_MAP[targetArtwork.wingId]);
+      artworkPatch.activeMapRoute = WING_ROUTE_MAP[targetArtwork.wingId];
     }
 
-    setActiveArtifact("artwork-view");
-    setIsExpanded(true);
+    // Start the stop and update its related page state in one reducer transition.
+    startExploring(targetArtwork.id, artworkPatch);
 
     // 3. Post visitor confirmation to transcript
     setChatMessages((prev) => [
@@ -494,23 +608,18 @@ export default function Home() {
     const currentArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
     const artPlaceId = `art:${currentArtwork.id}`;
 
-    // 1. Atomically: mark this artwork as completed and clear the active tour pointer.
-    //    setArtworkGalleryState handles all ref sync internally.
-    setArtworkGalleryState(currentArtwork.id, "completed");
-
-    // 2. Set guest location without drawing paths
-    setMapNavigation((prev) => ({
-      ...prev,
-      startId: artPlaceId,
-      destinationId: "",
-      currentNodeId: null,
-    }));
-    guestLocationRef.current = artPlaceId;
-    setGuestLocationId(artPlaceId);
-
-    // 3. Return to floor map so visitor can choose next stop
-    setActiveArtifact("map");
-    setIsExpanded(true);
+    // Complete the stop and return to the floor map in one reducer transition.
+    setArtworkGalleryState(currentArtwork.id, "completed", {
+      mapNavigation: (prev) => ({
+        ...prev,
+        startId: artPlaceId,
+        destinationId: "",
+        currentNodeId: null,
+      }),
+      guestLocationId: artPlaceId,
+      activeArtifact: "map",
+      isExpanded: true,
+    });
     playTactileTap();
 
     // 4. Post visitor transcript
@@ -533,6 +642,8 @@ export default function Home() {
   }, [selectedArtwork, activeArtworkId, safeReply, setArtworkGalleryState]);
 
   const handleAskAboutSelection = React.useCallback(async (selection: ArtworkSelection) => {
+    const requestId = ++visualAnalysisRequestRef.current;
+    setVisualHandoffStatus("queued");
     const artworkId = resolveArtworkId(selectedArtwork?.id || activeArtworkId);
     const artwork = TURNING_POINTS_ARTWORKS[artworkId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
     const visitorQuestion = `Tell me about the area I circled in ${artwork.title}.`;
@@ -555,6 +666,7 @@ export default function Home() {
         body: JSON.stringify({ artworkId, selection, question: visitorQuestion }),
       });
       const result = await response.json();
+      if (requestId !== visualAnalysisRequestRef.current) return;
       if (!response.ok || typeof result.answer !== "string") {
         throw new Error(result.error || "I couldn't inspect that detail just now.");
       }
@@ -592,8 +704,10 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       ignoreAudioUntilNextReplyRef.current = false;
       setAgentStatus("thinking");
 
-      if (agentRef.current?.connected) {
-        agentRef.current.triggerReply(reply);
+      const connectedAgent = agentRef.current;
+      if (voiceConnectionRef.current === "connected" && connectedAgent) {
+        setVisualHandoffStatus("queued");
+        connectedAgent.triggerReply(reply);
       } else {
         setIsChatThinking(false);
         setAgentStatus("listening");
@@ -619,14 +733,21 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             if (preferredVoice) utterance.voice = preferredVoice;
             utterance.rate = 1.0;
             utterance.pitch = 1.05;
+            setVisualHandoffStatus("speaking");
             setAgentStatus("speaking");
-            utterance.onend = () => setAgentStatus("listening");
-            utterance.onerror = () => setAgentStatus("listening");
+            utterance.onend = () => { setAgentStatus("listening"); setVisualHandoffStatus("idle"); };
+            utterance.onerror = () => { setAgentStatus("listening"); setVisualHandoffStatus("failed"); };
             window.speechSynthesis.speak(utterance);
-          } catch {}
+          } catch {
+            setVisualHandoffStatus("failed");
+          }
+        } else {
+          setVisualHandoffStatus(isQuietModeRef.current ? "idle" : "failed");
         }
       }
     } catch (error) {
+      if (requestId !== visualAnalysisRequestRef.current) return;
+      setVisualHandoffStatus("queued");
       console.error("Artwork visual question failed:", error);
       const reply = `The visitor circled a detail in "${artwork.title}" and asked about it, but the visual analysis failed. In one warm sentence, apologize briefly that you could not inspect that detail right now, and invite them to ask about something else in the painting.`;
       setChatMessages((previous) => [
@@ -636,29 +757,41 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       audioPlayerRef.current?.flush();
       ignoreAudioUntilNextReplyRef.current = false;
       setAgentStatus("thinking");
-      if (agentRef.current?.connected) {
-        agentRef.current.triggerReply(reply);
+      const connectedAgent = agentRef.current;
+      if (voiceConnectionRef.current === "connected" && connectedAgent) {
+        connectedAgent.triggerReply(reply);
       } else {
         setIsChatThinking(false);
         setAgentStatus("listening");
+        setVisualHandoffStatus("failed");
       }
     }
   }, [selectedArtwork, activeArtworkId, bargeIn]);
   const handleStartTour = async () => {
+    visualAnalysisRequestRef.current += 1;
+    if (visualHandoffStatus === "queued") { setIsChatThinking(false); setVisualHandoffStatus("idle"); }
+    setConnectionError(null);
+    setMicError(null);
+    setSessionExpiryDialogOpen(false);
+    transitionVoiceConnection("connecting");
     playCallStart();
-    setIsTourActive(true);
-    // Alba starts large in the center! Stage expands only after greeting or manual action
-    setIsExpanded(false);
-    setActiveArtifact("map");
-    setSelectedArtwork(null);
-    setMapNavigation({ startId: "entrance", destinationId: "", currentNodeId: null });
+    // Reset related page state together before connecting.
+    patchTourPageState({
+      isTourActive: true,
+      isExpanded: false,
+      activeArtifact: "map",
+      selectedArtwork: null,
+      mapNavigation: { startId: "entrance", destinationId: "", currentNodeId: null },
+      originMapRoute: "entrance",
+      activeMapRoute: "entrance",
+      guestLocationId: "entrance",
+      galleryStates: {},
+      chatMessages: [],
+      isChatThinking: false,
+    });
     setMapViewport(null);
     setAgentStatus("listening");
     setActiveExpressionId(isMuted ? "muted" : "listening");
-    setChatMessages([]);
-    setIsChatThinking(false);
-    setOriginMapRoute("entrance");
-    setActiveMapRoute("entrance");
 
     // Initialize greeting lifecycle refs
     replyIndexRef.current = 0;
@@ -668,10 +801,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     isMutedRef.current = isMuted;
     isQuietModeRef.current = false;
     setIsQuietMode(false);
-    guestLocationRef.current = "entrance";
-    setGuestLocationId("entrance");
-    // Reset all gallery states atomically
-    resetGalleryStates();
+
     shouldUncollapseAfterSpeechRef.current = false;
 
     // 1. Initialize audio player for voice responses
@@ -695,18 +825,23 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     // 3. Connect Voice Agent session
     const callbacks: VoiceAgentCallbacks = {
       onReady: (sessionId) => {
+        transitionVoiceConnection("connected");
+        setAgentStatus("listening");
+        setConnectionError(null);
+        setActiveExpressionId(isMutedRef.current ? "muted" : "listening");
         console.log("[AssemblyAI] Tour session ready:", sessionId);
         if (mediaStreamRef.current) {
           agentRef.current?.startAudio(mediaStreamRef.current);
         }
       },
       onUserSpeakingStart: () => {
+        if (voiceConnectionRef.current !== "connected") return;
         bargeIn();
         hasUserInteractedRef.current = true;
         greetingPhaseRef.current = "done";
       },
       onTranscriptPartial: (text) => {
-        if (!text) return;
+        if (voiceConnectionRef.current !== "connected" || !text) return;
         hasUserInteractedRef.current = true;
         greetingPhaseRef.current = "done";
 
@@ -753,7 +888,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         });
       },
       onTranscriptFinal: (text) => {
-        if (!text?.trim()) return;
+        if (voiceConnectionRef.current !== "connected" || !text?.trim()) return;
         hasUserInteractedRef.current = true;
         greetingPhaseRef.current = "done";
 
@@ -822,7 +957,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         setAgentStatus("thinking");
       },
       onAgentTranscriptPartial: (text) => {
-        if (!text) return;
+        if (voiceConnectionRef.current !== "connected" || !text) return;
         setIsChatThinking(false);
         setAgentStatus("speaking");
 
@@ -854,7 +989,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         });
       },
       onAgentTranscriptFinal: (text) => {
-        if (!text?.trim()) return;
+        if (voiceConnectionRef.current !== "connected" || !text?.trim()) return;
         setIsChatThinking(false);
         setChatMessages((prev) => {
           const filtered = prev.filter((m) => m.id !== partialAgentMsgIdRef.current);
@@ -873,6 +1008,8 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         partialAgentMsgIdRef.current = `agent-partial-${Date.now()}`;
       },
       onAgentSpeakingStart: () => {
+        if (voiceConnectionRef.current !== "connected") return;
+        if (visualHandoffStatus === "queued") setVisualHandoffStatus("speaking");
         ignoreAudioUntilNextReplyRef.current = false;
         setAgentStatus("speaking");
         if (hotspotSpeechPhaseRef.current === "pending_reply") {
@@ -880,6 +1017,8 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         }
       },
       onAgentSpeakingEnd: (interrupted) => {
+        if (voiceConnectionRef.current !== "connected") return;
+        if (visualHandoffStatus === "queued" || visualHandoffStatus === "speaking") setVisualHandoffStatus("idle");
         replyIndexRef.current += 1;
         const isInitialGreetingTurn = replyIndexRef.current === 1;
 
@@ -918,14 +1057,10 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             }
             if (greetingPhaseRef.current === "greeting" && !hasUserInteractedRef.current) {
               greetingPhaseRef.current = "done";
-              setIsExpanded((prev) => {
-                if (!prev) {
-                  setActiveArtifact("map");
-                  playStageOpen();
-                  return true;
-                }
-                return prev;
-              });
+              if (!isExpandedRef.current) {
+                patchTourPageState({ isExpanded: true, activeArtifact: "map" });
+                playStageOpen();
+              }
             }
 
             // If card was collapsed for Alba's explanation, uncollapse it automatically when done!
@@ -938,11 +1073,15 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         }
       },
       onAgentAudio: (base64) => {
-        // If quiet reading mode is enabled or turn was interrupted by barge-in, suppress audio playback completely
-        if (isQuietModeRef.current || ignoreAudioUntilNextReplyRef.current) return;
+        // Ignore audio after the authoritative voice connection has ended.
+        if (voiceConnectionRef.current !== "connected" || isQuietModeRef.current || ignoreAudioUntilNextReplyRef.current) return;
         audioPlayerRef.current?.playChunk(base64);
       },
       onToolCall: (tool) => {
+        if (voiceConnectionRef.current !== "connected") {
+          setIsArtifactLoading(false);
+          return;
+        }
         console.log("[AssemblyAI] Executing tool call:", tool.name, tool.arguments);
         // Only trigger artifact loading skeleton for actual content changes, NOT if previewing an info card
         if (tool.name !== "show_info" && tool.name !== "show_artwork_info") {
@@ -956,8 +1095,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         } else if (tool.name === "show_map") {
           const routeId = (tool.arguments.routeId as string) || "rotunda";
           const showPath = Boolean(tool.arguments.showPath);
-          setActiveArtifact("map");
-          setActiveMapRoute(routeId);
 
           const routeDestinationMap: Record<string, string> = {
             perspective: "art:masaccio-holy-trinity",
@@ -969,23 +1106,26 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             restrooms: "facility:restrooms",
           };
           const destId = routeDestinationMap[routeId] || "";
-          // ONLY plot a walking route path if the user explicitly requested directions from A to B (showPath: true)
+          // Keep map presentation, route, and simulated arrival together.
+          const mapPatch: TourPageStatePatch = {
+            activeArtifact: "map",
+            activeMapRoute: routeId,
+          };
           if (showPath && destId) {
-            setMapNavigation({
+            mapPatch.mapNavigation = {
               startId: guestLocationRef.current,
               destinationId: destId,
               currentNodeId: null,
-            });
-            guestLocationRef.current = destId;
-            setGuestLocationId(destId);
+            };
+            mapPatch.guestLocationId = destId;
           } else {
-            // Otherwise just show the floor plan without drawing any path line
-            setMapNavigation((prev) => ({
+            mapPatch.mapNavigation = (prev) => ({
               ...prev,
               destinationId: "",
               currentNodeId: null,
-            }));
+            });
           }
+          patchTourPageState(mapPatch);
 
           setChatMessages((prev) => [
             ...prev,
@@ -1031,32 +1171,34 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           }
           const hotspotId = matchedHotspot.id;
           const artPlaceId = `art:${artwork.id}`;
-          setActiveArtworkId(artwork.id);
-          setSelectedArtwork({
-            id: artwork.id,
-            title: artwork.title,
-            imageSrc: artwork.imageSrc,
-            summary: artwork.summary,
-            metadata: [
-              { label: "Artist", value: artwork.artist },
-              { label: "Date", value: artwork.year },
-            ],
-          });
+          const artworkPatch: TourPageStatePatch = {
+            activeArtworkId: artwork.id,
+            selectedArtwork: {
+              id: artwork.id,
+              title: artwork.title,
+              imageSrc: artwork.imageSrc,
+              summary: artwork.summary,
+              metadata: [
+                { label: "Artist", value: artwork.artist },
+                { label: "Date", value: artwork.year },
+              ],
+            },
+            activeArtifact: "artwork-view",
+            isExpanded: true,
+            guestLocationId: artPlaceId,
+          };
+          if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
+            artworkPatch.activeMapRoute = WING_ROUTE_MAP[artwork.wingId];
+          }
+          patchTourPageState(artworkPatch);
+
           // Display the hotspots on the fullscreen artwork presentation!
           if (hotspotDismissTimerRef.current) {
             clearTimeout(hotspotDismissTimerRef.current);
             hotspotDismissTimerRef.current = null;
           }
-          setActiveArtifact("artwork-view");
           setActiveHotspotId(hotspotId);
           hotspotSpeechPhaseRef.current = "pending_reply";
-          setIsExpanded(true);
-          // Track guest location without triggering an unrequested path route line
-          guestLocationRef.current = artPlaceId;
-          setGuestLocationId(artPlaceId);
-          if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
-            setActiveMapRoute(WING_ROUTE_MAP[artwork.wingId]);
-          }
           setChatMessages((prev) => [
             ...prev,
             {
@@ -1074,30 +1216,32 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           const rawId = (tool.arguments.artworkId as string) || activeArtworkId || "masaccio-holy-trinity";
           const artId = resolveArtworkId(rawId);
           const artwork = TURNING_POINTS_ARTWORKS[artId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
-          setActiveArtworkId(artwork.id);
-          // If the visitor is viewing the artwork in fullscreen, don't kick them out back to card info
-          setActiveArtifact((prev) => (prev === "artwork-view" ? prev : "info"));
-          setSelectedArtwork({
-            id: artwork.id,
-            title: artwork.title,
-            imageSrc: artwork.imageSrc,
-            summary: artwork.summary,
-            metadata: [
-              { label: "Artist", value: artwork.artist },
-              { label: "Date", value: artwork.year },
-            ],
-          });
+          // If the visitor is viewing the artwork in fullscreen, don't kick them out back to card info.
+          const artworkPatch: TourPageStatePatch = {
+            activeArtworkId: artwork.id,
+            activeArtifact: (prev) => (prev === "artwork-view" ? prev : "info"),
+            selectedArtwork: {
+              id: artwork.id,
+              title: artwork.title,
+              imageSrc: artwork.imageSrc,
+              summary: artwork.summary,
+              metadata: [
+                { label: "Artist", value: artwork.artist },
+                { label: "Date", value: artwork.year },
+              ],
+            },
+            isExpanded: true,
+          };
           // Update guest location without drawing a path route line
           const artPlaceId = `art:${artwork.id}`;
-          guestLocationRef.current = artPlaceId;
-          setGuestLocationId(artPlaceId);
+          artworkPatch.guestLocationId = artPlaceId;
           // Gallery state (exploring/completed/unexplored) is owned exclusively by the state machine.
           // show_info NEVER modifies it — this prevents a completed artwork from being incorrectly
           // re-flagged as "exploring" when the agent calls show_info to re-display the card.
           if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
-            setActiveMapRoute(WING_ROUTE_MAP[artwork.wingId]);
+            artworkPatch.activeMapRoute = WING_ROUTE_MAP[artwork.wingId];
           }
-          setIsExpanded(true);
+          patchTourPageState(artworkPatch);
           setChatMessages((prev) => [
             ...prev,
             {
@@ -1231,10 +1375,14 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       },
       onError: (code, message) => {
         console.warn("[AssemblyAI] Agent error:", code, message);
+        transitionVoiceConnection("failed");
+        setAgentStatus("listening");
+        setIsChatThinking(false);
+        setActiveExpressionId("neutral");
+        setConnectionError(message || "Alba could not connect. Check your connection and retry.");
       },
-      onEnded: () => {
-        console.log("[AssemblyAI] Voice agent session ended.");
-        void handleConfirmEndTour();
+      onEnded: (reason) => {
+        handleUnexpectedSessionEnd(reason);
       },
     };
 
@@ -1247,10 +1395,49 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       }
     } catch (err) {
       console.warn("[AssemblyAI] Agent connection skipped or failed:", err);
+      transitionVoiceConnection("failed");
+      setAgentStatus("listening");
+      setIsChatThinking(false);
+      setActiveExpressionId("neutral");
+      setConnectionError(err instanceof Error ? err.message : "Alba could not connect. Check your connection and retry.");
+    }
+  };
+
+  const handleUnexpectedSessionEnd = (reason: VoiceAgentEndReason) => {
+    transitionVoiceConnection("failed");
+    setIsChatThinking(false);
+    setAgentStatus("listening");
+    setActiveExpressionId("neutral");
+    stopMic();
+    agentRef.current = null;
+    const isExpired = reason.type === "expired";
+    setConnectionError(isExpired ? "This voice session reached its 180-second limit. You can continue exploring or start a new session." : reason.type === "disconnected" ? "Alba's connection was interrupted. Your tour remains open; retry to talk with her again." : reason.message || "Alba's voice session ended. Your tour remains open.");
+    if (isExpired) setSessionExpiryDialogOpen(true);
+  };
+
+  const handleRetryConnection = async () => {
+    setConnectionError(null);
+    transitionVoiceConnection("connecting");
+    try {
+      agentRef.current?.end();
+      agentRef.current = null;
+      if (!audioPlayerRef.current) audioPlayerRef.current = createAudioPlayer();
+      const agent = await createVoiceAgent(agentCallbacksRef.current ?? {}, { isMuted: isMutedRef.current });
+      agentRef.current = agent;
+      if (!isMutedRef.current && mediaStreamRef.current) agent.startAudio(mediaStreamRef.current);
+    } catch (err) {
+      transitionVoiceConnection("failed");
+      setIsChatThinking(false);
+      setConnectionError(err instanceof Error ? err.message : "Alba could not connect. Check your connection and retry.");
     }
   };
 
   const handleConfirmEndTour = async () => {
+    visualAnalysisRequestRef.current += 1;
+    transitionVoiceConnection("idle");
+    setConnectionError(null);
+    setMicError(null);
+    setSessionExpiryDialogOpen(false);
     playCallEnd();
     setIsEndDialogOpen(false);
 
@@ -1266,29 +1453,27 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     muteWarningSentRef.current = false;
     isQuietModeRef.current = false;
     setIsQuietMode(false);
-    guestLocationRef.current = "entrance";
-    setGuestLocationId("entrance");
-    // Reset all gallery states atomically
-    resetGalleryStates();
+    patchTourPageState({
+      guestLocationId: "entrance",
+      galleryStates: {},
+      mapNavigation: { startId: "entrance", destinationId: "", currentNodeId: null },
+      isTourActive: false,
+      isExpanded: false,
+      activeArtifact: "info",
+      chatMessages: [],
+      isChatThinking: false,
+      originMapRoute: "entrance",
+      activeMapRoute: "entrance",
+    });
     shouldUncollapseAfterSpeechRef.current = false;
-    setMapNavigation({ startId: "entrance", destinationId: "", currentNodeId: null });
-
-    // Reset back to pre-tour state
-    setIsTourActive(false);
-    setIsExpanded(false);
-    setActiveArtifact("info");
     setActiveExpressionId("neutral");
-    setChatMessages([]);
-    setIsChatThinking(false);
-    setOriginMapRoute("entrance");
-    setActiveMapRoute("entrance");
   };
 
   // Derived from the gallery state machine for rendering (map ring colors, card buttons, showTourActions)
   const activeTourArtworkId = Object.keys(galleryStates).find((k) => galleryStates[k] === "exploring") ?? null;
   const completedArtworkIds = Object.keys(galleryStates).filter((k) => galleryStates[k] === "completed");
 
-  const isListening = isTourActive && !isMuted && activeExpressionId === "listening";
+  const isListening = isVoiceReady && !isMuted && activeExpressionId === "listening";
 
   // Original top-right inverted border radius (outer edge of circle matches top and right borders)
   const btnRadius = tuning.closeSize / 2;
@@ -1327,14 +1512,14 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         // Do NOT call bargeIn() here so narration continues while viewing the map
         hasUserInteractedRef.current = true;
         if (isExpanded && activeArtifact === "map") {
-          setIsExpanded(false);
+          patchTourPageState({ isExpanded: false });
           playStageClose();
         } else {
-          setActiveArtifact("map");
-          if (!isExpanded) {
-            setIsExpanded(true);
-            playStageOpen();
-          }
+          patchTourPageState({
+            activeArtifact: "map",
+            ...(isExpanded ? {} : { isExpanded: true }),
+          });
+          if (!isExpanded) playStageOpen();
         }
       }}
       aria-label={isExpanded && activeArtifact === "map" ? "Close map" : "Open map"}
@@ -1353,14 +1538,14 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         // Do NOT call bargeIn() here so narration continues while reading transcriptions
         hasUserInteractedRef.current = true;
         if (isExpanded && activeArtifact === "chat") {
-          setIsExpanded(false);
+          patchTourPageState({ isExpanded: false });
           playStageClose();
         } else {
-          setActiveArtifact("chat");
-          if (!isExpanded) {
-            setIsExpanded(true);
-            playStageOpen();
-          }
+          patchTourPageState({
+            activeArtifact: "chat",
+            ...(isExpanded ? {} : { isExpanded: true }),
+          });
+          if (!isExpanded) playStageOpen();
         }
       }}
       aria-label={isExpanded && activeArtifact === "chat" ? "Close transcript" : "Open transcript"}
@@ -1375,6 +1560,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     <button
       type="button"
       onClick={toggleMic}
+      disabled={!isVoiceReady}
       aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
       title={isMuted ? "Unmute microphone" : "Mute microphone"}
       className="call-group-mic-btn size-9 rounded-full border border-border/80 bg-card hover:bg-muted text-foreground flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0 shadow-xs"
@@ -1407,25 +1593,16 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     // Toggling stage expansion should not cut off narration
     hasUserInteractedRef.current = true;
     shouldUncollapseAfterSpeechRef.current = false;
-    setIsExpanded((prev) => {
-      const next = !prev;
-      if (next) {
-        playStageOpen();
-        setActiveArtifact("map");
-      } else {
-        playStageClose();
-      }
-      return next;
-    });
+    const next = !isExpandedRef.current;
+    patchTourPageState(next
+      ? { isExpanded: true, activeArtifact: "map" }
+      : { isExpanded: false });
+    if (next) playStageOpen();
+    else playStageClose();
   };
 
-  const isEffectivelyMuted = isTourActive && isMuted;
-  const statusLabel = isQuietMode
-    ? "Quiet"
-    : isEffectivelyMuted
-      ? "Muted"
-      : agentStatus;
-  const areDotsActive = isTourActive && !isMuted && !isQuietMode;
+  const isEffectivelyMuted = isVoiceReady && isMuted;
+  const statusLabel = voiceConnection === "connecting" ? "Connecting..." : voiceConnection === "failed" ? "Unable to connect" : !isVoiceReady ? "Idle" : isQuietMode ? "Quiet" : isEffectivelyMuted ? "Muted" : agentStatus;
 
   const statusIndicator = (
     <div
@@ -1433,11 +1610,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     >
       <span className="capitalize font-medium text-[#72706b]">
         {statusLabel}
-      </span>
-      <span className="inline-flex items-center gap-1 ml-0.5">
-        <span className={`size-1.5 rounded-full bg-[#72706b] ${areDotsActive ? "animate-bounce [animation-delay:-0.3s]" : "opacity-60"}`} />
-        <span className={`size-1.5 rounded-full bg-[#72706b] ${areDotsActive ? "animate-bounce [animation-delay:-0.15s]" : "opacity-60"}`} />
-        <span className={`size-1.5 rounded-full bg-[#72706b] ${areDotsActive ? "animate-bounce" : "opacity-60"}`} />
       </span>
     </div>
   );
@@ -1604,36 +1776,38 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                       onViewArtworkFullscreen={() => setActiveArtifact("artwork-view")}
                       onEndGalleryTour={handleEndGalleryTour}
                       onSelectArtwork={(artwork) => {
+                        visualAnalysisRequestRef.current += 1;
                         hasUserInteractedRef.current = true;
                         const rawId = artwork.id || activeArtworkId || "masaccio-holy-trinity";
                         const resolvedId = resolveArtworkId(rawId);
                         const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
                         const isSameGallery = targetArtwork.id === activeArtworkId;
 
-                        // Ensure no route line is plotted when simply viewing/selecting a gallery
-                        setMapNavigation((prev) => ({
-                          ...prev,
-                          destinationId: "",
-                          currentNodeId: null,
-                        }));
-
-                        setActiveArtworkId(targetArtwork.id);
-                        setSelectedArtwork({
-                          id: targetArtwork.id,
-                          title: targetArtwork.title,
-                          imageSrc: targetArtwork.imageSrc,
-                          summary: targetArtwork.summary,
-                          metadata: [
-                            { label: "Artist", value: targetArtwork.artist },
-                            { label: "Date", value: targetArtwork.year },
-                          ],
-                        });
+                        // Keep gallery selection and its card view in one state transition without plotting a route.
+                        const artworkPatch: TourPageStatePatch = {
+                          mapNavigation: (prev) => ({
+                            ...prev,
+                            destinationId: "",
+                            currentNodeId: null,
+                          }),
+                          activeArtworkId: targetArtwork.id,
+                          selectedArtwork: {
+                            id: targetArtwork.id,
+                            title: targetArtwork.title,
+                            imageSrc: targetArtwork.imageSrc,
+                            summary: targetArtwork.summary,
+                            metadata: [
+                              { label: "Artist", value: targetArtwork.artist },
+                              { label: "Date", value: targetArtwork.year },
+                            ],
+                          },
+                          activeArtifact: "info",
+                          isExpanded: true,
+                        };
                         if (targetArtwork.wingId && WING_ROUTE_MAP[targetArtwork.wingId]) {
-                          setActiveMapRoute(WING_ROUTE_MAP[targetArtwork.wingId]);
+                          artworkPatch.activeMapRoute = WING_ROUTE_MAP[targetArtwork.wingId];
                         }
-
-                        setActiveArtifact("info");
-                        setIsExpanded(true);
+                        patchTourPageState(artworkPatch);
                         playTactileTap();
 
                         // Use the state machine's ref for an accurate snapshot (not the closure-captured derived value)
@@ -1684,15 +1858,16 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                       hotspotId={activeHotspotId}
                       isLoading={isArtifactLoading}
                       chatMessages={chatMessages}
-                      isChatThinking={isChatThinking}
+                      isChatThinking={isChatThinking || visualHandoffStatus === "queued"}
                       onSelectArtifact={(type, params) => {
                         hasUserInteractedRef.current = true;
                         // Going to maps, transcriptions, or returning to current info does NOT stop narration
                         if (type !== "map" && type !== "chat" && type !== "info") {
                           bargeIn();
                         }
-                        setActiveArtifact(type);
-                        if (params?.routeId) setActiveMapRoute(params.routeId as any);
+                        const artifactPatch: TourPageStatePatch = { activeArtifact: type };
+                        if (params?.routeId) artifactPatch.activeMapRoute = params.routeId as string;
+                        patchTourPageState(artifactPatch);
                         if (params?.hotspotId) setActiveHotspotId(params.hotspotId as any);
                         playTactileTap();
                       }}
@@ -1727,11 +1902,12 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                 aria-expanded={isExpanded}
               >
                 <ArticulateAvatar
-                  expressionId={activeExpressionId}
+                  expressionId={isVoiceReady ? activeExpressionId : "neutral"}
                   size={480}
                   isListening={isListening}
-                  isMuted={isTourActive && isMuted}
-                  isSpeaking={agentStatus === "speaking"}
+                  isMuted={isVoiceReady && isMuted}
+                  isConnecting={voiceConnection === "connecting" || voiceConnection === "failed"}
+                  isSpeaking={isVoiceReady && agentStatus === "speaking"}
                   audioLevel={audioLevel}
                   shape={0.11}
                   className="relative flex items-center justify-center"
@@ -1746,6 +1922,23 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
               >
                 {statusIndicator}
               </div>
+
+              {isTourActive && (connectionError || micError) && (
+                <div className="fixed top-4 left-1/2 z-30 w-[min(32rem,calc(100%-2rem))] -translate-x-1/2">
+                  <Alert>
+                    <HugeIcon icon={InformationCircleIcon} size={16} />
+                    <AlertTitle>{voiceConnection === "failed" ? "Voice session unavailable" : "Microphone unavailable"}</AlertTitle>
+                    <AlertDescription>{voiceConnection === "failed" ? connectionError : micError}</AlertDescription>
+                    {micError && !connectionError && (
+                      <AlertAction>
+                        <Button type="button" variant="ghost" size="icon-xs" aria-label="Dismiss microphone alert" onClick={() => setMicError(null)}>
+                          <HugeIcon icon={Cancel01Icon} size={14} />
+                        </Button>
+                      </AlertAction>
+                    )}
+                  </Alert>
+                </div>
+              )}
 
               {/* Persistent Media Dock: Exact same position at bottom whether uncollapsed or collapsed */}
               <div className="guide-dock" role="group" aria-label="Tour controls">
@@ -1782,9 +1975,10 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         <ImmersiveArtworkView
           artwork={selectedArtwork}
           onAskAboutSelection={handleAskAboutSelection}
-          avatar={<ArticulateAvatar expressionId={activeExpressionId} size={112} isListening={isListening} isMuted={isMuted} isSpeaking={agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
+          avatar={<ArticulateAvatar expressionId={isVoiceReady ? activeExpressionId : "neutral"} size={112} isListening={isListening} isMuted={isVoiceReady && isMuted} isConnecting={voiceConnection === "connecting" || voiceConnection === "failed"} isSpeaking={isVoiceReady && agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
           controls={callGroup}
           onBackToDetails={() => {
+            visualAnalysisRequestRef.current += 1;
             setActiveHotspotId(null);
             setActiveArtifact("info");
           }}
@@ -1850,34 +2044,23 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         </DialogContent>
       </Dialog>
       {/* Confirmation Dialog: End Tour */}
-      <Dialog open={isEndDialogOpen} onOpenChange={setIsEndDialogOpen}>
+      <Dialog open={isEndDialogOpen || sessionExpiryDialogOpen} onOpenChange={(open) => { setIsEndDialogOpen(open); if (!open) setSessionExpiryDialogOpen(false); }}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>End tour?</DialogTitle>
+            <DialogTitle>{sessionExpiryDialogOpen ? "Voice session ended" : "End tour?"}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to end your tour? This will disconnect your conversation session with Alba.
+              {sessionExpiryDialogOpen
+                ? "This voice session reached its 180-second limit. Your tour is still open, and you can continue exploring."
+                : "Are you sure you want to end your tour? This will disconnect your conversation session with Alba."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                playTactileTap();
-                setIsEndDialogOpen(false);
-              }}
-              className="rounded-lg h-9 px-4 text-sm font-medium bg-card hover:bg-subtle border border-border text-foreground cursor-pointer shadow-none"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              onClick={handleConfirmEndTour}
-              className="rounded-lg h-9 px-4 text-sm font-medium cursor-pointer"
-            >
-              End tour
-            </Button>
+            {sessionExpiryDialogOpen ? (
+              <Button type="button" onClick={() => setSessionExpiryDialogOpen(false)}>Continue exploring</Button>
+            ) : <>
+              <Button type="button" variant="outline" onClick={() => { playTactileTap(); setIsEndDialogOpen(false); }} className="rounded-lg h-9 px-4 text-sm font-medium bg-card hover:bg-subtle border border-border text-foreground cursor-pointer shadow-none">Cancel</Button>
+              <Button type="button" variant="default" onClick={handleConfirmEndTour} className="rounded-lg h-9 px-4 text-sm font-medium cursor-pointer">End tour</Button>
+            </>}
           </DialogFooter>
         </DialogContent>
       </Dialog>

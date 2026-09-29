@@ -44,10 +44,16 @@ export type VoiceAgentCallbacks = {
   /** Session is ready (after session.ready) */
   onReady?: (sessionId: string) => void;
   /** Session ended cleanly */
-  onEnded?: () => void;
+  onEnded?: (reason: VoiceAgentEndReason) => void;
   /** An error occurred */
   onError?: (code: string, message: string) => void;
 };
+
+export type VoiceAgentEndReason =
+  | { type: "ended"; code?: string; message?: string }
+  | { type: "expired"; code?: string; message?: string }
+  | { type: "disconnected"; code?: number; message: string }
+  | { type: "failed"; code?: string; message: string };
 
 export type VoiceAgent = {
   /** Start streaming mic audio to the agent */
@@ -62,6 +68,7 @@ export type VoiceAgent = {
   end: () => void;
   /** Whether the WebSocket is currently open */
   readonly connected: boolean;
+  readonly ready: boolean;
 };
 
 /**
@@ -77,7 +84,7 @@ export async function createVoiceAgent(
 ): Promise<VoiceAgent> {
   const isMuted = options?.isMuted ?? true;
   // 1. Fetch temp token + agent ID from our server
-  const tokenRes = await fetch("/api/agent-token");
+  const tokenRes = await fetch("/api/agent-token", { cache: "no-store" });
   if (!tokenRes.ok) {
     const { error } = await tokenRes.json().catch(() => ({ error: "unknown" }));
     throw new Error(`Failed to get agent token: ${error}`);
@@ -89,6 +96,9 @@ export async function createVoiceAgent(
   const ws = new WebSocket(wsUrl);
 
   let isConnected = false;
+  let sessionEndReason: VoiceAgentEndReason | null = null;
+  let endedNotified = false;
+  let manuallyEnded = false;
   let mediaRecorder: MediaRecorder | null = null;
   let lastEvent: string | null = null;
   let toolFlushTimer: NodeJS.Timeout | null = null;
@@ -234,32 +244,55 @@ export async function createVoiceAgent(
 
       case "session.ended": {
         isConnected = false;
-        callbacks.onEnded?.();
+        const code = typeof msg.code === "string" ? msg.code : undefined;
+        const message = typeof msg.message === "string" ? msg.message : undefined;
+        const detail = String(code ?? "") + " " + String(message ?? "");
+        const duration = typeof msg.session_duration_seconds === "number" ? msg.session_duration_seconds : null;
+        const reachedDurationLimit = duration !== null && duration >= 180;
+        const previousExpiry = sessionEndReason?.type === "expired" ? sessionEndReason : null;
+        const isExpired = previousExpiry !== null || reachedDurationLimit || /expir|duration|time.?limit|maximum.*session|session.*maximum/i.test(detail);
+        sessionEndReason = isExpired
+          ? previousExpiry ?? { type: "expired", code, message }
+          : { type: "ended", code, message };
+        if (!endedNotified) {
+          endedNotified = true;
+          callbacks.onEnded?.(sessionEndReason);
+        }
         break;
       }
 
       case "session.error": {
-        callbacks.onError?.(msg.code as string, msg.message as string);
+        const code = typeof msg.code === "string" ? msg.code : "agent_error";
+        const message = typeof msg.message === "string" ? msg.message : "Voice session failed.";
+        const isExpired = code.toLowerCase() === "session_expired";
+        sessionEndReason = isExpired ? { type: "expired", code, message } : { type: "failed", code, message };
+        if (isExpired && !endedNotified) {
+          endedNotified = true;
+          callbacks.onEnded?.(sessionEndReason);
+        } else if (!isExpired) {
+          callbacks.onError?.(code, message);
+        }
         break;
       }
     }
   };
 
   ws.onerror = () => {
+    if (sessionEndReason?.type === "expired") return;
     // Pre-handshake failures (UNAUTHORIZED etc.) surface as close 1006
     // — no session.error payload arrives in this case
+    sessionEndReason = { type: "failed", code: "connection_error", message: "WebSocket connection failed" };
     callbacks.onError?.("connection_error", "WebSocket connection failed");
   };
 
   ws.onclose = (event) => {
     const wasActive = isConnected;
     isConnected = false;
-    if (wasActive) {
-      callbacks.onEnded?.();
-    }
-    if (!event.wasClean) {
-      // Network drop — session preserved for 30s, could session.resume here
-      callbacks.onError?.("disconnected", `Connection closed unexpectedly (${event.code})`);
+    if (!manuallyEnded && !endedNotified && (wasActive || !event.wasClean)) {
+      endedNotified = true;
+      callbacks.onEnded?.(sessionEndReason ?? (event.wasClean
+        ? { type: "ended", code: String(event.code), message: event.reason || "Session ended." }
+        : { type: "disconnected", code: event.code, message: event.reason || "Connection closed unexpectedly (" + event.code + ")" }));
     }
   };
 
@@ -439,6 +472,7 @@ registerProcessor('pcm-processor', PcmProcessor);
   }
 
   function end() {
+    manuallyEnded = true;
     if (toolFlushTimer) {
       clearTimeout(toolFlushTimer);
       toolFlushTimer = null;
@@ -470,6 +504,9 @@ registerProcessor('pcm-processor', PcmProcessor);
     end,
     get connected() {
       return isConnected;
+    },
+    get ready() {
+      return isConnected && ws.readyState === WebSocket.OPEN;
     },
   };
 }
