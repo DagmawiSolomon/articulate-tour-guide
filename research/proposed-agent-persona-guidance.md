@@ -32,4 +32,4 @@ Alba should sound like the same warm, composed museum guide in greetings, galler
 
 ## Review status
 
-These additions need review against the existing base prompt and per-action instructions. The requested comprehensive script audit was skipped, and no live audio or deployed-agent check was performed.
+These additions need review against the existing local base prompt and per-action instructions; the read-only source inventory is available in `research/alba-scripts-report.md`. No live audio or deployed-agent check was performed, and no prompt changes were deployed.
