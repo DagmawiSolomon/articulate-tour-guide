@@ -348,7 +348,7 @@ export function ExhibitFloorMapView({
             : "border-white ring-2 ring-stone-300";
 
           return <MapMarker key={work.id} longitude={longitude} latitude={latitude} anchor="center">
-            <button type="button" aria-label={`Open ${work.title} by ${work.artist}, ${work.year}`} title={work.title} onClick={()=>onSelectArtwork?.(artworkInfo(work))} className="group relative flex size-[62px] items-center justify-center rounded-full border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#20211f]">
+            <button type="button" aria-label={`Preview ${work.title}; hear a brief teaser from Alba during the tour`} title={`Preview ${work.title} for a brief Alba teaser during the tour`} onClick={()=>onSelectArtwork?.(artworkInfo(work))} className="group relative flex size-[62px] items-center justify-center rounded-full border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#20211f]">
               <span className={`relative block size-[58px] overflow-hidden rounded-full border-[3px] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.25)] transition-transform group-hover:scale-110 group-focus-visible:scale-110 ${ringClasses}`}>
                 <Image src={work.image} alt="" fill sizes="64px" className="object-cover" />
               </span>
