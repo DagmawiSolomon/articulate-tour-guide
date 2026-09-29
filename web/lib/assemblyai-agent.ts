@@ -91,13 +91,18 @@ export async function createVoiceAgent(
     const { error } = await tokenRes.json().catch(() => ({ error: "unknown" }));
     throw new Error(`Failed to get agent token: ${error}`);
   }
-  const { token, agentId } = await tokenRes.json();
+  const tokenData = await tokenRes.json();
+  const token = tokenData.token;
+  const agentId = tokenData.agentId;
+  const maxSessionDurationSeconds = Number(tokenData.maxSessionDurationSeconds) || 180;
 
   // 2. Open WebSocket with token as query param
   const wsUrl = `wss://agents.assemblyai.com/v1/ws?token=${encodeURIComponent(token)}`;
   const ws = new WebSocket(wsUrl);
 
   let isConnected = false;
+  let sessionStartTime: number | null = null;
+  let maxDurationTimer: ReturnType<typeof setTimeout> | null = null;
   let sessionEndReason: VoiceAgentEndReason | null = null;
   let endedNotified = false;
   let manuallyEnded = false;
@@ -129,6 +134,7 @@ export async function createVoiceAgent(
 
   ws.onopen = () => {
     isConnected = true;
+    console.log("[AssemblyAI] WebSocket opened. Binding agent ID:", agentId);
     // 3. Bind stored agent — all config (prompt, voice=alba, tools) lives server-side
     ws.send(
       JSON.stringify({
@@ -150,7 +156,42 @@ export async function createVoiceAgent(
 
     switch (type) {
       case "session.ready": {
-        console.log("[Agent] Session ready full config:", msg);
+        sessionStartTime = Date.now();
+        console.log("[AssemblyAI] Session ready:", {
+          sessionId: msg.session_id,
+          maxDurationSeconds: maxSessionDurationSeconds,
+          readyAt: new Date(sessionStartTime).toISOString(),
+        });
+
+        // Client-side watchdog timer: AssemblyAI docs recommend running a client-side
+        // timer to ensure sessions terminate cleanly when the duration cap is hit.
+        if (maxSessionDurationSeconds > 0) {
+          if (maxDurationTimer) clearTimeout(maxDurationTimer);
+          maxDurationTimer = setTimeout(() => {
+            if (!isConnected || endedNotified || manuallyEnded) return;
+            console.warn(`[AssemblyAI] Client watchdog: session hit ${maxSessionDurationSeconds}s cap. Ending session.`);
+            sessionEndReason = {
+              type: "expired",
+              code: "session_expired",
+              message: `Session reached the ${maxSessionDurationSeconds}-second duration limit.`,
+            };
+            try {
+              ws.send(JSON.stringify({ type: "session.end" }));
+            } catch {
+              // ignore
+            }
+            if (!endedNotified) {
+              endedNotified = true;
+              callbacks.onEnded?.(sessionEndReason);
+            }
+            try {
+              ws.close(1000, "Max duration reached");
+            } catch {
+              // ignore
+            }
+          }, (maxSessionDurationSeconds + 1) * 1000);
+        }
+
         callbacks.onReady?.(msg.session_id as string);
         break;
       }
@@ -246,15 +287,27 @@ export async function createVoiceAgent(
 
       case "session.ended": {
         isConnected = false;
+        if (maxDurationTimer) {
+          clearTimeout(maxDurationTimer);
+          maxDurationTimer = null;
+        }
         const code = typeof msg.code === "string" ? msg.code : undefined;
         const message = typeof msg.message === "string" ? msg.message : undefined;
         const detail = String(code ?? "") + " " + String(message ?? "");
         const duration = typeof msg.session_duration_seconds === "number" ? msg.session_duration_seconds : null;
-        const reachedDurationLimit = duration !== null && duration >= 180;
+        const audioDuration = typeof msg.audio_duration_seconds === "number" ? msg.audio_duration_seconds : null;
+        console.log("[AssemblyAI] session.ended received:", {
+          duration,
+          audioDuration,
+          code,
+          message,
+          elapsedSeconds: sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : null,
+        });
+        const reachedDurationLimit = duration !== null && duration >= (maxSessionDurationSeconds || 180);
         const previousExpiry = sessionEndReason?.type === "expired" ? sessionEndReason : null;
         const isExpired = previousExpiry !== null || reachedDurationLimit || /expir|duration|time.?limit|maximum.*session|session.*maximum/i.test(detail);
         sessionEndReason = isExpired
-          ? previousExpiry ?? { type: "expired", code, message }
+          ? previousExpiry ?? { type: "expired", code, message: message || `Session duration limit (${duration ?? 180}s) reached.` }
           : { type: "ended", code, message };
         if (!endedNotified) {
           endedNotified = true;
@@ -266,9 +319,14 @@ export async function createVoiceAgent(
       case "session.error": {
         const code = typeof msg.code === "string" ? msg.code : "agent_error";
         const message = typeof msg.message === "string" ? msg.message : "Voice session failed.";
-        const isExpired = code.toLowerCase() === "session_expired";
+        console.warn("[AssemblyAI] session.error received:", { code, message });
+        const isExpired = code.toLowerCase() === "session_expired" || /duration|expir/i.test(code);
         sessionEndReason = isExpired ? { type: "expired", code, message } : { type: "failed", code, message };
         if (isExpired && !endedNotified) {
+          if (maxDurationTimer) {
+            clearTimeout(maxDurationTimer);
+            maxDurationTimer = null;
+          }
           endedNotified = true;
           callbacks.onEnded?.(sessionEndReason);
         } else if (!isExpired) {
@@ -288,9 +346,37 @@ export async function createVoiceAgent(
   };
 
   ws.onclose = (event) => {
+    if (maxDurationTimer) {
+      clearTimeout(maxDurationTimer);
+      maxDurationTimer = null;
+    }
     const wasActive = isConnected;
     isConnected = false;
-    if (!manuallyEnded && !endedNotified && (wasActive || !event.wasClean)) {
+    const elapsedSeconds = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : null;
+    console.log("[AssemblyAI] WebSocket closed:", {
+      code: event.code,
+      reason: event.reason,
+      wasClean: event.wasClean,
+      elapsedSeconds,
+      sessionEndReason,
+    });
+
+    // Check if close code 1008 or reason indicates expiry
+    const isCloseExpired =
+      sessionEndReason?.type === "expired" ||
+      event.code === 1008 ||
+      /expir|duration|time.?limit|maximum/i.test(event.reason || "") ||
+      (elapsedSeconds !== null && elapsedSeconds >= (maxSessionDurationSeconds || 180));
+
+    if (isCloseExpired && !sessionEndReason) {
+      sessionEndReason = {
+        type: "expired",
+        code: String(event.code),
+        message: event.reason || `Session duration limit reached (${event.code}).`,
+      };
+    }
+
+    if (!manuallyEnded && !endedNotified && (wasActive || !event.wasClean || isCloseExpired)) {
       endedNotified = true;
       callbacks.onEnded?.(sessionEndReason ?? (event.wasClean
         ? { type: "ended", code: String(event.code), message: event.reason || "Session ended." }
@@ -480,6 +566,10 @@ registerProcessor('pcm-processor', PcmProcessor);
 
   function end() {
     manuallyEnded = true;
+    if (maxDurationTimer) {
+      clearTimeout(maxDurationTimer);
+      maxDurationTimer = null;
+    }
     if (toolFlushTimer) {
       clearTimeout(toolFlushTimer);
       toolFlushTimer = null;
