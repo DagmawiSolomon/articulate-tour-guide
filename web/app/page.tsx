@@ -1605,6 +1605,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                       onEndGalleryTour={handleEndGalleryTour}
                       onSelectArtwork={(artwork) => {
                         hasUserInteractedRef.current = true;
+                        bargeIn();
                         const rawId = artwork.id || activeArtworkId || "masaccio-holy-trinity";
                         const resolvedId = resolveArtworkId(rawId);
                         const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
