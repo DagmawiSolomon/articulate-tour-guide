@@ -156,7 +156,7 @@ export function ArtworkInfoCard({
                         className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-5 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
                         style={{ background: "var(--ink)", color: "#fff" }}
                       >
-                        Start tour
+                        Explore this artwork
                         <HugeIcon icon={ArrowRight02Icon} size={13} color="#ffffff" className="text-white" strokeWidth={2.2} />
                       </button>
                     )}
