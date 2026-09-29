@@ -47,7 +47,7 @@ Owner acceptance:
 - Keep additions within the existing map design.
 
 ### 4. Preserve transcript reading position — P2
-Status: Open.
+Status: Implemented (Ready for owner testing).
 
 The transcript jumps to the bottom on every update, including while the visitor is reading older messages. Auto-follow only while the visitor is already near the bottom.
 
@@ -107,6 +107,7 @@ Owner acceptance:
 
 ## Change log
 
+- 2026-09-29: Implemented Item 4 (preserve transcript reading scroll position when scrolled up).
 - 2026-09-29: Implemented Item 3 (interactive click-to-route amenity markers and full voice direction support).
 - 2026-09-29: Implemented Item 2 (queue tool results until reply.done and discard on interruption per AssemblyAI spec).
 - 2026-09-29: Implemented and accepted Item 1 (provider-owned session expiry with client duration cap per AssemblyAI spec).
