@@ -9,7 +9,7 @@ export type { CiteRef };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type ArtifactTarget = "info" | "map" | "comparison" | "timeline" | "hotspots";
+export type ArtifactTarget = "info" | "map" | "comparison" | "timeline" | "hotspots" | "artwork-view";
 
 export type ArtifactTokenPart = {
   text: string;

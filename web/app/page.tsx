@@ -233,7 +233,7 @@ export default function Home() {
   const [mapViewport, setMapViewport] = React.useState<MapViewport | null>(null);
   const [originMapRoute, setOriginMapRoute] = useTourPageField(tourPageState, dispatchTourPageState, "originMapRoute");
   const [activeMapRoute, setActiveMapRoute] = useTourPageField(tourPageState, dispatchTourPageState, "activeMapRoute");
-  const [activeHotspotId, setActiveHotspotId] = React.useState<string | undefined>(undefined);
+  const [activeHotspotId, setActiveHotspotId] = React.useState<string | null | undefined>(undefined);
   const [activeArtworkId, setActiveArtworkId] = useTourPageField(tourPageState, dispatchTourPageState, "activeArtworkId");
   const [comparisonPairId, setComparisonPairId] = React.useState<string>("comparison-perspective");
   // Quiet / Reading Mode: when true, visitor prefers to read and Alba remains silent
@@ -1088,19 +1088,19 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           if (hotspotSpeechPhaseRef.current === "explaining") {
             hotspotSpeechPhaseRef.current = "draining";
           }
-          // Decoupled mute warning: if base greeting just finished transmitting and visitor is still muted
-          if (isInitialGreetingTurn && greetingPhaseRef.current === "greeting") {
-            if (isMutedRef.current && !hasUserInteractedRef.current && !muteWarningSentRef.current) {
-              muteWarningSentRef.current = true;
-              agentRef.current?.triggerReply(
-                "Notice that the visitor's microphone is currently muted. In one concise, friendly sentence, remind them that their microphone is muted and they can tap the mic button whenever they want to speak or ask questions."
-              );
-            }
-          }
 
           // Wait for audio player to finish draining queued audio chunks in speakers
           audioPlayerRef.current?.onPlaybackComplete(() => {
             setAgentStatus("listening");
+            // Decoupled mute warning: only trigger once greeting has fully finished playing through speakers and visitor has not yet interacted
+            if (isInitialGreetingTurn && greetingPhaseRef.current === "greeting") {
+              if (isMutedRef.current && !hasUserInteractedRef.current && !muteWarningSentRef.current) {
+                muteWarningSentRef.current = true;
+                agentRef.current?.triggerReply(
+                  "Notice that the visitor's microphone is currently muted. In one concise, friendly sentence, remind them that their microphone is muted and they can tap the mic button whenever they want to speak or ask questions."
+                );
+              }
+            }
             if (hotspotSpeechPhaseRef.current === "draining") {
               hotspotSpeechPhaseRef.current = "idle";
               if (hotspotDismissTimerRef.current) clearTimeout(hotspotDismissTimerRef.current);
@@ -1888,11 +1888,12 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                       onSelectArtwork={(artwork) => {
                         visualAnalysisRequestRef.current += 1;
                         hasUserInteractedRef.current = true;
+                        muteWarningSentRef.current = true;
+                        greetingPhaseRef.current = "done";
                         const rawId = artwork.id || activeArtworkId || "masaccio-holy-trinity";
                         const resolvedId = resolveArtworkId(rawId);
                         const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
-                        const isSameGallery = targetArtwork.id === activeArtworkId;
-                        syncVisitorUiContext("selected the " + targetArtwork.title + " gallery", !isSameGallery);
+                        syncVisitorUiContext("selected the " + targetArtwork.title + " gallery", false);
 
                         // Keep gallery selection and its card view in one state transition without plotting a route.
                         const artworkPatch: TourPageStatePatch = {
@@ -1925,9 +1926,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                         const isCurrentlyExploring = galleryStatesRef.current[targetArtwork.id] === "exploring";
 
                         if (!isCurrentlyExploring && isTourActive) {
-                          muteWarningSentRef.current = true;
-                          greetingPhaseRef.current = "done";
-
                           const artworkState = galleryStatesRef.current[targetArtwork.id] ?? "unexplored";
                           // For completed artworks: acknowledge the visit WITHOUT suggesting revisiting
                           // (the Revisit button exists for user-initiated action only)
@@ -1966,13 +1964,16 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                       }}
                       mapRouteId={activeMapRoute}
                       originMapRouteId={originMapRoute}
-                      hotspotId={activeHotspotId}
+                      hotspotId={activeHotspotId ?? undefined}
                       isLoading={isArtifactLoading}
                       chatMessages={chatMessages}
                       isChatThinking={isChatThinking || visualHandoffStatus === "queued"}
                       onSelectArtifact={(type, params) => {
                         hasUserInteractedRef.current = true;
-                        syncVisitorUiContext("opened the " + type + " view" + (params?.routeId ? " for route " + params.routeId : "") + (params?.hotspotId ? " at detail " + params.hotspotId : ""), type !== "map" && type !== "chat" || Boolean(params?.routeId || params?.hotspotId));
+                        syncVisitorUiContext(
+                          "opened the " + type + " view" + (params?.routeId ? " for route " + params.routeId : "") + (params?.hotspotId ? " at detail " + params.hotspotId : ""),
+                          type !== "map" && type !== "chat" && type !== "info" || Boolean(params?.routeId || params?.hotspotId)
+                        );
                         const artifactPatch: TourPageStatePatch = { activeArtifact: type };
                         if (params?.routeId) artifactPatch.activeMapRoute = params.routeId as string;
                         patchTourPageState(artifactPatch);
