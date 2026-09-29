@@ -29,7 +29,7 @@ import {
 import { Footer } from "@/components/layout/footer";
 import { ArtifactStage, type ArtifactType, type ChatMessage } from "@/components/artifacts/artifact-stage";
 import { ImmersiveArtworkView } from "@/components/artifacts/immersive-artwork-view";
-import type { ExhibitArtworkInfo, ExhibitNavigationState } from "@/components/artifacts/exhibit-floor-map-view";
+import { getExhibitRouteDestination, INITIAL_EXHIBIT_NAVIGATION, type ExhibitArtworkInfo, type ExhibitNavigationState } from "@/components/artifacts/exhibit-floor-map-view";
 import type { MapViewport } from "@/components/ui/map";
 import { searchCuratorialArchives } from "@/lib/archive-retrieval";
 import { TURNING_POINTS_ARTWORKS, TURNING_POINTS_WINGS } from "@/lib/turning-points-data";
@@ -131,7 +131,13 @@ export default function Home() {
   const [isMuted, setIsMuted] = React.useState(false);
   const [activeArtifact, setActiveArtifact] = React.useState<ArtifactType>("info");
   const [selectedArtwork, setSelectedArtwork] = React.useState<ExhibitArtworkInfo | null>(null);
-  const [mapNavigation, setMapNavigation] = React.useState<ExhibitNavigationState>({ startId: "entrance", destinationId: "", currentNodeId: null });
+  const [mapNavigation, setMapNavigationState] = React.useState<ExhibitNavigationState>(INITIAL_EXHIBIT_NAVIGATION);
+  const mapNavigationRef = React.useRef<ExhibitNavigationState>(INITIAL_EXHIBIT_NAVIGATION);
+  const setMapNavigation = React.useCallback((action: React.SetStateAction<ExhibitNavigationState>) => {
+    const next = typeof action === "function" ? action(mapNavigationRef.current) : action;
+    mapNavigationRef.current = next;
+    setMapNavigationState(next);
+  }, []);
   const [mapViewport, setMapViewport] = React.useState<MapViewport | null>(null);
   const [originMapRoute, setOriginMapRoute] = React.useState<string>("entrance");
   const [activeMapRoute, setActiveMapRoute] = React.useState<string>("entrance");
@@ -141,9 +147,6 @@ export default function Home() {
   // Quiet / Reading Mode: when true, visitor prefers to read and Alba remains silent
   const [isQuietMode, setIsQuietMode] = React.useState<boolean>(false);
   const isQuietModeRef = React.useRef<boolean>(false);
-  // Guest location tracking: begins at entrance and updates as galleries/artworks are visited
-  const [guestLocationId, setGuestLocationId] = React.useState<string>("entrance");
-  const guestLocationRef = React.useRef<string>("entrance");
   // ── Gallery State Machine ────────────────────────────────────────────────
   // Single source of truth for all artwork tour states.
   // Replaces the previous 3 pairs of state+ref (activeTourArtworkId, completedArtworkIds, startedArtworkIds).
@@ -435,12 +438,11 @@ export default function Home() {
     // 1. Update guest location without drawing a route line
     setMapNavigation((prev) => ({
       ...prev,
-      startId: artPlaceId,
+      currentLocationId: artPlaceId,
+      routeOriginId: artPlaceId,
       destinationId: "",
       currentNodeId: null,
     }));
-    guestLocationRef.current = artPlaceId;
-    setGuestLocationId(artPlaceId);
 
     // 2. Atomically: any currently "exploring" artwork → "completed", target → "exploring".
     //    This is the ONLY place this transition happens — single source of truth.
@@ -501,12 +503,11 @@ export default function Home() {
     // 2. Set guest location without drawing paths
     setMapNavigation((prev) => ({
       ...prev,
-      startId: artPlaceId,
+      currentLocationId: artPlaceId,
+      routeOriginId: artPlaceId,
       destinationId: "",
       currentNodeId: null,
     }));
-    guestLocationRef.current = artPlaceId;
-    setGuestLocationId(artPlaceId);
 
     // 3. Return to floor map so visitor can choose next stop
     setActiveArtifact("map");
@@ -651,7 +652,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     setIsExpanded(false);
     setActiveArtifact("map");
     setSelectedArtwork(null);
-    setMapNavigation({ startId: "entrance", destinationId: "", currentNodeId: null });
+    setMapNavigation(INITIAL_EXHIBIT_NAVIGATION);
     setMapViewport(null);
     setAgentStatus("listening");
     setActiveExpressionId(isMuted ? "muted" : "listening");
@@ -668,8 +669,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     isMutedRef.current = isMuted;
     isQuietModeRef.current = false;
     setIsQuietMode(false);
-    guestLocationRef.current = "entrance";
-    setGuestLocationId("entrance");
     // Reset all gallery states atomically
     resetGalleryStates();
     shouldUncollapseAfterSpeechRef.current = false;
@@ -959,25 +958,16 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           setActiveArtifact("map");
           setActiveMapRoute(routeId);
 
-          const routeDestinationMap: Record<string, string> = {
-            perspective: "art:masaccio-holy-trinity",
-            shadow: "art:caravaggio-calling-st-matthew",
-            feeling: "art:van-gogh-starry-night",
-            cubism: "art:picasso-demoiselles",
-            concept: "art:pollock-autumn-rhythm",
-            rotunda: "art:duchamp-fountain",
-            restrooms: "facility:restrooms",
-          };
-          const destId = routeDestinationMap[routeId] || "";
+          const destId = getExhibitRouteDestination(routeId);
           // ONLY plot a walking route path if the user explicitly requested directions from A to B (showPath: true)
           if (showPath && destId) {
-            setMapNavigation({
-              startId: guestLocationRef.current,
+            setMapNavigation((previous) => ({
+              ...previous,
+              routeOriginId: previous.currentLocationId,
               destinationId: destId,
+              currentLocationId: destId,
               currentNodeId: null,
-            });
-            guestLocationRef.current = destId;
-            setGuestLocationId(destId);
+            }));
           } else {
             // Otherwise just show the floor plan without drawing any path line
             setMapNavigation((prev) => ({
@@ -1052,8 +1042,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           hotspotSpeechPhaseRef.current = "pending_reply";
           setIsExpanded(true);
           // Track guest location without triggering an unrequested path route line
-          guestLocationRef.current = artPlaceId;
-          setGuestLocationId(artPlaceId);
+          setMapNavigation((previous) => ({ ...previous, currentLocationId: artPlaceId }));
           if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
             setActiveMapRoute(WING_ROUTE_MAP[artwork.wingId]);
           }
@@ -1089,8 +1078,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           });
           // Update guest location without drawing a path route line
           const artPlaceId = `art:${artwork.id}`;
-          guestLocationRef.current = artPlaceId;
-          setGuestLocationId(artPlaceId);
+          setMapNavigation((previous) => ({ ...previous, currentLocationId: artPlaceId }));
           // Gallery state (exploring/completed/unexplored) is owned exclusively by the state machine.
           // show_info NEVER modifies it — this prevents a completed artwork from being incorrectly
           // re-flagged as "exploring" when the agent calls show_info to re-display the card.
@@ -1266,12 +1254,10 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     muteWarningSentRef.current = false;
     isQuietModeRef.current = false;
     setIsQuietMode(false);
-    guestLocationRef.current = "entrance";
-    setGuestLocationId("entrance");
     // Reset all gallery states atomically
     resetGalleryStates();
     shouldUncollapseAfterSpeechRef.current = false;
-    setMapNavigation({ startId: "entrance", destinationId: "", currentNodeId: null });
+    setMapNavigation(INITIAL_EXHIBIT_NAVIGATION);
 
     // Reset back to pre-tour state
     setIsTourActive(false);
