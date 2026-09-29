@@ -102,7 +102,6 @@ export async function createVoiceAgent(
 
   let isConnected = false;
   let sessionStartTime: number | null = null;
-  let maxDurationTimer: ReturnType<typeof setTimeout> | null = null;
   let sessionEndReason: VoiceAgentEndReason | null = null;
   let endedNotified = false;
   let manuallyEnded = false;
@@ -162,35 +161,6 @@ export async function createVoiceAgent(
           maxDurationSeconds: maxSessionDurationSeconds,
           readyAt: new Date(sessionStartTime).toISOString(),
         });
-
-        // Client-side watchdog timer: AssemblyAI docs recommend running a client-side
-        // timer to ensure sessions terminate cleanly when the duration cap is hit.
-        if (maxSessionDurationSeconds > 0) {
-          if (maxDurationTimer) clearTimeout(maxDurationTimer);
-          maxDurationTimer = setTimeout(() => {
-            if (!isConnected || endedNotified || manuallyEnded) return;
-            console.warn(`[AssemblyAI] Client watchdog: session hit ${maxSessionDurationSeconds}s cap. Ending session.`);
-            sessionEndReason = {
-              type: "expired",
-              code: "session_expired",
-              message: `Session reached the ${maxSessionDurationSeconds}-second duration limit.`,
-            };
-            try {
-              ws.send(JSON.stringify({ type: "session.end" }));
-            } catch {
-              // ignore
-            }
-            if (!endedNotified) {
-              endedNotified = true;
-              callbacks.onEnded?.(sessionEndReason);
-            }
-            try {
-              ws.close(1000, "Max duration reached");
-            } catch {
-              // ignore
-            }
-          }, (maxSessionDurationSeconds + 1) * 1000);
-        }
 
         callbacks.onReady?.(msg.session_id as string);
         break;
@@ -287,10 +257,6 @@ export async function createVoiceAgent(
 
       case "session.ended": {
         isConnected = false;
-        if (maxDurationTimer) {
-          clearTimeout(maxDurationTimer);
-          maxDurationTimer = null;
-        }
         const code = typeof msg.code === "string" ? msg.code : undefined;
         const message = typeof msg.message === "string" ? msg.message : undefined;
         const detail = String(code ?? "") + " " + String(message ?? "");
@@ -323,10 +289,6 @@ export async function createVoiceAgent(
         const isExpired = code.toLowerCase() === "session_expired" || /duration|expir/i.test(code);
         sessionEndReason = isExpired ? { type: "expired", code, message } : { type: "failed", code, message };
         if (isExpired && !endedNotified) {
-          if (maxDurationTimer) {
-            clearTimeout(maxDurationTimer);
-            maxDurationTimer = null;
-          }
           endedNotified = true;
           callbacks.onEnded?.(sessionEndReason);
         } else if (!isExpired) {
@@ -346,10 +308,6 @@ export async function createVoiceAgent(
   };
 
   ws.onclose = (event) => {
-    if (maxDurationTimer) {
-      clearTimeout(maxDurationTimer);
-      maxDurationTimer = null;
-    }
     const wasActive = isConnected;
     isConnected = false;
     const elapsedSeconds = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : null;
@@ -361,12 +319,11 @@ export async function createVoiceAgent(
       sessionEndReason,
     });
 
-    // Check if close code 1008 or reason indicates expiry
+    // Check if provider closed with 1008 (session cap policy violation) or reason text
     const isCloseExpired =
       sessionEndReason?.type === "expired" ||
       event.code === 1008 ||
-      /expir|duration|time.?limit|maximum/i.test(event.reason || "") ||
-      (elapsedSeconds !== null && elapsedSeconds >= (maxSessionDurationSeconds || 180));
+      /expir|duration|time.?limit|maximum/i.test(event.reason || "");
 
     if (isCloseExpired && !sessionEndReason) {
       sessionEndReason = {
@@ -566,10 +523,6 @@ registerProcessor('pcm-processor', PcmProcessor);
 
   function end() {
     manuallyEnded = true;
-    if (maxDurationTimer) {
-      clearTimeout(maxDurationTimer);
-      maxDurationTimer = null;
-    }
     if (toolFlushTimer) {
       clearTimeout(toolFlushTimer);
       toolFlushTimer = null;
