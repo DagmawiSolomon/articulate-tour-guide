@@ -82,7 +82,7 @@ Owner acceptance:
 - Do not add a tooltip, onboarding copy, or control without approval.
 
 ### 8. Make timeline milestones keyboard accessible — P2
-Status: Open.
+Status: Implemented (Ready for owner testing).
 
 Milestones use click handlers on non-semantic elements. Make milestone selection available to keyboard and screen-reader users without changing the visual design.
 
@@ -107,6 +107,7 @@ Owner acceptance:
 
 ## Change log
 
+- 2026-09-29: Implemented Item 8 (make timeline milestones semantic, keyboard-navigable buttons with aria attributes).
 - 2026-09-29: Implemented Item 6 (debounce gallery pin teaser dispatch on rapid artwork switching).
 - 2026-09-29: Implemented Item 4 (preserve transcript reading scroll position when scrolled up).
 - 2026-09-29: Implemented Item 3 (interactive click-to-route amenity markers and full voice direction support).

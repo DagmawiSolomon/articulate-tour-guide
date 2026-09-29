@@ -126,7 +126,7 @@ This document tracks the step-by-step verification procedures, pass/fail accepta
 ---
 
 ## Item 8: Make Timeline Milestones Keyboard Accessible (P2)
-**Status**: Implementation In Progress
+**Status**: Implemented & Ready for Verification
 
 ### Verification Steps
 1. Navigate to the Timeline view.
