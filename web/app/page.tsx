@@ -30,7 +30,7 @@ import {
 import { Footer } from "@/components/layout/footer";
 import { ArtifactStage, type ArtifactType, type ChatMessage } from "@/components/artifacts/artifact-stage";
 import { ImmersiveArtworkView } from "@/components/artifacts/immersive-artwork-view";
-import type { ExhibitArtworkInfo, ExhibitNavigationState } from "@/components/artifacts/exhibit-floor-map-view";
+import { getExhibitRouteDestination, INITIAL_EXHIBIT_NAVIGATION, type ExhibitArtworkInfo, type ExhibitNavigationState } from "@/components/artifacts/exhibit-floor-map-view";
 import type { MapViewport } from "@/components/ui/map";
 import { searchCuratorialArchives } from "@/lib/archive-retrieval";
 import { TURNING_POINTS_ARTWORKS, TURNING_POINTS_WINGS } from "@/lib/turning-points-data";
@@ -123,7 +123,7 @@ const INITIAL_TOUR_PAGE_STATE: TourPageState = {
   activeArtworkId: "masaccio-holy-trinity",
   galleryStates: {},
   guestLocationId: "entrance",
-  mapNavigation: { startId: "entrance", destinationId: "", currentNodeId: null },
+  mapNavigation: INITIAL_EXHIBIT_NAVIGATION,
   originMapRoute: "entrance",
   activeMapRoute: "entrance",
   chatMessages: [],
@@ -237,6 +237,8 @@ export default function Home() {
   const [activeArtifact, setActiveArtifact] = useTourPageField(tourPageState, dispatchTourPageState, "activeArtifact");
   const [selectedArtwork, setSelectedArtwork] = useTourPageField(tourPageState, dispatchTourPageState, "selectedArtwork");
   const [mapNavigation, setMapNavigation] = useTourPageField(tourPageState, dispatchTourPageState, "mapNavigation");
+  const mapNavigationRef = React.useRef<ExhibitNavigationState>(INITIAL_TOUR_PAGE_STATE.mapNavigation);
+  mapNavigationRef.current = mapNavigation;
   const [mapViewport, setMapViewport] = React.useState<MapViewport | null>(null);
   const [originMapRoute, setOriginMapRoute] = useTourPageField(tourPageState, dispatchTourPageState, "originMapRoute");
   const [activeMapRoute, setActiveMapRoute] = useTourPageField(tourPageState, dispatchTourPageState, "activeMapRoute");
@@ -621,7 +623,8 @@ export default function Home() {
     const artworkPatch: TourPageStatePatch = {
       mapNavigation: (prev) => ({
         ...prev,
-        startId: artPlaceId,
+        currentLocationId: artPlaceId,
+        routeOriginId: artPlaceId,
         destinationId: "",
         currentNodeId: null,
       }),
@@ -673,7 +676,8 @@ export default function Home() {
     setArtworkGalleryState(currentArtwork.id, "completed", {
       mapNavigation: (prev) => ({
         ...prev,
-        startId: artPlaceId,
+        currentLocationId: artPlaceId,
+        routeOriginId: artPlaceId,
         destinationId: "",
         currentNodeId: null,
       }),
@@ -850,7 +854,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       isExpanded: false,
       activeArtifact: "map",
       selectedArtwork: null,
-      mapNavigation: { startId: "entrance", destinationId: "", currentNodeId: null },
+      mapNavigation: INITIAL_EXHIBIT_NAVIGATION,
       originMapRoute: "entrance",
       activeMapRoute: "entrance",
       guestLocationId: "entrance",
@@ -870,7 +874,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     isMutedRef.current = isMuted;
     isQuietModeRef.current = false;
     setIsQuietMode(false);
-
     shouldUncollapseAfterSpeechRef.current = false;
 
     // 1. Initialize audio player for voice responses
@@ -1209,16 +1212,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         } else if (tool.name === "show_map") {
           const routeId = (tool.arguments.routeId as string) || "rotunda";
           const showPath = Boolean(tool.arguments.showPath);
-          const routeDestinationMap: Record<string, string> = {
-            perspective: "art:masaccio-holy-trinity",
-            shadow: "art:caravaggio-calling-st-matthew",
-            feeling: "art:van-gogh-starry-night",
-            cubism: "art:picasso-demoiselles",
-            concept: "art:pollock-autumn-rhythm",
-            rotunda: "art:duchamp-fountain",
-            restrooms: "facility:restrooms",
-          };
-          const destId = routeDestinationMap[routeId] || "";
+          const destId = getExhibitRouteDestination(routeId) || "";
           // Keep map presentation, route, and simulated arrival together.
           const mapPatch: TourPageStatePatch = {
             activeArtifact: "map",
@@ -1226,11 +1220,13 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             isExpanded: true,
           };
           if (showPath && destId) {
-            mapPatch.mapNavigation = {
-              startId: guestLocationRef.current,
+            mapPatch.mapNavigation = (previous) => ({
+              ...previous,
+              routeOriginId: previous.currentLocationId,
               destinationId: destId,
+              currentLocationId: destId,
               currentNodeId: null,
-            };
+            });
             mapPatch.guestLocationId = destId;
           } else {
             mapPatch.mapNavigation = (prev) => ({
@@ -1303,6 +1299,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             activeArtifact: "artwork-view",
             isExpanded: true,
             guestLocationId: artPlaceId,
+            mapNavigation: (previous) => ({ ...previous, currentLocationId: artPlaceId }),
           };
           if (artwork.wingId && WING_ROUTE_MAP[artwork.wingId]) {
             artworkPatch.activeMapRoute = WING_ROUTE_MAP[artwork.wingId];
@@ -1356,6 +1353,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           // Update guest location without drawing a path route line
           const artPlaceId = `art:${artwork.id}`;
           artworkPatch.guestLocationId = artPlaceId;
+          artworkPatch.mapNavigation = (previous) => ({ ...previous, currentLocationId: artPlaceId });
           // Gallery state (exploring/completed/unexplored) is owned exclusively by the state machine.
           // show_info NEVER modifies it — this prevents a completed artwork from being incorrectly
           // re-flagged as "exploring" when the agent calls show_info to re-display the card.
@@ -1616,7 +1614,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     patchTourPageState({
       guestLocationId: "entrance",
       galleryStates: {},
-      mapNavigation: { startId: "entrance", destinationId: "", currentNodeId: null },
+      mapNavigation: INITIAL_EXHIBIT_NAVIGATION,
       isTourActive: false,
       isExpanded: false,
       activeArtifact: "info",
@@ -1929,7 +1927,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                       selectedArtwork={selectedArtwork}
                       mapNavigation={mapNavigation}
                       onMapNavigationChange={(navigation) => {
-                        syncVisitorUiContext("changed the floor-map route from " + navigation.startId + " to " + navigation.destinationId, true);
+                        syncVisitorUiContext("changed the floor-map route from " + navigation.routeOriginId + " to " + navigation.destinationId, true);
                         setMapNavigation(navigation);
                       }}
                       mapViewport={mapViewport ?? undefined}
