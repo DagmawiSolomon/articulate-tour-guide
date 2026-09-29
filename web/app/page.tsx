@@ -812,6 +812,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       } else {
         setIsChatThinking(false);
         setAgentStatus("listening");
+        setVisualHandoffStatus("idle");
         setChatMessages((previous) => [
           ...previous,
           {
@@ -823,28 +824,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             timestamp: new Date(),
           },
         ]);
-
-        // Browser speech synthesis fallback if Voice Agent WS session has not started yet
-        if (typeof window !== "undefined" && "speechSynthesis" in window && !isQuietModeRef.current) {
-          try {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(result.answer);
-            const voices = window.speechSynthesis.getVoices();
-            const preferredVoice = voices.find((v) => v.lang.startsWith("en") && (v.name.includes("Female") || v.name.includes("Natural") || v.name.includes("Samantha") || v.name.includes("Google") || v.name.includes("Victoria")));
-            if (preferredVoice) utterance.voice = preferredVoice;
-            utterance.rate = 1.0;
-            utterance.pitch = 1.05;
-            setVisualHandoffStatus("speaking");
-            setAgentStatus("speaking");
-            utterance.onend = () => { setAgentStatus("listening"); setVisualHandoffStatus("idle"); };
-            utterance.onerror = () => { setAgentStatus("listening"); setVisualHandoffStatus("failed"); };
-            window.speechSynthesis.speak(utterance);
-          } catch {
-            setVisualHandoffStatus("failed");
-          }
-        } else {
-          setVisualHandoffStatus(isQuietModeRef.current ? "idle" : "failed");
-        }
       }
     } catch (error) {
       if (requestId !== visualAnalysisRequestRef.current) return;
@@ -1556,11 +1535,34 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       clearTimeout(sessionExpiryTimerRef.current);
       sessionExpiryTimerRef.current = null;
     }
+    if (loadingTimerRef.current) {
+      clearTimeout(loadingTimerRef.current);
+      loadingTimerRef.current = null;
+    }
+    if (hotspotDismissTimerRef.current) {
+      clearTimeout(hotspotDismissTimerRef.current);
+      hotspotDismissTimerRef.current = null;
+    }
+    // Stop all audio output and in-flight audio buffers immediately
+    audioPlayerRef.current?.flush();
+    audioPlayerRef.current?.close();
+    audioPlayerRef.current = null;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    visualAnalysisRequestRef.current += 1;
+    visualQuestionPendingRef.current = false;
+    pendingVisualAnalysisRef.current = null;
+    pendingArtifactToolResultsRef.current = [];
+    setActiveHotspotSelection(null);
+
     transitionVoiceConnection("failed");
     setIsChatThinking(false);
+    setVisualHandoffStatus("idle");
     setAgentStatus("listening");
     setActiveExpressionId("neutral");
     stopMic();
+    agentRef.current?.end();
     agentRef.current = null;
     const sessionAge = sessionReadyAtRef.current === null ? 0 : Date.now() - sessionReadyAtRef.current;
     const isExpired = reason.type === "expired" || sessionAge >= VOICE_SESSION_LIMIT_MS - 1000;
@@ -1615,7 +1617,23 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       clearTimeout(sessionExpiryTimerRef.current);
       sessionExpiryTimerRef.current = null;
     }
+    if (loadingTimerRef.current) {
+      clearTimeout(loadingTimerRef.current);
+      loadingTimerRef.current = null;
+    }
+    if (hotspotDismissTimerRef.current) {
+      clearTimeout(hotspotDismissTimerRef.current);
+      hotspotDismissTimerRef.current = null;
+    }
     visualAnalysisRequestRef.current += 1;
+    visualQuestionPendingRef.current = false;
+    pendingVisualAnalysisRef.current = null;
+    pendingArtifactToolResultsRef.current = [];
+    setVisualHandoffStatus("idle");
+    setActiveHotspotSelection(null);
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
     uiContextVersionRef.current += 1;
     quietUntilNextPromptRef.current = true;
     bargeIn();
@@ -1629,6 +1647,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     stopMic();
     agentRef.current?.end();
     agentRef.current = null;
+    audioPlayerRef.current?.flush();
     audioPlayerRef.current?.close();
     audioPlayerRef.current = null;
 
