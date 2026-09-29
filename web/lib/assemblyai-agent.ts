@@ -102,6 +102,7 @@ export async function createVoiceAgent(
 
   let isConnected = false;
   let sessionStartTime: number | null = null;
+  let maxDurationTimer: ReturnType<typeof setTimeout> | null = null;
   let sessionEndReason: VoiceAgentEndReason | null = null;
   let endedNotified = false;
   let manuallyEnded = false;
@@ -161,6 +162,38 @@ export async function createVoiceAgent(
           maxDurationSeconds: maxSessionDurationSeconds,
           readyAt: new Date(sessionStartTime).toISOString(),
         });
+
+        // Client-side duration timer: per official AssemblyAI Voice Agent documentation,
+        // client-side timer enforcement is required to finalize and end sessions when
+        // max_session_duration_seconds is hit:
+        // "There is no 'closing soon' warning event before the session ends, so if
+        // you need to finalize gracefully... run a client-side timer using the value you passed here."
+        if (maxSessionDurationSeconds > 0) {
+          if (maxDurationTimer) clearTimeout(maxDurationTimer);
+          maxDurationTimer = setTimeout(() => {
+            if (!isConnected || endedNotified || manuallyEnded) return;
+            console.warn(`[AssemblyAI] Session reached duration cap (${maxSessionDurationSeconds}s). Ending session.`);
+            sessionEndReason = {
+              type: "expired",
+              code: "session_expired",
+              message: `Session reached the ${maxSessionDurationSeconds}-second duration limit.`,
+            };
+            try {
+              ws.send(JSON.stringify({ type: "session.end" }));
+            } catch {
+              // ignore
+            }
+            if (!endedNotified) {
+              endedNotified = true;
+              callbacks.onEnded?.(sessionEndReason);
+            }
+            try {
+              ws.close(1000, "Max duration reached");
+            } catch {
+              // ignore
+            }
+          }, maxSessionDurationSeconds * 1000);
+        }
 
         callbacks.onReady?.(msg.session_id as string);
         break;
@@ -257,6 +290,10 @@ export async function createVoiceAgent(
 
       case "session.ended": {
         isConnected = false;
+        if (maxDurationTimer) {
+          clearTimeout(maxDurationTimer);
+          maxDurationTimer = null;
+        }
         const code = typeof msg.code === "string" ? msg.code : undefined;
         const message = typeof msg.message === "string" ? msg.message : undefined;
         const detail = String(code ?? "") + " " + String(message ?? "");
@@ -289,6 +326,10 @@ export async function createVoiceAgent(
         const isExpired = code.toLowerCase() === "session_expired" || /duration|expir/i.test(code);
         sessionEndReason = isExpired ? { type: "expired", code, message } : { type: "failed", code, message };
         if (isExpired && !endedNotified) {
+          if (maxDurationTimer) {
+            clearTimeout(maxDurationTimer);
+            maxDurationTimer = null;
+          }
           endedNotified = true;
           callbacks.onEnded?.(sessionEndReason);
         } else if (!isExpired) {
@@ -308,6 +349,10 @@ export async function createVoiceAgent(
   };
 
   ws.onclose = (event) => {
+    if (maxDurationTimer) {
+      clearTimeout(maxDurationTimer);
+      maxDurationTimer = null;
+    }
     const wasActive = isConnected;
     isConnected = false;
     const elapsedSeconds = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : null;
@@ -523,6 +568,10 @@ registerProcessor('pcm-processor', PcmProcessor);
 
   function end() {
     manuallyEnded = true;
+    if (maxDurationTimer) {
+      clearTimeout(maxDurationTimer);
+      maxDurationTimer = null;
+    }
     if (toolFlushTimer) {
       clearTimeout(toolFlushTimer);
       toolFlushTimer = null;
