@@ -2108,20 +2108,44 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           </div>
         </DialogContent>
       </Dialog>
-      {/* Confirmation Dialog: End Tour */}
-      <Dialog open={isEndDialogOpen || sessionExpiryDialogOpen} onOpenChange={(open) => { setIsEndDialogOpen(open); if (!open) setSessionExpiryDialogOpen(false); }}>
+      {/* Confirmation Dialog: End Tour / Session Expiry */}
+      <Dialog
+        open={isEndDialogOpen || sessionExpiryDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            if (sessionExpiryDialogOpen) {
+              setSessionExpiryDialogOpen(false);
+              void handleConfirmEndTour();
+            } else {
+              setIsEndDialogOpen(false);
+            }
+          } else {
+            setIsEndDialogOpen(true);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>{sessionExpiryDialogOpen ? "Voice session ended" : "End tour?"}</DialogTitle>
+            <DialogTitle>
+              {sessionExpiryDialogOpen ? "Thank you for exploring with Alba!" : "End tour?"}
+            </DialogTitle>
             <DialogDescription>
               {sessionExpiryDialogOpen
-                ? "This voice session reached its 180-second limit. Your tour is still open, and you can continue exploring."
+                ? "Your 3-minute preview session has concluded. Thank you for taking the time to tour the exhibition with us! We hope you enjoyed the experience."
                 : "Are you sure you want to end your tour? This will disconnect your conversation session with Alba."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             {sessionExpiryDialogOpen ? (
-              <Button type="button" onClick={() => setSessionExpiryDialogOpen(false)}>Continue exploring</Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setSessionExpiryDialogOpen(false);
+                  void handleConfirmEndTour();
+                }}
+              >
+                Back to Home
+              </Button>
             ) : <>
               <Button type="button" variant="outline" onClick={() => { playTactileTap(); setIsEndDialogOpen(false); }} className="rounded-lg h-9 px-4 text-sm font-medium bg-card hover:bg-subtle border border-border text-foreground cursor-pointer shadow-none">Cancel</Button>
               <Button type="button" variant="default" onClick={handleConfirmEndTour} className="rounded-lg h-9 px-4 text-sm font-medium cursor-pointer">End tour</Button>
