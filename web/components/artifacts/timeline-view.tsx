@@ -86,12 +86,23 @@ export function TimelineView({ activeArtworkId, onSelectMilestone }: TimelineVie
             const isTop = index % 2 === 0;
 
             return (
-              <div
+              <button
+                type="button"
                 key={milestone.id}
                 onClick={() => handleSelectMilestone(milestone.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleSelectMilestone(milestone.id);
+                  }
+                }}
+                onFocus={() => setHoveredId(milestone.id)}
+                onBlur={() => setHoveredId(null)}
                 onMouseEnter={() => setHoveredId(milestone.id)}
                 onMouseLeave={() => setHoveredId(null)}
-                className="relative z-10 w-[200px] flex flex-col items-center justify-center cursor-pointer group"
+                aria-label={`${milestone.year}: ${milestone.artworkTitle || milestone.title}, ${milestone.location}`}
+                aria-pressed={isSelected}
+                className="relative z-10 w-[200px] flex flex-col items-center justify-center cursor-pointer group bg-transparent border-0 p-0 text-left rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
               >
                 {/* TOP HALF — Symmetrical 148px height */}
                 <div className="h-[148px] w-full flex flex-col justify-end items-center pb-2 relative">
@@ -227,7 +238,7 @@ export function TimelineView({ activeArtworkId, onSelectMilestone }: TimelineVie
                     </div>
                   ) : null}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
