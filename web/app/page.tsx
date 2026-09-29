@@ -312,6 +312,10 @@ export default function Home() {
   // Barge-in: immediately stop playback in speakers and drop any pending/in-flight audio chunks from interrupted turn
   const ignoreAudioUntilNextReplyRef = React.useRef<boolean>(false);
   const visualAnalysisRequestRef = React.useRef(0);
+  const uiContextVersionRef = React.useRef(0);
+  const replyUiContextVersionRef = React.useRef(0);
+  const quietUntilNextPromptRef = React.useRef(false);
+  const visualQuestionPendingRef = React.useRef(false);
   const pendingVisualAnalysisRef = React.useRef<{
     artworkId: string;
     answer: string;
@@ -333,6 +337,23 @@ export default function Home() {
       setActiveHotspotId(null);
     }
   }, []);
+
+  const syncVisitorUiContext = React.useCallback((change: string, interruptSpeech = false) => {
+    uiContextVersionRef.current += 1;
+    visualAnalysisRequestRef.current += 1;
+    pendingVisualAnalysisRef.current = null;
+    if (visualQuestionPendingRef.current) {
+      visualQuestionPendingRef.current = false;
+      setIsChatThinking(false);
+    }
+    if (interruptSpeech) {
+      quietUntilNextPromptRef.current = true;
+      bargeIn();
+    }
+    agentRef.current?.sendContext(
+      "The visitor used the interface to " + change + (interruptSpeech ? ". This is context only; do not reply. Stay quiet until the visitor asks a question or triggers a new spoken response." : ". This is context only; do not initiate a new reply.")
+    );
+  }, [bargeIn]);
 
   // ── State Machine Helpers ─────────────────────────────────────────────────
 
@@ -376,6 +397,7 @@ export default function Home() {
   const safeReply = React.useCallback((prompt: string) => {
     const agent = agentRef.current;
     if (voiceConnectionRef.current !== "connected" || !agent) return;
+    quietUntilNextPromptRef.current = false;
     ignoreAudioUntilNextReplyRef.current = true;
     audioPlayerRef.current?.flush();
     setAgentStatus("thinking");
@@ -555,6 +577,7 @@ export default function Home() {
     const resolvedId = resolveArtworkId(rawId);
     const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
     const artPlaceId = `art:${targetArtwork.id}`;
+    syncVisitorUiContext("started the tour at " + targetArtwork.title, true);
 
     const artworkSelection: ExhibitArtworkInfo = {
       id: targetArtwork.id,
@@ -602,7 +625,7 @@ export default function Home() {
     safeReply(
       `The visitor confirmed: "Let's go with this first!" to start their tour with ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist}. Welcome them enthusiastically to this opening stop of the exhibition and give a vivid, engaging 2-sentence curatorial breakdown of why this masterpiece is our first revolutionary milestone. Speak with poise and dive straight into the artwork without any apologies. CRITICAL: Do NOT call show_info, show_map, or any tools. Speak ONLY the spoken breakdown.`
     );
-  }, [selectedArtwork, activeArtworkId, safeReply, startExploring]);
+  }, [selectedArtwork, activeArtworkId, safeReply, startExploring, syncVisitorUiContext]);
 
   const handleEndGalleryTour = React.useCallback(() => {
     // No explicit bargeIn() here — safeReply() at the end flushes audio before speaking.
@@ -614,6 +637,7 @@ export default function Home() {
     const resolvedId = resolveArtworkId(rawId);
     const currentArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
     const artPlaceId = `art:${currentArtwork.id}`;
+    syncVisitorUiContext("ended the tour of " + currentArtwork.title + " and returned to the floor map", true);
 
     // Complete the stop and return to the floor map in one reducer transition.
     setArtworkGalleryState(currentArtwork.id, "completed", {
@@ -646,9 +670,10 @@ export default function Home() {
     safeReply(
       `The visitor has ended their tour of the ${currentArtwork.title} (${currentArtwork.year}) gallery and returned to the exhibition floor map. In 1 to 2 warm, engaging sentences as Alba, acknowledge concluding our time with ${currentArtwork.title}, and ask them which gallery, milestone, or artwork they would like to explore next on the floor map.`
     );
-  }, [selectedArtwork, activeArtworkId, safeReply, setArtworkGalleryState]);
+  }, [selectedArtwork, activeArtworkId, safeReply, setArtworkGalleryState, syncVisitorUiContext]);
 
   const handleAskAboutSelection = React.useCallback(async (selection: ArtworkSelection) => {
+    syncVisitorUiContext("asked Alba about a circled artwork detail", true);
     const requestId = ++visualAnalysisRequestRef.current;
     setVisualHandoffStatus("queued");
     const artworkId = resolveArtworkId(selectedArtwork?.id || activeArtworkId);
@@ -664,6 +689,7 @@ export default function Home() {
       { id: `visitor-detail-${Date.now()}`, role: "visitor", text: visitorQuestion, isPartial: false, timestamp: new Date() },
     ]);
     setIsChatThinking(true);
+    visualQuestionPendingRef.current = true;
     setAgentStatus("thinking");
 
     try {
@@ -674,6 +700,7 @@ export default function Home() {
       });
       const result = await response.json();
       if (requestId !== visualAnalysisRequestRef.current) return;
+      visualQuestionPendingRef.current = false;
       if (!response.ok || typeof result.answer !== "string") {
         throw new Error(result.error || "I couldn't inspect that detail just now.");
       }
@@ -713,6 +740,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
 
       const connectedAgent = agentRef.current;
       if (voiceConnectionRef.current === "connected" && connectedAgent) {
+        quietUntilNextPromptRef.current = false;
         setVisualHandoffStatus("queued");
         connectedAgent.triggerReply(reply);
       } else {
@@ -754,6 +782,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       }
     } catch (error) {
       if (requestId !== visualAnalysisRequestRef.current) return;
+      visualQuestionPendingRef.current = false;
       setVisualHandoffStatus("queued");
       console.error("Artwork visual question failed:", error);
       const reply = `The visitor circled a detail in "${artwork.title}" and asked about it, but the visual analysis failed. In one warm sentence, apologize briefly that you could not inspect that detail right now, and invite them to ask about something else in the painting.`;
@@ -766,6 +795,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       setAgentStatus("thinking");
       const connectedAgent = agentRef.current;
       if (voiceConnectionRef.current === "connected" && connectedAgent) {
+        quietUntilNextPromptRef.current = false;
         connectedAgent.triggerReply(reply);
       } else {
         setIsChatThinking(false);
@@ -773,9 +803,10 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         setVisualHandoffStatus("failed");
       }
     }
-  }, [selectedArtwork, activeArtworkId, bargeIn]);
+  }, [selectedArtwork, activeArtworkId, syncVisitorUiContext]);
   const handleStartTour = async () => {
     visualAnalysisRequestRef.current += 1;
+    quietUntilNextPromptRef.current = false;
     if (visualHandoffStatus === "queued") { setIsChatThinking(false); setVisualHandoffStatus("idle"); }
     setConnectionError(null);
     setMicError(null);
@@ -850,12 +881,14 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         setConnectionError(null);
         setActiveExpressionId(isMutedRef.current ? "muted" : "listening");
         console.log("[AssemblyAI] Tour session ready:", sessionId);
+        agentRef.current?.sendContext("The visitor started a tour. The floor map is open at the entrance, with no gallery selected and no route requested.");
         if (mediaStreamRef.current) {
           agentRef.current?.startAudio(mediaStreamRef.current);
         }
       },
       onUserSpeakingStart: () => {
         if (voiceConnectionRef.current !== "connected") return;
+        quietUntilNextPromptRef.current = false;
         bargeIn();
         hasUserInteractedRef.current = true;
         greetingPhaseRef.current = "done";
@@ -977,7 +1010,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         setAgentStatus("thinking");
       },
       onAgentTranscriptPartial: (text) => {
-        if (voiceConnectionRef.current !== "connected" || !text) return;
+        if (voiceConnectionRef.current !== "connected" || quietUntilNextPromptRef.current || !text) return;
         setIsChatThinking(false);
         setAgentStatus("speaking");
 
@@ -1009,7 +1042,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         });
       },
       onAgentTranscriptFinal: (text) => {
-        if (voiceConnectionRef.current !== "connected" || !text?.trim()) return;
+        if (voiceConnectionRef.current !== "connected" || quietUntilNextPromptRef.current || !text?.trim()) return;
         setIsChatThinking(false);
         setChatMessages((prev) => {
           const filtered = prev.filter((m) => m.id !== partialAgentMsgIdRef.current);
@@ -1029,6 +1062,8 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       },
       onAgentSpeakingStart: () => {
         if (voiceConnectionRef.current !== "connected") return;
+        replyUiContextVersionRef.current = uiContextVersionRef.current;
+        if (quietUntilNextPromptRef.current) return;
         if (visualHandoffStatus === "queued") setVisualHandoffStatus("speaking");
         ignoreAudioUntilNextReplyRef.current = false;
         setAgentStatus("speaking");
@@ -1093,13 +1128,18 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         }
       },
       onAgentAudio: (base64) => {
-        // Ignore audio after the authoritative voice connection has ended.
-        if (voiceConnectionRef.current !== "connected" || isQuietModeRef.current || ignoreAudioUntilNextReplyRef.current) return;
+        if (voiceConnectionRef.current !== "connected" || isQuietModeRef.current || quietUntilNextPromptRef.current || ignoreAudioUntilNextReplyRef.current) return;
         audioPlayerRef.current?.playChunk(base64);
       },
       onToolCall: (tool) => {
         if (voiceConnectionRef.current !== "connected") {
           setIsArtifactLoading(false);
+          return;
+        }
+        if (replyUiContextVersionRef.current !== uiContextVersionRef.current || quietUntilNextPromptRef.current) {
+          quietUntilNextPromptRef.current = true;
+          bargeIn();
+          agentRef.current?.sendToolResult(tool.callId, { success: false, status: "stale_context" }, true);
           return;
         }
         console.log("[AssemblyAI] Executing tool call:", tool.name, tool.arguments);
@@ -1488,6 +1528,9 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       sessionExpiryTimerRef.current = null;
     }
     visualAnalysisRequestRef.current += 1;
+    uiContextVersionRef.current += 1;
+    quietUntilNextPromptRef.current = true;
+    bargeIn();
     transitionVoiceConnection("idle");
     setConnectionError(null);
     setMicError(null);
@@ -1564,6 +1607,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       onClick={() => {
         playTactileTap();
         // Do NOT call bargeIn() here so narration continues while viewing the map
+        syncVisitorUiContext(isExpanded && activeArtifact === "map" ? "closed the floor map" : "opened the floor map", false);
         hasUserInteractedRef.current = true;
         if (isExpanded && activeArtifact === "map") {
           patchTourPageState({ isExpanded: false });
@@ -1590,6 +1634,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       onClick={() => {
         playTactileTap();
         // Do NOT call bargeIn() here so narration continues while reading transcriptions
+        syncVisitorUiContext(isExpanded && activeArtifact === "chat" ? "closed the transcript" : "opened the transcript", false);
         hasUserInteractedRef.current = true;
         if (isExpanded && activeArtifact === "chat") {
           patchTourPageState({ isExpanded: false });
@@ -1644,6 +1689,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
   );
 
   const handleToggleExpanded = () => {
+    syncVisitorUiContext(isExpanded ? "closed the artifact view" : "opened the artifact view", false);
     // Toggling stage expansion should not cut off narration
     hasUserInteractedRef.current = true;
     shouldUncollapseAfterSpeechRef.current = false;
@@ -1790,6 +1836,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                   <button
                     type="button"
                     onClick={() => {
+                      syncVisitorUiContext("closed the artifact view", false);
                       playStageClose();
                       setIsExpanded(false);
                     }}
@@ -1818,16 +1865,25 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                       mapDisplay="exhibition"
                       selectedArtwork={selectedArtwork}
                       mapNavigation={mapNavigation}
-                      onMapNavigationChange={setMapNavigation}
+                      onMapNavigationChange={(navigation) => {
+                        syncVisitorUiContext("changed the floor-map route from " + navigation.startId + " to " + navigation.destinationId, true);
+                        setMapNavigation(navigation);
+                      }}
                       mapViewport={mapViewport ?? undefined}
-                      onMapViewportChange={setMapViewport}
+                      onMapViewportChange={(viewport) => {
+                        syncVisitorUiContext("panned or zoomed the floor map to zoom " + viewport.zoom, false);
+                        setMapViewport(viewport);
+                      }}
                       comparisonPairId={comparisonPairId}
                       artworkId={activeArtworkId}
                       showTourActions={(galleryStates[activeArtworkId] ?? "unexplored") === "unexplored"}
                       activeTourArtworkId={activeTourArtworkId}
                       completedArtworkIds={completedArtworkIds}
                       onStartTour={() => handleStartTourWithArtwork()}
-                      onViewArtworkFullscreen={() => setActiveArtifact("artwork-view")}
+                      onViewArtworkFullscreen={() => {
+                        syncVisitorUiContext("opened the artwork in fullscreen", false);
+                        setActiveArtifact("artwork-view");
+                      }}
                       onEndGalleryTour={handleEndGalleryTour}
                       onSelectArtwork={(artwork) => {
                         visualAnalysisRequestRef.current += 1;
@@ -1836,6 +1892,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                         const resolvedId = resolveArtworkId(rawId);
                         const targetArtwork = TURNING_POINTS_ARTWORKS[resolvedId] || TURNING_POINTS_ARTWORKS["masaccio-holy-trinity"];
                         const isSameGallery = targetArtwork.id === activeArtworkId;
+                        syncVisitorUiContext("selected the " + targetArtwork.title + " gallery", !isSameGallery);
 
                         // Keep gallery selection and its card view in one state transition without plotting a route.
                         const artworkPatch: TourPageStatePatch = {
@@ -1915,10 +1972,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                       isChatThinking={isChatThinking || visualHandoffStatus === "queued"}
                       onSelectArtifact={(type, params) => {
                         hasUserInteractedRef.current = true;
-                        // Going to maps, transcriptions, or returning to current info does NOT stop narration
-                        if (type !== "map" && type !== "chat" && type !== "info") {
-                          bargeIn();
-                        }
+                        syncVisitorUiContext("opened the " + type + " view" + (params?.routeId ? " for route " + params.routeId : "") + (params?.hotspotId ? " at detail " + params.hotspotId : ""), type !== "map" && type !== "chat" || Boolean(params?.routeId || params?.hotspotId));
                         const artifactPatch: TourPageStatePatch = { activeArtifact: type };
                         if (params?.routeId) artifactPatch.activeMapRoute = params.routeId as string;
                         patchTourPageState(artifactPatch);
@@ -2044,11 +2098,16 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           controls={callGroup}
           onBackToDetails={() => {
             visualAnalysisRequestRef.current += 1;
+            syncVisitorUiContext("returned from the fullscreen artwork to its detail card", false);
             setActiveHotspotId(null);
             setActiveArtifact("info");
           }}
           activeHotspotId={activeHotspotId}
-          onSelectHotspot={setActiveHotspotId}
+          onSelectHotspot={(hotspotId) => {
+            syncVisitorUiContext(hotspotId ? "opened artwork detail " + hotspotId : "closed artwork detail " + activeHotspotId, true);
+            setActiveHotspotId(hotspotId);
+          }}
+          onUiContextChange={syncVisitorUiContext}
         />
       )}
       <Dialog open={isExhibitInfoOpen} onOpenChange={setIsExhibitInfoOpen}>
