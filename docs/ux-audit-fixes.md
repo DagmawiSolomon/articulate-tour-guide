@@ -64,7 +64,7 @@ Owner acceptance:
 - Confirm the label clearly describes the action before the wording is changed.
 
 ### 6. Keep gallery-pin teasers coherent during rapid selection — P2
-Status: Open.
+Status: Implemented (Ready for owner testing).
 
 Keep the approved brief teaser behavior while ensuring fast pin changes do not leave Alba speaking about a previous selection.
 
@@ -107,6 +107,7 @@ Owner acceptance:
 
 ## Change log
 
+- 2026-09-29: Implemented Item 6 (debounce gallery pin teaser dispatch on rapid artwork switching).
 - 2026-09-29: Implemented Item 4 (preserve transcript reading scroll position when scrolled up).
 - 2026-09-29: Implemented Item 3 (interactive click-to-route amenity markers and full voice direction support).
 - 2026-09-29: Implemented Item 2 (queue tool results until reply.done and discard on interruption per AssemblyAI spec).

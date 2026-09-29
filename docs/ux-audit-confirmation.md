@@ -96,7 +96,7 @@ This document tracks the step-by-step verification procedures, pass/fail accepta
 ---
 
 ## Item 6: Keep Gallery-Pin Teasers Coherent During Rapid Selection (P2)
-**Status**: Implementation In Progress
+**Status**: Implemented & Ready for Verification
 
 ### Verification Steps
 1. Open the floor map.
