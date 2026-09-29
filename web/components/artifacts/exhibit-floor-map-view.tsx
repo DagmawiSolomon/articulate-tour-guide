@@ -146,17 +146,17 @@ const works: ExhibitWork[] = [
 ];
 
 const amenities: Amenity[] = [
-  { id:"information",label:"Information",kind:"information",x:350,y:335,accessNode:"west",accessPath:[[250,335],[350,335]] },
+  { id:"information",label:"Information",kind:"information",routeId:"information",x:350,y:335,accessNode:"west",accessPath:[[250,335],[350,335]] },
   { id:"restrooms",label:"Restrooms",kind:"restroom",routeId:"restrooms",x:455,y:335,accessNode:"midwest",accessPath:[[470,335],[455,335]] },
-  { id:"accessible-restroom",label:"Accessible Restroom",kind:"accessible",x:560,y:335,accessNode:"midwest",accessPath:[[470,335],[535,335],[560,335]] },
-  { id:"stairs",label:"Stairs",kind:"stairs",x:135,y:405,accessNode:"west",accessPath:[[250,335],[220,335],[170,370],[135,405]] },
-  { id:"elevator",label:"Elevator",kind:"elevator",x:1040,y:405,accessNode:"farEast",accessPath:[[1100,335],[1080,370],[1040,405]] },
-  { id:"seating",label:"Seating",kind:"seat",x:700,y:335,accessNode:"center",accessPath:[[680,335]] },
-  { id:"water",label:"Drinking Water",kind:"water",x:815,y:335,accessNode:"center",accessPath:[[680,335],[760,335],[815,335]] },
-  { id:"cafe",label:"Café",kind:"cafe",x:560,y:500,accessNode:"lowerCenter",accessPath:[[620,375],[600,420],[560,500]] },
-  { id:"shop",label:"Museum Shop",kind:"shop",x:900,y:500,accessNode:"lowerEast",accessPath:[[930,375],[930,435],[900,500]] },
-  { id:"main-entrance",label:"Main Entrance",kind:"exit",x:90,y:335,accessNode:"entrance",accessPath:[[90,335]] },
-  { id:"exit-east",label:"East Exit",kind:"exit",x:1125,y:335,accessNode:"farEast",accessPath:[[1100,335],[1125,335]] },
+  { id:"accessible-restroom",label:"Accessible Restroom",kind:"accessible",routeId:"accessible-restroom",x:560,y:335,accessNode:"midwest",accessPath:[[470,335],[535,335],[560,335]] },
+  { id:"stairs",label:"Stairs",kind:"stairs",routeId:"stairs",x:135,y:405,accessNode:"west",accessPath:[[250,335],[220,335],[170,370],[135,405]] },
+  { id:"elevator",label:"Elevator",kind:"elevator",routeId:"elevator",x:1040,y:405,accessNode:"farEast",accessPath:[[1100,335],[1080,370],[1040,405]] },
+  { id:"seating",label:"Seating",kind:"seat",routeId:"seating",x:700,y:335,accessNode:"center",accessPath:[[680,335]] },
+  { id:"water",label:"Drinking Water",kind:"water",routeId:"water",x:815,y:335,accessNode:"center",accessPath:[[680,335],[760,335],[815,335]] },
+  { id:"cafe",label:"Café",kind:"cafe",routeId:"cafe",x:560,y:500,accessNode:"lowerCenter",accessPath:[[620,375],[600,420],[560,500]] },
+  { id:"shop",label:"Museum Shop",kind:"shop",routeId:"shop",x:900,y:500,accessNode:"lowerEast",accessPath:[[930,375],[930,435],[900,500]] },
+  { id:"main-entrance",label:"Main Entrance",kind:"exit",routeId:"entrance",x:90,y:335,accessNode:"entrance",accessPath:[[90,335]] },
+  { id:"exit-east",label:"East Exit",kind:"exit",routeId:"exit-east",x:1125,y:335,accessNode:"farEast",accessPath:[[1100,335],[1125,335]] },
 ];
 const roomLabels = works.map(({ room, roomX, roomY }) => ({ name: room, x: roomX, y: roomY }));
 const places: Place[] = [
@@ -172,9 +172,21 @@ const places: Place[] = [
 ];
 
 export function getExhibitRouteDestination(routeId: string): string | undefined {
-  const artwork = works.find((work) => work.routeId === routeId);
+  if (!routeId) return undefined;
+  const norm = routeId.toLowerCase().trim().replace(/^facility:|^art:/, "");
+  const artwork = works.find((work) => work.routeId.toLowerCase() === norm || work.id.toLowerCase() === norm);
   if (artwork) return `art:${artwork.id}`;
-  const amenity = amenities.find((place) => place.routeId === routeId);
+  const amenity = amenities.find(
+    (place) =>
+      place.id.toLowerCase() === norm ||
+      (place.routeId && place.routeId.toLowerCase() === norm) ||
+      (norm === "coffee" && place.kind === "cafe") ||
+      (norm === "bathroom" && place.kind === "restroom") ||
+      (norm === "toilets" && place.kind === "restroom") ||
+      (norm === "lift" && place.kind === "elevator") ||
+      (norm === "fountain" && place.kind === "water") ||
+      (norm === "giftshop" && place.kind === "shop")
+  );
   return amenity ? `facility:${amenity.id}` : undefined;
 }
 
@@ -363,12 +375,32 @@ export function ExhibitFloorMapView({
 
         {amenities.map((amenity) => {
             const [longitude, latitude] = toCoordinate(amenity.x, amenity.y);
+            const facilityId = `facility:${amenity.id}`;
+            const isSelected = navigationState.destinationId === facilityId;
             return (
               <MapMarker key={amenity.id} longitude={longitude} latitude={latitude} anchor="center">
-                <div role="img" aria-label={amenity.label} title={amenity.label} className="flex items-center gap-1.5 px-1 py-0.5 text-left text-[#172027]">
-                  <AmenityIcon kind={amenity.kind} className="size-[21px] shrink-0 stroke-[2.1px]" />
-                  <span className="whitespace-nowrap bg-[#fafafa]/95 px-0.5 text-[10px] font-medium leading-tight">{amenity.label}</span>
-                </div>
+                <button
+                  type="button"
+                  aria-label={`Get directions to ${amenity.label}`}
+                  title={`Directions to ${amenity.label}`}
+                  onClick={() => {
+                    const nextDest = isSelected ? "" : facilityId;
+                    onNavigationStateChange({
+                      ...navigationState,
+                      routeOriginId: navigationState.currentLocationId || "entrance",
+                      destinationId: nextDest,
+                      currentLocationId: nextDest ? facilityId : (navigationState.currentLocationId || "entrance"),
+                    });
+                  }}
+                  className={`group flex items-center gap-1.5 rounded-full px-1.5 py-0.5 text-left text-[#172027] transition-all cursor-pointer border ${
+                    isSelected
+                      ? "border-[#db4b3f] bg-white ring-2 ring-[#db4b3f]/30 shadow-sm"
+                      : "border-transparent hover:border-[#d6d6d0] hover:bg-white hover:shadow-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#20211f]"
+                  }`}
+                >
+                  <AmenityIcon kind={amenity.kind} className={`size-[21px] shrink-0 stroke-[2.1px] transition-transform ${isSelected ? "text-[#db4b3f]" : "group-hover:scale-110"}`} />
+                  <span className="whitespace-nowrap px-0.5 text-[10px] font-medium leading-tight">{amenity.label}</span>
+                </button>
               </MapMarker>
             );
           })}
