@@ -1906,7 +1906,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                   size={480}
                   isListening={isListening}
                   isMuted={isVoiceReady && isMuted}
-                  isConnecting={voiceConnection === "connecting"}
+                  isConnecting={voiceConnection === "connecting" || voiceConnection === "failed"}
                   isSpeaking={isVoiceReady && agentStatus === "speaking"}
                   audioLevel={audioLevel}
                   shape={0.11}
@@ -1975,7 +1975,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         <ImmersiveArtworkView
           artwork={selectedArtwork}
           onAskAboutSelection={handleAskAboutSelection}
-          avatar={<ArticulateAvatar expressionId={isVoiceReady ? activeExpressionId : "neutral"} size={112} isListening={isListening} isMuted={isVoiceReady && isMuted} isConnecting={voiceConnection === "connecting"} isSpeaking={isVoiceReady && agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
+          avatar={<ArticulateAvatar expressionId={isVoiceReady ? activeExpressionId : "neutral"} size={112} isListening={isListening} isMuted={isVoiceReady && isMuted} isConnecting={voiceConnection === "connecting" || voiceConnection === "failed"} isSpeaking={isVoiceReady && agentStatus === "speaking"} audioLevel={audioLevel} shape={0.11} />}
           controls={callGroup}
           onBackToDetails={() => {
             visualAnalysisRequestRef.current += 1;
