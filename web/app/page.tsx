@@ -317,6 +317,8 @@ export default function Home() {
 
   // Auto-reset timer for the artifact loading skeleton — prevents permanently stuck skeletons.
   const loadingTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  // Debounce timer for gallery pin teasers to ensure only the final selected artwork is introduced
+  const pinTeaserTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   // When start tour is clicked, card collapses for fullscreen Alba explanation, then auto-uncollapses
   const shouldUncollapseAfterSpeechRef = React.useRef<boolean>(false);
   // Tracks hotspot speech lifecycle: only dismisses AFTER Alba completes the tool response explanation
@@ -843,6 +845,10 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
     }
   }, [selectedArtwork, activeArtworkId, syncVisitorUiContext]);
   const handleStartTour = async () => {
+    if (pinTeaserTimerRef.current) {
+      clearTimeout(pinTeaserTimerRef.current);
+      pinTeaserTimerRef.current = null;
+    }
     if (agentRef.current) {
       console.log("[AssemblyAI] Ending previous agent instance before starting new tour...");
       agentRef.current.end();
@@ -1518,6 +1524,10 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
 
   const handleUnexpectedSessionEnd = (reason: VoiceAgentEndReason) => {
     console.log("[AssemblyAI] handleUnexpectedSessionEnd:", reason);
+    if (pinTeaserTimerRef.current) {
+      clearTimeout(pinTeaserTimerRef.current);
+      pinTeaserTimerRef.current = null;
+    }
     if (loadingTimerRef.current) {
       clearTimeout(loadingTimerRef.current);
       loadingTimerRef.current = null;
@@ -1588,6 +1598,10 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
   };
 
   const handleConfirmEndTour = async () => {
+    if (pinTeaserTimerRef.current) {
+      clearTimeout(pinTeaserTimerRef.current);
+      pinTeaserTimerRef.current = null;
+    }
     if (loadingTimerRef.current) {
       clearTimeout(loadingTimerRef.current);
       loadingTimerRef.current = null;
@@ -2003,7 +2017,15 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                         // Use the state machine's ref for an accurate snapshot (not the closure-captured derived value)
                         const artworkState = galleryStatesRef.current[targetArtwork.id] ?? "unexplored";
 
+                        if (pinTeaserTimerRef.current) {
+                          clearTimeout(pinTeaserTimerRef.current);
+                          pinTeaserTimerRef.current = null;
+                        }
+
                         if (isTourActive) {
+                          // Stop playing any active teaser audio immediately when switching pins
+                          audioPlayerRef.current?.flush();
+
                           const promptText = artworkState === "completed"
                             ? `The visitor selected ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} on the gallery map. In one brief, warm sentence, give a teaser about what makes this artwork memorable and invite a question. Do NOT suggest revisiting.`
                             : artworkState === "exploring"
@@ -2011,30 +2033,34 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                             : `The visitor selected ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist} on the floor map. In one friendly, brief sentence, give a warm teaser of why this masterpiece is exciting, and invite them to tap 'Start tour' or ask questions to begin here. Speak with poise and no apologies.`;
                           const safePromptText = `${promptText} CRITICAL: Do NOT call any tools. Do not call show_info, show_map, or any other tool. Speak ONLY the single-sentence spoken teaser.`;
 
-                          if (!isQuietModeRef.current) {
-                            setChatMessages((prev) => [
-                              ...prev,
-                              {
-                                id: `visitor-nav-${Date.now()}`,
-                                role: "visitor",
-                                text: `[Previewing ${targetArtwork.title} on gallery map]`,
-                                isPartial: false,
-                                timestamp: new Date(),
-                              },
-                            ]);
-                            safeReply(safePromptText);
-                          } else {
-                            setChatMessages((prev) => [
-                              ...prev,
-                              {
-                                id: `visitor-nav-${Date.now()}`,
-                                role: "visitor",
-                                text: `[Viewing ${targetArtwork.title} in Quiet Reading Mode]`,
-                                isPartial: false,
-                                timestamp: new Date(),
-                              },
-                            ]);
-                          }
+                          // Debounce teaser dispatch so rapid pin switching only plays Alba's teaser for the final selection
+                          pinTeaserTimerRef.current = setTimeout(() => {
+                            pinTeaserTimerRef.current = null;
+                            if (!isQuietModeRef.current) {
+                              setChatMessages((prev) => [
+                                ...prev,
+                                {
+                                  id: `visitor-nav-${Date.now()}`,
+                                  role: "visitor",
+                                  text: `[Previewing ${targetArtwork.title} on gallery map]`,
+                                  isPartial: false,
+                                  timestamp: new Date(),
+                                },
+                              ]);
+                              safeReply(safePromptText);
+                            } else {
+                              setChatMessages((prev) => [
+                                ...prev,
+                                {
+                                  id: `visitor-nav-${Date.now()}`,
+                                  role: "visitor",
+                                  text: `[Viewing ${targetArtwork.title} in Quiet Reading Mode]`,
+                                  isPartial: false,
+                                  timestamp: new Date(),
+                                },
+                              ]);
+                            }
+                          }, 320);
                         }
                       }}
                       mapRouteId={activeMapRoute}
