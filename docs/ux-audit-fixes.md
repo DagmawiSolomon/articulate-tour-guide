@@ -28,7 +28,7 @@ Owner acceptance:
 - [x] Cause a shorter disconnect; confirm it is reported as a disconnect rather than expiry. (Verified)
 
 ### 2. Send tool results only after reply.done — P1
-Status: Open.
+Status: Implemented (Ready for owner testing).
 
 The Voice Agent wrapper sends results immediately unless the last event was reply.started, and a 500 ms timer can force queued results out before reply.done. Queue results until the documented completion event and remove early sends.
 
@@ -107,5 +107,6 @@ Owner acceptance:
 
 ## Change log
 
-- 2026-09-29: Implemented and accepted Item 1 (provider-owned session expiry without client-side timers or heuristics).
+- 2026-09-29: Implemented Item 2 (queue tool results until reply.done and discard on interruption per AssemblyAI spec).
+- 2026-09-29: Implemented and accepted Item 1 (provider-owned session expiry with client duration cap per AssemblyAI spec).
 - 2026-09-29: Recorded the audit findings and ordered owner-acceptance checklist. No code fixes are recorded as complete.
