@@ -28,6 +28,8 @@ export const metadata: Metadata = {
   description: "Multimodal Voice AI Museum Tour Guide",
 };
 
+import { Footer } from "@/components/layout/footer";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -39,7 +41,19 @@ export default function RootLayout({
       className={cn("light", "h-full", "antialiased", inter.variable, dmSansHeading.variable, afacadFlux.variable, outfit.variable)}
       style={{ colorScheme: "light" }}
     >
-      <body className="h-full overflow-hidden bg-background text-foreground">{children}</body>
+      <body className="h-full overflow-hidden bg-background text-foreground">
+        <div className="fixed inset-0 z-[100] flex flex-col justify-between bg-white md:hidden">
+          <main className="flex-1 flex items-center justify-center p-6 text-center">
+            <p className="max-w-xs font-sans text-sm sm:text-base leading-relaxed text-[#1f1e1b]">
+              Mobile support soon. Currently not very responsive.
+            </p>
+          </main>
+          <Footer />
+        </div>
+        <div className="hidden h-full w-full md:block">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }
