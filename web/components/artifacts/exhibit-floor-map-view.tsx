@@ -332,7 +332,6 @@ export function ExhibitFloorMapView({
     }
   },[mapInstance,navigationState.destinationId,routePoints]);
 
-  const routeDestination=places.find((place)=>place.id===navigationState.destinationId);
 
   return (
     <div className="relative h-full min-h-0 w-full overflow-hidden rounded-2xl bg-[#fafafa]">
@@ -394,11 +393,11 @@ export function ExhibitFloorMapView({
                   }}
                   className={`group flex items-center gap-1.5 rounded-full px-1.5 py-0.5 text-left text-[#172027] transition-all cursor-pointer border ${
                     isSelected
-                      ? "border-[#db4b3f] bg-white ring-2 ring-[#db4b3f]/30 shadow-sm"
+                      ? "border-stone-300 bg-white shadow-xs"
                       : "border-transparent hover:border-[#d6d6d0] hover:bg-white hover:shadow-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#20211f]"
                   }`}
                 >
-                  <AmenityIcon kind={amenity.kind} className={`size-[21px] shrink-0 stroke-[2.1px] transition-transform ${isSelected ? "text-[#db4b3f]" : "group-hover:scale-110"}`} />
+                  <AmenityIcon kind={amenity.kind} className="size-[21px] shrink-0 stroke-[2.1px] transition-transform group-hover:scale-110" />
                   <span className="whitespace-nowrap px-0.5 text-[10px] font-medium leading-tight">{amenity.label}</span>
                 </button>
               </MapMarker>
@@ -406,7 +405,6 @@ export function ExhibitFloorMapView({
           })}
         {routePoints.length>1&&<>
           {(() => {const [longitude,latitude]=toCoordinate(routePoints[0][0],routePoints[0][1]);return <MapMarker longitude={longitude} latitude={latitude} anchor="center"><span aria-label="Route starts here" className="block size-4 rounded-full border-[3px] border-white bg-[#2458a6] shadow-md"/></MapMarker>;})()}
-          {routeDestination&&(()=>{const [longitude,latitude]=toCoordinate(routeDestination.x,routeDestination.y);return <MapMarker longitude={longitude} latitude={latitude} anchor="center"><span aria-label="Destination" className="block size-4 rounded-full border-[3px] border-white bg-[#db4b3f] shadow-md"/></MapMarker>;})()}
         </>}
 
         <MapControls show3D={false} showCompass={false} className="right-4 bottom-4" />
