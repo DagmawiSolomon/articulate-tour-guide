@@ -45,6 +45,45 @@ const WING_ROUTE_MAP: Record<string, string> = {
   "wing-concept": "concept",
 };
 
+function resolveRequestedWing(text: string): (typeof TURNING_POINTS_WINGS)[number] | undefined {
+  const normalizedText = text.toLowerCase().replace(/\s+/g, " ");
+  const numberWords: Record<number, string[]> = {
+    1: ["1", "one", "first"],
+    2: ["2", "two", "second"],
+    3: ["3", "three", "third"],
+    4: ["4", "four", "fourth"],
+    5: ["5", "five", "fifth"],
+  };
+  const hasVisitIntent = (prefix: string) => [
+    /\b(?:i want to|i'd like to|i would like to|i wanna|i'd love to|i would love to|can you|could you|would you|can we|could we|should we|we should|let's)\s+(?:start|visit|explore|tour)\s*$/i,
+    /\b(?:give|plan)\s+me\s+(?:a\s+)?tour\s+of\s*$/i,
+    /\b(?:i want|i'd like|i would like)\s+(?:a\s+)?tour\s+of\s*$/i,
+    /\b(?:can|could)\s+i\s+(?:get|have)\s+(?:a\s+)?tour\s+of\s*$/i,
+    /\b(?:take|bring)\s+me\s+to\s*$/i,
+    /\bgo\s+to\s*$/i,
+    /(?:^|[.!?]\s*)(?:please\s+)?(?:start|visit|explore|tour)\s*$/i,
+  ].some((pattern) => pattern.test(prefix));
+
+  const candidates: Array<{ wing: (typeof TURNING_POINTS_WINGS)[number]; index: number }> = [];
+  for (const wing of TURNING_POINTS_WINGS) {
+    const forms = numberWords[wing.number].join("|");
+    const numberMatch = new RegExp(
+      `\\b(?:wing\\s+(?:(?:number|no\\.?)\\s*)?(?:${forms})|(?:${forms})\\s+wing)\\b`,
+      "i",
+    ).exec(normalizedText);
+    if (numberMatch?.index !== undefined) candidates.push({ wing, index: numberMatch.index });
+
+    const titleVariants = [wing.title.toLowerCase(), wing.title.toLowerCase().replace(/^the\s+/, "")];
+    for (const title of new Set(titleVariants)) {
+      const titleIndex = normalizedText.indexOf(title);
+      if (titleIndex >= 0) candidates.push({ wing, index: titleIndex });
+    }
+  }
+
+  candidates.sort((left, right) => left.index - right.index);
+  return candidates.find(({ index }) => hasVisitIntent(normalizedText.slice(0, index)))?.wing;
+}
+
 function resolveArtworkId(idOrQuery?: string): string | null {
   if (!idOrQuery) return "masaccio-holy-trinity";
   if (TURNING_POINTS_ARTWORKS[idOrQuery]) return idOrQuery;
@@ -640,7 +679,7 @@ export default function Home() {
     };
   }, []);
 
-  const handleStartTourWithArtwork = React.useCallback((overrideArtworkId?: string) => {
+  const handleStartTourWithArtwork = React.useCallback((overrideArtworkId?: string, requestedWingTitle?: string) => {
     // Keep the current behavior for visitor-triggered endings; tool calls use their continuation.
     hasUserInteractedRef.current = true;
     muteWarningSentRef.current = true;
@@ -698,7 +737,7 @@ export default function Home() {
 
     // 4. Safe reply — always flushes in-flight audio before triggering a new agent reply
     safeReply(
-      `The visitor confirmed: "Let's go with this first!" to start their tour with ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist}. Welcome them enthusiastically to this opening stop of the exhibition and give a vivid, engaging 2-sentence curatorial breakdown of why this masterpiece is our first revolutionary milestone. Speak with poise and dive straight into the artwork without any apologies. CRITICAL: Do NOT call show_info, show_map, or any tools. Speak ONLY the spoken breakdown.`
+      `The visitor requested ${requestedWingTitle ? `a tour of ${requestedWingTitle}, beginning with` : "this artwork as their tour stop:"} ${targetArtwork.title} (${targetArtwork.year}) by ${targetArtwork.artist}. Begin the tour directly at this selected stop and give a vivid, engaging 2-sentence curatorial introduction to the artwork. Do not call it the first or opening stop unless the visitor specifically asked for the first stop. Speak with poise and dive straight into the artwork without any apologies. CRITICAL: Do NOT call show_info, show_map, or any tools. Speak ONLY the spoken introduction.`
     );
   }, [selectedArtwork, activeArtworkId, safeReply, startExploring, syncVisitorUiContext]);
 
@@ -1023,6 +1062,11 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
         const endGalleryRegex = /\b(((i'?m|we'?re)\s+(done|finished)(\s+with\s+(this|the)(\s+(gallery|painting|artwork|stop|one))?)?)|(done\s+with\s+(this|the)(\s+(gallery|painting|artwork|stop|one))?)|(all\s+done\s+here)|((end|finish|wrap\s*up)\s+(this|the)\s+(gallery|tour(\s+stop)?|artwork))|(end\s+gallery\s+tour)|(end\s+tour\s+of\s+(this|the)\s+gallery)|(next\s+gallery)|(what('?s|\s+is)\s+next(\s+gallery)?)|(where\s+(to\s+next|next|should\s+we\s+go\s+next))|(what\s+should\s+we\s+(tour|see|visit)\s+next)|(what\s+do\s+we\s+tour\s+next)|(let'?s\s+move\s+on)|(ready\s+to\s+move\s+on)|(ready\s+for\s+the\s+next\s+(one|gallery|artwork|stop))|(let'?s\s+(see|check\s+out|visit|go\s+to)\s+the\s+next\s+(one|gallery|artwork|stop))|(move\s+on\s+to\s+the\s+next))\b/i;
 
         const lowerText = text.toLowerCase();
+        const requestedWing = resolveRequestedWing(text);
+        if (requestedWing) {
+          handleStartTourWithArtwork(requestedWing.anchorArtworkId, requestedWing.title);
+          return;
+        }
         let matchedArtId: string | undefined = undefined;
         if (lowerText.includes("fountain") || lowerText.includes("duchamp") || lowerText.includes("urinal")) {
           matchedArtId = "duchamp-fountain";
