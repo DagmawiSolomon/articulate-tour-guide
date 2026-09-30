@@ -2273,26 +2273,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           )}
         </main>
         {/* Footer with brand logo and clean fallback view switcher positioned outside the main stage view */}
-        <footer className="relative z-[4] mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-xs text-secondary-text select-none sm:px-6">
-          <div>
-            Made by{" "}
-            <span className="font-semibold text-foreground tracking-[-0.1px]">
-              Dagmawi Solomon
-            </span>
-          </div>
-
-          <div>
-            Powered by{" "}
-            <a
-              href="https://www.assemblyai.com"
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium text-zinc-600 hover:text-black underline underline-offset-3 decoration-current/80 transition-colors"
-            >
-              assemblyai
-            </a>
-          </div>
-        </footer>
+        <Footer />
       </div>
 
       {isTourActive && activeArtifact === "artwork-view" && (
