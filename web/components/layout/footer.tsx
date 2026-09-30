@@ -2,18 +2,25 @@
 
 import * as React from "react";
 
-export function Footer() {
+import { cn } from "@/lib/utils";
+
+export function Footer({ className }: { className?: string }) {
   return (
-    <footer className="w-full max-w-7xl 2xl:max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between text-xs text-secondary-text z-30 select-none">
-      {/* Left: Made by with brand name in small letter */}
+    <footer
+      className={cn(
+        "relative z-[4] mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-xs text-secondary-text select-none sm:px-6",
+        className
+      )}
+    >
+      {/* Left: Made by with author name */}
       <div>
         Made by{" "}
         <span className="font-semibold text-foreground tracking-[-0.1px]">
-          articulate
+          Dagmawi Solomon
         </span>
       </div>
 
-      {/* Right: Powered by with brand name in small letter, readable gray link color, always underlined */}
+      {/* Right: Powered by with brand name */}
       <div>
         Powered by{" "}
         <a
