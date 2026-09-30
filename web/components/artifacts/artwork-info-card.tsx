@@ -5,7 +5,7 @@ import Image from "next/image";
 import { ARTWORK_DATA } from "@/lib/demo-tour-data";
 import { Separator } from "@/components/ui/separator";
 import { HugeIcon } from "@/components/ui/hugeicon";
-import { ArrowLeft02Icon, ArrowRight02Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft02Icon } from "@hugeicons/core-free-icons";
 import { playTactileTap } from "@/lib/sounds";
 
 export interface ArtworkMetadataField {
@@ -153,11 +153,10 @@ export function ArtworkInfoCard({
                           playTactileTap();
                           onStartTour();
                         }}
-                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-5 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
+                        className="inline-flex min-h-9 items-center justify-center rounded-full px-5 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
                         style={{ background: "var(--ink)", color: "#fff" }}
                       >
                         Explore this artwork
-                        <HugeIcon icon={ArrowRight02Icon} size={13} color="#ffffff" className="text-white" strokeWidth={2.2} />
                       </button>
                     )}
                     {onReturnToMap && (
@@ -178,6 +177,19 @@ export function ArtworkInfoCard({
 
                 {state === "exploring" && (
                   <>
+                    {onEndGalleryTour && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playTactileTap();
+                          onEndGalleryTour();
+                        }}
+                        className="inline-flex min-h-9 items-center justify-center rounded-full px-5 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
+                        style={{ background: "var(--ink)", color: "#fff" }}
+                      >
+                        End gallery tour
+                      </button>
+                    )}
                     {onViewArtworkFullscreen && (
                       <button
                         type="button"
@@ -197,19 +209,6 @@ export function ArtworkInfoCard({
                         Full screen view
                       </button>
                     )}
-                    {onEndGalleryTour && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          playTactileTap();
-                          onEndGalleryTour();
-                        }}
-                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-5 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
-                        style={{ background: "var(--ink)", color: "#fff" }}
-                      >
-                        End gallery tour
-                      </button>
-                    )}
                   </>
                 )}
 
@@ -222,11 +221,10 @@ export function ArtworkInfoCard({
                           playTactileTap();
                           onStartTour();
                         }}
-                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-5 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
+                        className="inline-flex min-h-9 items-center justify-center rounded-full px-5 py-2 text-xs font-medium text-white cursor-pointer transition-all active:scale-[0.96] border-0 shadow-xs"
                         style={{ background: "var(--ink)", color: "#fff" }}
                       >
                         Revisit
-                        <HugeIcon icon={ArrowRight02Icon} size={13} color="#ffffff" className="text-white" strokeWidth={2.2} />
                       </button>
                     )}
                     {onReturnToMap && (
