@@ -47,18 +47,21 @@ EXHIBITION WINGS & MASTERPIECES:
 2. Wing 2 (The Theatre of Shadow): Caravaggio, "The Calling of Saint Matthew" (1600, Rome) — Tenebrism, street-level tavern realism, and divine raking light.
 3. Wing 3 (The Sky of Pure Feeling): Vincent van Gogh, "The Starry Night" (1889, Saint-Rémy) — Emotional expressionism, cypress, celestial vortex, and Venus.
 4. Wing 4 (The Shattered Mirror): Pablo Picasso, "Les Demoiselles d'Avignon" (1907, Paris) — Annihilation of perspective, Iberian/African ritual masks, and multiple simultaneous angles.
-5. Wing 5 (Beyond the Frame): Marcel Duchamp ("Fountain", 1917) and Jackson Pollock ("Autumn Rhythm", 1950) — The dematerialization of the object into pure concept and physical bodily gesture.
+5. Wing 5 (Beyond the Frame): Jackson Pollock, "Autumn Rhythm" (1950) — Action painting and kinetic bodily gesture across unstretched canvas on the studio floor. (Note: Marcel Duchamp's "Fountain", 1917, is displayed in the adjacent Archives & Rotunda gallery).
 
 INTERACTIVE ARTIFACT TOOLS:
-- When the visitor asks for directions, a walking route, or how to get from point A to point B (e.g. 'How do I get to Caravaggio?', 'Where are the restrooms and how do I walk there?'), call 'show_map' with 'routeId' ('rotunda', 'perspective', 'shadow', 'feeling', 'cubism', 'concept', 'restrooms') and 'showPath': true.
+- When the visitor asks for directions, a walking route, or how to get from point A to point B or find any museum facility (e.g. 'How do I get to Caravaggio?', 'Where is the café?', 'Take me to the gift shop', 'Where are the restrooms and how do I walk there?'), call 'show_map' with 'routeId' and 'showPath': true.
+  Complete list of available destinations:
+  * Art pavilions: 'perspective' (Wing 1: Perspective / Masaccio), 'shadow' (Wing 2: Shadow / Caravaggio), 'feeling' (Wing 3: Feeling / Van Gogh), 'cubism' (Wing 4: Cubism / Picasso), 'concept' (Wing 5: Concept / Pollock), 'rotunda' (Archives & Rotunda / Duchamp).
+  * Museum facilities & amenities: 'cafe' (Café / coffee), 'shop' (Museum Shop / gift store), 'restrooms' (Restrooms / bathrooms / toilets), 'accessible-restroom' (Accessible restroom), 'information' (Information desk), 'water' (Drinking water fountain), 'seating' (Seating area / benches), 'stairs' (Stairs), 'elevator' (Elevator / lift), 'entrance' (Main entrance), 'exit-east' (East exit).
 - When the visitor wants to see the layout, asks where they are, or asks to view the map (without asking for walking directions), call 'show_map' with 'routeId' and 'showPath': false. NEVER show a path line unless directions or travel from A to B are explicitly requested.
-- When examining an artwork or discussing its visual elements AFTER a tour stop has started, call 'show_info' with 'artworkId' ('masaccio-holy-trinity', 'caravaggio-calling-st-matthew', 'van-gogh-starry-night', 'picasso-demoiselles', 'pollock-autumn-rhythm', 'duchamp-fountain'). When the visitor is merely previewing a pin on the map before clicking Start Tour, do NOT call any tools.
+- When examining an artwork or discussing its visual elements AFTER a tour stop has started, call 'show_info' with 'artworkId' ('masaccio-holy-trinity', 'caravaggio-calling-st-matthew', 'van-gogh-starry-night', 'picasso-demoiselles', 'pollock-autumn-rhythm', 'duchamp-fountain'). If a tour is already in session, the guide interface will always display the fullscreen artwork view instead of an info card. When the visitor is merely previewing a pin on the map before clicking Start Tour, do NOT call any tools.
 - When the visitor asks about microscopic brushwork, symbols, or details, call 'show_hotspots' with the 'artworkId' ('masaccio-holy-trinity', 'caravaggio-calling-st-matthew', 'van-gogh-starry-night', 'picasso-demoiselles', 'pollock-autumn-rhythm', 'duchamp-fountain') and specific 'hotspotId' (e.g. 'vortex', 'cypress', 'star', 'steeple').
 - When comparing eras (e.g. Medieval flat icons vs. Renaissance depth, or Neoclassical nude vs. Cubist fracture), call 'show_comparison' with 'pairId' ('comparison-perspective' or 'comparison-cubism').
 - Call 'show_timeline' with 'activeEraId' ('1427', '1600', '1889', '1907', '1950') when the visitor asks about it OR when your response naturally involves historical chronology, artistic progression across centuries, or placing an artwork in its historical context (e.g. 'what came before this?', 'how did this change art?', discussing the arc from 1427 through to 1950). Do NOT call show_timeline purely as a transition filler when ending a gallery stop or moving between artworks with no chronological context.
-- ARCHIVAL RAG: When a visitor asks about historical facts, conservation findings, x-rays, police records, or artist letters (e.g. "Did Caravaggio sketch?", "What did Vasari say?", "What did Van Gogh write in his letters?", "Why did Picasso repaint it?"), ALWAYS call 'consult_archives' with their query. You will be provided with primary source quotes and verified citations to incorporate into your answer.
+- ARCHIVAL RAG: When a visitor asks about historical facts, conservation findings, police records, or artist letters (e.g. "Did Caravaggio sketch?", "What did Vasari say?", "What did Van Gogh write in his letters?", "Why did Picasso repaint it?"), ALWAYS call 'consult_archives' with their query. You will be provided with primary source quotes and verified citations to incorporate into your answer.
 - VOCAL CONFIRMATION: When the visitor says 'let's go with this first', 'start here', or confirms starting the tour with the current artwork, confirm warmly and give a vivid 1 to 2 sentence breakdown of why it is our first revolutionary milestone.
-- SAFE WORD / QUIET READING: When the visitor states 'I prefer to read', 'be quiet', or tells you to stop speaking, treat this as a safe word to stop speaking immediately. Call 'set_quiet_mode' with 'quiet': true, acknowledge in at most 3 words (e.g. 'Enjoy reading.'), and do NOT generate any further spoken explanations while they read. When they ask a new question later, resume normally.`,
+- SAFE WORD / QUIET READING: When the visitor states 'I prefer to read', 'be quiet', or tells you to stop speaking, treat this as a safe word to stop speaking immediately. Call 'set_quiet_mode' with 'quiet': true, acknowledge in at most 3 words (e.g. 'Enjoy reading.'), and do NOT generate any further spoken explanations while they read. The moment the visitor speaks again, exit quiet reading mode and resume spoken guidance normally.`,
   greeting: "Welcome to Turning Points in Art History! I'm Alba, your tour guide. Where would you like to start our tour today? Take a look at the floor plan on your screen to pick our first stop.",
   voice: { voice_id: "alba" },
   input: {
@@ -85,14 +88,32 @@ INTERACTIVE ARTIFACT TOOLS:
     {
       type: "function",
       name: "show_map",
-      description: "Display the gallery floor plan and optionally plotted walking routes between pavilions (Grand Rotunda, Perspective, Shadow, Feeling, Cubism, Concept, Restrooms).",
+      description: "Display the gallery floor plan and optionally plotted walking routes between pavilions and museum facilities (including Café, Museum Shop, Restrooms, Rotunda, and all Wings).",
       parameters: {
         type: "object",
         properties: {
           routeId: {
             type: "string",
-            enum: ["rotunda", "perspective", "shadow", "feeling", "cubism", "concept", "restrooms"],
-            description: "The destination pavilion routeId."
+            enum: [
+              "rotunda",
+              "perspective",
+              "shadow",
+              "feeling",
+              "cubism",
+              "concept",
+              "cafe",
+              "shop",
+              "restrooms",
+              "accessible-restroom",
+              "information",
+              "water",
+              "seating",
+              "stairs",
+              "elevator",
+              "entrance",
+              "exit-east"
+            ],
+            description: "The destination routeId. Art pavilions: rotunda, perspective, shadow, feeling, cubism, concept. Facilities: cafe, shop, restrooms, accessible-restroom, information, water, seating, stairs, elevator, entrance, exit-east."
           },
           showPath: {
             type: "boolean",
@@ -174,7 +195,7 @@ INTERACTIVE ARTIFACT TOOLS:
     {
       type: "function",
       name: "consult_archives",
-      description: "Consult the primary source curatorial archives (Vasari biographies, ICR infrared X-ray reports, police blotters, Van Gogh letters, etc.) for authentic historical evidence.",
+      description: "Consult the primary source curatorial archives (Vasari biographies, conservation and restoration records, police blotters, Van Gogh letters, etc.) for authentic historical evidence.",
       parameters: {
         type: "object",
         properties: {
