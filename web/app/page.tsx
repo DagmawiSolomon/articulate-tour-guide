@@ -966,7 +966,8 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             audioPlayerRef.current?.flush();
             setAgentStatus("listening");
           }
-        } else if (matchesVoicePhrases(text, RESUME_MODE_PHRASES)) {
+        } else {
+          // Resume from safe word the moment the visitor speaks to Alba
           if (isQuietModeRef.current) {
             isQuietModeRef.current = false;
             setIsQuietMode(false);
@@ -1043,7 +1044,8 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             audioPlayerRef.current?.flush();
             setAgentStatus("listening");
           }
-        } else if (matchesVoicePhrases(text, RESUME_MODE_PHRASES)) {
+        } else {
+          // Resume from safe word the moment the visitor speaks to Alba
           if (isQuietModeRef.current) {
             isQuietModeRef.current = false;
             setIsQuietMode(false);
@@ -1358,10 +1360,11 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             return;
           }
           const artwork = TURNING_POINTS_ARTWORKS[artId];
-          // If the visitor is viewing the artwork in fullscreen, don't kick them out back to card info.
+          const isTourInSession = isTourActive;
+          // If a tour is in session, always route to fullscreen artwork view instead of an info card.
           const artworkPatch: TourPageStatePatch = {
             activeArtworkId: artwork.id,
-            activeArtifact: (prev) => (prev === "artwork-view" ? prev : "info"),
+            activeArtifact: isTourInSession ? "artwork-view" : ((prev) => (prev === "artwork-view" ? prev : "info")),
             selectedArtwork: {
               id: artwork.id,
               title: artwork.title,
@@ -1397,7 +1400,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
               timestamp: new Date(),
             },
           ]);
-          pendingArtifactToolResultsRef.current.push({ callId: tool.callId, replyId: tool.replyId, result: { success: true, artwork: artwork.title }, visibleArtifacts: ["info", "artwork-view"] });
+          pendingArtifactToolResultsRef.current.push({ callId: tool.callId, replyId: tool.replyId, result: { success: true, artwork: artwork.title }, visibleArtifacts: isTourInSession ? ["artwork-view"] : ["info", "artwork-view"] });
         } else if (tool.name === "set_quiet_mode") {
           const quiet = Boolean(tool.arguments.quiet);
           isQuietModeRef.current = quiet;
