@@ -54,13 +54,13 @@ export const CURATORIAL_ARCHIVAL_CORPUS: ArchivalRecord[] = [
   },
   {
     id: "icr-rome-1998-caravaggio-irr",
-    title: "Infrared Reflectography & Radiography Examination of the Contarelli Chapel",
+    title: "Technical & Material Examination of the Contarelli Chapel",
     authorOrInstitution: "Istituto Centrale del Restauro (ICR), Rome",
     year: "1998",
     category: "conservation_technical",
     archiveRef: "ICR-Archivio Restauri Fasc. RM-1998-MATT-03",
-    keywords: ["Caravaggio", "underdrawing", "sketches", "infrared reflectography", "incisions", "alla prima", "Saint Matthew"],
-    excerpt: "IRR examination reveals a total absence of preparatory graphic underdrawings (disegno). Caravaggio scored wet ground layers directly with the wooden butt of his brush (incisioni) to establish key anatomical landmarks, working alla prima from live models.",
+    keywords: ["Caravaggio", "underdrawing", "sketches", "incisions", "alla prima", "Saint Matthew"],
+    excerpt: "Technical examination reveals a total absence of preparatory graphic underdrawings (disegno). Caravaggio scored wet ground layers directly with the wooden butt of his brush (incisioni) to establish key anatomical landmarks, working alla prima from live models.",
     finding: "Scientific proof that Caravaggio never produced preparatory sketches on paper or canvas for St. Matthew, defying Renaissance academic convention.",
     wingId: "wing-shadow",
     targetArtworkId: "caravaggio-calling-st-matthew"
@@ -164,7 +164,7 @@ export const CURATORIAL_ARCHIVAL_CORPUS: ArchivalRecord[] = [
     category: "conservation_technical",
     archiveRef: "MoMA Conservation File 333.1939, Vol. 4",
     keywords: ["Picasso", "pigment analysis", "overpainting", "medical student", "sailor", "pentimenti"],
-    excerpt: "X-ray radiography demonstrates that the composition originally featured two male figures: a medical student holding a skull on the left and a sailor seated in the center. Picasso scraped away both narrative figures in May 1907 to eliminate storytelling in favor of direct aggressive confrontation.",
+    excerpt: "Technical conservation examination demonstrates that the composition originally featured two male figures: a medical student holding a skull on the left and a sailor seated in the center. Picasso scraped away both narrative figures in May 1907 to eliminate storytelling in favor of direct aggressive confrontation.",
     finding: "Proves Picasso's conscious decision to delete narrative moral allegory, transforming the painting into a purely spatial assault on the viewer.",
     wingId: "wing-cubism",
     targetArtworkId: "picasso-demoiselles"
