@@ -20,6 +20,8 @@
 
 export type AgentToolCall = {
   callId: string;
+  /** Reply whose function call produced this tool request. */
+  replyId?: string;
   name: string;
   arguments: Record<string, unknown>;
 };
@@ -61,7 +63,7 @@ export type VoiceAgent = {
   /** Stop sending audio (keep WS open) */
   stopAudio: () => void;
   /** Send the result of a tool call back to the agent */
-  sendToolResult: (callId: string, result: unknown, isError?: boolean) => void;
+  sendToolResult: (callId: string, result: unknown, isError?: boolean, replyId?: string) => void;
   /** Add non-spoken context to the conversation without requesting a reply */
   sendContext: (content: string) => void;
   /** Ask the agent to generate a reply right now, optionally with one-shot instructions */
@@ -108,13 +110,37 @@ export async function createVoiceAgent(
   let manuallyEnded = false;
   let mediaRecorder: MediaRecorder | null = null;
   let lastEvent: string | null = null;
-  const pendingTools: Array<{ callId: string; result: unknown; isError: boolean }> = [];
+  let lastCompletedReplyId: string | null = null;
+  let lastCompletedReplyInterrupted = false;
+  let activeReplyId: string | null = null;
+  let awaitingReplyStart = false;
+  let queuedReplyInstructions: string | null = null;
+  let queuedReplySpeechEpoch = 0;
+  let userSpeechEpoch = 0;
+  let userSpeechActive = false;
+  const pendingTools: Array<{ callId: string; replyId?: string; result: unknown; isError: boolean }> = [];
+  const pendingToolCallReplies = new Map<string, string>();
 
-  // Helper: flush pending tool results strictly when reply.done is the latest event received
-  function flushPendingTools() {
-    if (lastEvent !== "reply.done" || pendingTools.length === 0) return;
+  function hasOutstandingToolCalls(replyId: string | null) {
+    return Boolean(replyId && Array.from(pendingToolCallReplies.values()).includes(replyId));
+  }
+
+  function sendReplyNow(instructions?: string) {
     if (!isConnected || ws.readyState !== WebSocket.OPEN) return;
-    for (const t of pendingTools) {
+    awaitingReplyStart = true;
+    ws.send(JSON.stringify({
+      type: "reply.create",
+      ...(instructions ? { instructions } : {}),
+    }));
+  }
+
+  // Flush only results belonging to the exact completed reply.
+  function flushPendingTools() {
+    if (lastEvent !== "reply.done" || lastCompletedReplyInterrupted || pendingTools.length === 0) return;
+    if (!isConnected || ws.readyState !== WebSocket.OPEN) return;
+    const readyTools = pendingTools.filter((tool) => !tool.replyId || tool.replyId === lastCompletedReplyId);
+    pendingTools.length = 0;
+    for (const t of readyTools) {
       ws.send(
         JSON.stringify({
           type: "tool.result",
@@ -123,6 +149,8 @@ export async function createVoiceAgent(
           is_error: t.isError,
         })
       );
+      pendingToolCallReplies.delete(t.callId);
+      awaitingReplyStart = true;
     }
     pendingTools.length = 0;
   }
@@ -148,6 +176,15 @@ export async function createVoiceAgent(
     }
 
     const type = msg.type as string;
+    // A newer event means a delayed tool result can no longer be sent for the
+    // previously completed reply. Retire any calls that were still waiting.
+    if (lastEvent === "reply.done" && type !== "reply.done" && lastCompletedReplyId) {
+      for (const [callId, replyId] of pendingToolCallReplies) {
+        if (replyId === lastCompletedReplyId) pendingToolCallReplies.delete(callId);
+      }
+    }
+    // Tool results are valid only while reply.done is the latest server event.
+    lastEvent = type;
 
     switch (type) {
       case "session.ready": {
@@ -202,6 +239,9 @@ export async function createVoiceAgent(
 
       case "transcript.user": {
         console.log("[Agent] User transcript final:", msg.text);
+        // A newer spoken request supersedes a queued UI teaser or navigation reply.
+        queuedReplyInstructions = null;
+        userSpeechActive = false;
         callbacks.onTranscriptFinal?.((msg.text as string) || "");
         break;
       }
@@ -221,7 +261,8 @@ export async function createVoiceAgent(
       }
 
       case "reply.started": {
-        lastEvent = "reply.started";
+        activeReplyId = typeof msg.reply_id === "string" ? msg.reply_id : null;
+        awaitingReplyStart = false;
         callbacks.onAgentSpeakingStart?.();
         break;
       }
@@ -237,23 +278,45 @@ export async function createVoiceAgent(
       }
 
       case "reply.done": {
-        lastEvent = "reply.done";
+        const completedReplyId = typeof msg.reply_id === "string" ? msg.reply_id : activeReplyId;
         const interrupted = (msg.status as string) === "interrupted";
+        lastCompletedReplyId = completedReplyId;
+        lastCompletedReplyInterrupted = interrupted;
+        if (!completedReplyId || activeReplyId === completedReplyId) activeReplyId = null;
+        awaitingReplyStart = false;
         if (interrupted) {
-          // Barge-in: agent moved on; discard pending tool results per official guidelines
-          pendingTools.length = 0;
+          // Barge-in: discard results belonging to the reply that was interrupted.
+          for (let i = pendingTools.length - 1; i >= 0; i--) {
+            if (!completedReplyId || pendingTools[i].replyId === completedReplyId) pendingTools.splice(i, 1);
+          }
+          for (const [callId, replyId] of pendingToolCallReplies) {
+            if (!completedReplyId || replyId === completedReplyId) pendingToolCallReplies.delete(callId);
+          }
         } else {
           flushPendingTools();
         }
         callbacks.onAgentSpeakingEnd?.(interrupted);
+        if (interrupted && queuedReplyInstructions !== null && queuedReplySpeechEpoch < userSpeechEpoch) {
+          // A UI request made before the visitor started speaking is stale. Keep a
+          // newer UI action queued if it came from handling that spoken turn.
+          queuedReplyInstructions = null;
+        }
+        if (!interrupted && queuedReplyInstructions !== null && !awaitingReplyStart && !hasOutstandingToolCalls(completedReplyId)) {
+          const nextInstructions = queuedReplyInstructions;
+          queuedReplyInstructions = null;
+          sendReplyNow(nextInstructions || undefined);
+        }
         break;
       }
 
       case "tool.call": {
         console.log("[Agent] Tool call received:", msg);
         // arguments (not args) per April 2026 rename
+        const callId = msg.call_id as string;
+        if (activeReplyId) pendingToolCallReplies.set(callId, activeReplyId);
         const tool: AgentToolCall = {
-          callId: msg.call_id as string,
+          callId,
+          replyId: activeReplyId ?? undefined,
           name: msg.name as string,
           arguments: (msg.arguments ?? {}) as Record<string, unknown>,
         };
@@ -262,7 +325,9 @@ export async function createVoiceAgent(
       }
 
       case "input.speech.started": {
-        lastEvent = "input.speech.started";
+        userSpeechEpoch += 1;
+        userSpeechActive = true;
+        queuedReplyInstructions = null;
         callbacks.onUserSpeakingStart?.();
         break;
       }
@@ -502,23 +567,33 @@ registerProcessor('pcm-processor', PcmProcessor);
     }
   }
 
-  function sendToolResult(callId: string, result: unknown, isError = false) {
-    pendingTools.push({ callId, result, isError });
+  function sendToolResult(callId: string, result: unknown, isError = false, replyId?: string) {
+    const originatingReplyId = replyId ?? pendingToolCallReplies.get(callId);
+    if (originatingReplyId) {
+      if (lastCompletedReplyId === originatingReplyId) {
+        if (lastEvent !== "reply.done" || lastCompletedReplyInterrupted) return;
+      } else if (activeReplyId !== originatingReplyId) {
+        return;
+      }
+    }
+    pendingTools.push({ callId, replyId: originatingReplyId, result, isError });
     flushPendingTools();
   }
 
   function triggerReply(instructions?: string) {
-    if (isConnected && ws.readyState === WebSocket.OPEN) {
-      console.log("[Agent] triggerReply sending reply.create. Length:", instructions?.length);
-      ws.send(
-        JSON.stringify({
-          type: "reply.create",
-          ...(instructions ? { instructions } : {}),
-        })
-      );
-    } else {
+    if (!isConnected || ws.readyState !== WebSocket.OPEN) {
       console.warn("[Agent] triggerReply ignored - WS not ready. isConnected:", isConnected, "readyState:", ws?.readyState);
+      return;
     }
+    if (activeReplyId || awaitingReplyStart || userSpeechActive) {
+      // Keep only the newest UI request and serialize it behind the active reply
+      // or the visitor’s current utterance.
+      queuedReplyInstructions = instructions ?? "";
+      queuedReplySpeechEpoch = userSpeechEpoch;
+      return;
+    }
+    console.log("[Agent] triggerReply sending reply.create. Length:", instructions?.length);
+    sendReplyNow(instructions);
   }
 
   function sendContext(content: string) {
@@ -533,6 +608,8 @@ registerProcessor('pcm-processor', PcmProcessor);
       maxDurationTimer = null;
     }
     pendingTools.length = 0;
+    pendingToolCallReplies.clear();
+    queuedReplyInstructions = null;
     stopAudio();
     ws.onmessage = null;
     ws.onerror = null;
