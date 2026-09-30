@@ -17,10 +17,13 @@ export function createAudioPlayer() {
   const activeSources = new Set<AudioBufferSourceNode>();
   let outputAnalyser: AnalyserNode | null = null;
   let outputDataArray = new Uint8Array(512);
+  let gainNode: GainNode | null = null;
+  let isDucked = false;
   let completionTimer: NodeJS.Timeout | null = null;
   let currentGeneration = 0;
 
   const SAMPLE_RATE = 24000;
+  const JITTER_LEAD_SECONDS = 0.04; // 40ms lead for hardware scheduling and network jitter smoothing
 
   function getContext(): AudioContext {
     if (!ctx || ctx.state === "closed") {
@@ -32,15 +35,21 @@ export function createAudioPlayer() {
       outputAnalyser.fftSize = 512;
       outputAnalyser.smoothingTimeConstant = 0.2;
       outputDataArray = new Uint8Array(outputAnalyser.fftSize);
-      outputAnalyser.connect(ctx.destination);
+
+      gainNode = ctx.createGain();
+      gainNode.gain.setValueAtTime(1.0, ctx.currentTime);
+
+      outputAnalyser.connect(gainNode);
+      gainNode.connect(ctx.destination);
       nextStartTime = 0;
+      isDucked = false;
     }
     return ctx;
   }
 
   /**
    * Decode a base64-encoded PCM chunk and schedule it for playback.
-   * Chunks are queued so they play back-to-back without gaps.
+   * Chunks are queued with a small jitter lead so they play back-to-back without gaps or pops.
    */
   function playChunk(base64: string) {
     if (!base64 || typeof base64 !== "string") {
@@ -102,17 +111,39 @@ export function createAudioPlayer() {
 
     const source = audioCtx.createBufferSource();
     source.buffer = buffer;
-    source.connect(outputAnalyser ?? audioCtx.destination);
+    source.connect(outputAnalyser ?? (gainNode ?? audioCtx.destination));
 
     activeSources.add(source);
     source.onended = () => {
       activeSources.delete(source);
+      try {
+        source.disconnect();
+      } catch {}
     };
 
     const now = audioCtx.currentTime;
-    const startAt = Math.max(now, nextStartTime);
+    // Jitter lead scheduling:
+    // If the queue has drained or this is the first chunk, schedule slightly in the future
+    // so the browser audio hardware thread has time to initialize without underruns,
+    // and network packet arrival jitter won't introduce micro-silence gaps.
+    const startAt = nextStartTime > now ? nextStartTime : now + JITTER_LEAD_SECONDS;
     source.start(startAt);
     nextStartTime = startAt + buffer.duration;
+  }
+
+  /**
+   * Smoothly duck playback volume (e.g. while visitor is speaking) or restore to full volume.
+   */
+  function setDucked(ducked: boolean) {
+    if (!ctx || ctx.state === "closed" || !gainNode || isDucked === ducked) return;
+    isDucked = ducked;
+    const targetGain = ducked ? 0.2 : 1.0;
+    const rampTime = ducked ? 0.04 : 0.08;
+    try {
+      gainNode.gain.cancelScheduledValues(ctx.currentTime);
+      gainNode.gain.setValueAtTime(gainNode.gain.value, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(targetGain, ctx.currentTime + rampTime);
+    } catch {}
   }
 
   /**
@@ -151,6 +182,14 @@ export function createAudioPlayer() {
       completionTimer = null;
     }
 
+    if (gainNode && ctx && ctx.state !== "closed") {
+      try {
+        gainNode.gain.cancelScheduledValues(ctx.currentTime);
+        gainNode.gain.setValueAtTime(1.0, ctx.currentTime);
+        isDucked = false;
+      } catch {}
+    }
+
     for (const source of activeSources) {
       try {
         source.stop();
@@ -172,6 +211,8 @@ export function createAudioPlayer() {
       } catch {}
       ctx = null;
       outputAnalyser = null;
+      gainNode = null;
+      isDucked = false;
     }
   }
 
@@ -200,6 +241,7 @@ export function createAudioPlayer() {
   return {
     playChunk,
     getOutputAudioLevel,
+    setDucked,
     flush,
     close,
     resume,
