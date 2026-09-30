@@ -399,6 +399,7 @@ export default function Home() {
   const bargeIn = React.useCallback(() => {
     ignoreAudioUntilNextReplyRef.current = true;
     audioPlayerRef.current?.flush();
+    audioPlayerRef.current?.setDucked(false);
     setAgentStatus("listening");
     shouldUncollapseAfterSpeechRef.current = false;
     if (hotspotDismissTimerRef.current) {
@@ -949,9 +950,18 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
           }
         }
         quietUntilNextPromptRef.current = false;
-        bargeIn();
+        // Duck Alba's speech smoothly so the visitor can speak clearly without microphone echo bleed.
+        // We do NOT flush or barge-in here — treating every VAD start as an interruption breaks audio on
+        // breathing, ambient noise, or backchannels ("uh-huh"). The server's semantic turn detector
+        // will signal a true interruption via reply.done(interrupted), which flushes audio instantly.
+        audioPlayerRef.current?.setDucked(true);
         hasUserInteractedRef.current = true;
         greetingPhaseRef.current = "done";
+      },
+      onUserSpeakingStop: () => {
+        if (voiceConnectionRef.current !== "connected") return;
+        visitorSpeechActiveRef.current = false;
+        audioPlayerRef.current?.setDucked(false);
       },
       onTranscriptPartial: (text) => {
         if (voiceConnectionRef.current !== "connected" || !text) return;
@@ -1002,6 +1012,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       onTranscriptFinal: (text) => {
         if (voiceConnectionRef.current !== "connected" || !text?.trim()) return;
         visitorSpeechActiveRef.current = false;
+        audioPlayerRef.current?.setDucked(false);
         hasUserInteractedRef.current = true;
         greetingPhaseRef.current = "done";
 
@@ -1122,9 +1133,10 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
       onAgentSpeakingStart: () => {
         if (voiceConnectionRef.current !== "connected") return;
         replyUiContextVersionRef.current = uiContextVersionRef.current;
+        ignoreAudioUntilNextReplyRef.current = false;
+        audioPlayerRef.current?.setDucked(false);
         if (quietUntilNextPromptRef.current) return;
         if (visualHandoffStatusRef.current === "queued") updateVisualHandoffStatus("speaking");
-        ignoreAudioUntilNextReplyRef.current = false;
         setAgentStatus("speaking");
         if (hotspotSpeechPhaseRef.current === "pending_reply") {
           hotspotSpeechPhaseRef.current = "explaining";
@@ -1144,6 +1156,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
             setActiveHotspotSelection(null);
           }
         } else {
+          audioPlayerRef.current?.setDucked(false);
           if (hotspotSpeechPhaseRef.current === "explaining") {
             hotspotSpeechPhaseRef.current = "draining";
           }
@@ -2023,9 +2036,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                           if (visitorSpeechActiveRef.current) {
                             agentRef.current?.sendContext("The visitor selected " + targetArtwork.title + " (" + targetArtwork.year + ") by " + targetArtwork.artist + " while speaking. Keep this artwork as context for their current question.");
                           } else {
-                            // Stop current local speech immediately. Queue the next
-                            // reply until the active server reply has finished.
-                            quietUntilNextPromptRef.current = true;
+                            // Stop current local speech immediately for rapid gallery switching
                             bargeIn();
                           }
                         }
@@ -2078,7 +2089,6 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                           // Debounce teaser dispatch so rapid pin switching only plays Alba's teaser for the final selection
                           pinTeaserTimerRef.current = setTimeout(() => {
                             pinTeaserTimerRef.current = null;
-                            agentRef.current?.sendContext("The visitor selected " + targetArtwork.title + " (" + targetArtwork.year + ") by " + targetArtwork.artist + " on the floor map. This is the current gallery selection; do not initiate a separate reply.");
                             if (!isQuietModeRef.current) {
                               setChatMessages((prev) => [
                                 ...prev,
@@ -2103,7 +2113,7 @@ Explain in 2-3 warm, conversational sentences what they circled and its artistic
                                 },
                               ]);
                             }
-                          }, 320);
+                          }, 120);
                         }
                       }}
                       mapRouteId={activeMapRoute}
