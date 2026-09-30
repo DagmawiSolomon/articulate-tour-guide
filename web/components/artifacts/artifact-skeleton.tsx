@@ -82,10 +82,11 @@ function InfoSkeleton({ showTourActions = true }: { showTourActions?: boolean })
               </div>
             </div>
           ) : (
-            <div className="mt-4 pt-3.5 border-t border-border/40">
+            <div className="mt-5">
+              <Shimmer className="h-px w-full rounded-none mb-4" />
               <div className="flex items-center gap-2.5">
-                <Shimmer className="h-9 w-28 rounded-full" />
-                <Shimmer className="h-9 w-28 rounded-full" />
+                <Shimmer className="h-9 w-32 rounded-full" />
+                <Shimmer className="h-9 w-32 rounded-full" />
               </div>
             </div>
           )}
