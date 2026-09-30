@@ -39,6 +39,8 @@ export type VoiceAgentCallbacks = {
   onAgentSpeakingEnd?: (interrupted: boolean) => void;
   /** Visitor started speaking (input.speech.started) */
   onUserSpeakingStart?: () => void;
+  /** Visitor stopped speaking (input.speech.stopped) */
+  onUserSpeakingStop?: () => void;
   /** Raw base64 PCM audio chunk from the agent */
   onAgentAudio?: (base64: string) => void;
   /** Agent wants to call a tool — respond with sendToolResult() */
@@ -332,6 +334,12 @@ export async function createVoiceAgent(
         break;
       }
 
+      case "input.speech.stopped": {
+        userSpeechActive = false;
+        callbacks.onUserSpeakingStop?.();
+        break;
+      }
+
       case "session.ended": {
         isConnected = false;
         if (maxDurationTimer) {
@@ -585,14 +593,14 @@ registerProcessor('pcm-processor', PcmProcessor);
       console.warn("[Agent] triggerReply ignored - WS not ready. isConnected:", isConnected, "readyState:", ws?.readyState);
       return;
     }
-    if (activeReplyId || awaitingReplyStart || userSpeechActive) {
-      // Keep only the newest UI request and serialize it behind the active reply
-      // or the visitor’s current utterance.
+    if (userSpeechActive) {
+      // If the visitor is actively speaking into the mic, queue the UI instruction
+      // so the agent responds after the visitor finishes.
       queuedReplyInstructions = instructions ?? "";
       queuedReplySpeechEpoch = userSpeechEpoch;
       return;
     }
-    console.log("[Agent] triggerReply sending reply.create. Length:", instructions?.length);
+    console.log("[Agent] triggerReply sending reply.create immediately. Length:", instructions?.length);
     sendReplyNow(instructions);
   }
 
